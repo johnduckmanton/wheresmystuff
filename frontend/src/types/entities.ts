@@ -1,0 +1,82 @@
+// Entity type definitions based on the design document
+
+export interface Thing {
+  id: string; // UUID
+  inventoryId: string; // UUID reference to inventory
+  name: string; // Required
+  description?: string;
+  serialNumber?: string;
+  locationId?: string; // UUID reference
+  roomId?: string; // UUID reference
+  ownerId?: string; // UUID reference (Person)
+  categoryId?: string; // UUID reference
+  notes?: string;
+  datePurchased?: string; // ISO date
+  purchasedFrom?: string;
+  warrantyDetails?: string;
+  disposalDate?: string; // ISO date
+  nextReviewDate?: string; // ISO date
+  photos?: string[]; // Array of S3 keys
+  dateAdded: string; // ISO date, auto-generated
+}
+
+export interface Location {
+  id: string; // UUID
+  inventoryId: string; // UUID reference to inventory
+  name: string; // Required
+  addressLine1?: string;
+  addressLine2?: string;
+  town?: string;
+  county?: string;
+  postcode?: string;
+  country?: string; // ISO country code
+  description?: string;
+  dateAdded: string; // ISO date, auto-generated
+}
+
+export interface Room {
+  id: string; // UUID
+  inventoryId: string; // UUID reference to inventory
+  name: string; // Required
+  locationId: string; // UUID reference, required
+  floor?: string; // Predefined or custom
+  dateAdded: string; // ISO date, auto-generated
+}
+
+export interface Category {
+  id: string; // UUID
+  name: string; // Required
+  description?: string;
+  dateAdded: string; // ISO date, auto-generated
+}
+
+export interface Person {
+  id: string; // UUID
+  name: string; // Required
+  description?: string;
+  dateAdded: string; // ISO date, auto-generated
+}
+
+export interface Inventory {
+  id: string; // UUID
+  name: string; // Required
+  description?: string;
+  ownerId: string; // UUID of owner
+  createdAt: string; // ISO 8601 timestamp
+  updatedAt: string; // ISO 8601 timestamp
+}
+
+export interface InventoryMembership {
+  inventoryId: string; // UUID of inventory
+  userId: string; // UUID of member user
+  role: string; // "owner" or "member"
+  addedAt: string; // ISO 8601 timestamp
+  addedBy: string; // User ID who added this member
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}

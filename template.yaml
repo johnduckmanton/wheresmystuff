@@ -1,0 +1,691 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Home Inventory Management System - Serverless Infrastructure
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 512
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref InventoryTable
+        BUCKET_NAME: !Ref PhotoBucket
+        USER_POOL_ID: !Ref UserPool
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  
+  CustomDomainName:
+    Type: String
+    Default: ''
+    Description: Custom domain name for CloudFront (optional, leave empty to skip custom domain)
+  
+  ACMCertificateArn:
+    Type: String
+    Default: ''
+    Description: ARN of ACM certificate for custom domain (must be in us-east-1 region, optional)
+  
+  EnableWAF:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable AWS WAF protection
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, '']]
+  HasACMCertificate: !Not [!Equals [!Ref ACMCertificateArn, '']]
+  EnableWAFCondition: !Equals [!Ref EnableWAF, 'true']
+
+Resources:
+  # AWS WAF WebACL for CloudFront
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: EnableWAFCondition
+    Properties:
+      Name: !Sub home-inventory-waf-${Environment}
+      Scope: CLOUDFRONT
+      Description: WAF WebACL for Home Inventory System with managed rules
+      DefaultAction:
+        Allow: {}
+      Rules:
+        # AWS Managed Rules - Core Rule Set (CRS)
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
+        
+        # AWS Managed Rules - Known Bad Inputs
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSetMetric
+      
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub home-inventory-waf-${Environment}
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub Home Inventory System - ${Environment}
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        
+        # Custom domain configuration (optional)
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref CustomDomainName]
+          - !Ref AWS::NoValue
+        
+        ViewerCertificate: !If
+          - HasACMCertificate
+          - AcmCertificateArn: !Ref ACMCertificateArn
+            MinimumProtocolVersion: TLSv1.2_2021
+            SslSupportMethod: sni-only
+          - CloudFrontDefaultCertificate: true
+            MinimumProtocolVersion: TLSv1.2_2021
+        
+        # Associate with WAF WebACL
+        WebACLId: !If
+          - EnableWAFCondition
+          - !GetAtt WAFWebACL.Arn
+          - !Ref AWS::NoValue
+        
+        # Default cache behavior for API
+        DefaultCacheBehavior:
+          TargetOriginId: ApiGatewayOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          
+          # Cache policy for API (no caching for dynamic content)
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
+          
+          # Origin request policy to forward all headers, query strings, and cookies
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewer managed policy
+          
+          # Response headers policy for security headers
+          ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
+        
+        # Origin configuration for API Gateway
+        Origins:
+          - Id: ApiGatewayOrigin
+            DomainName: !Sub ${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+            OriginPath: !Sub /${Environment}
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        
+        # Custom error responses
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 403
+            ResponsePagePath: /error.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /error.html
+            ErrorCachingMinTTL: 300
+        
+        # Logging configuration (optional, can be enabled later)
+        Logging:
+          Bucket: !GetAtt CloudFrontLogsBucket.DomainName
+          Prefix: cloudfront-logs/
+          IncludeCookies: false
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Response Headers Policy for Security Headers
+  CloudFrontSecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub home-inventory-security-headers-${Environment}
+        Comment: Security headers for Home Inventory System
+        
+        SecurityHeadersConfig:
+          # Strict-Transport-Security
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          
+          # X-Content-Type-Options
+          ContentTypeOptions:
+            Override: true
+          
+          # X-Frame-Options
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          
+          # X-XSS-Protection
+          XSSProtection:
+            ModeBlock: true
+            Protection: true
+            Override: true
+          
+          # Referrer-Policy
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          
+          # Content-Security-Policy
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; frame-ancestors 'none';"
+            Override: true
+
+  # S3 Bucket for CloudFront Logs
+  CloudFrontLogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub home-inventory-cloudfront-logs-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub home-inventory-${Environment}
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub home-inventory-client-${Environment}
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  # DynamoDB Table - Single Table Design
+  InventoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub home-inventory-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for Photos
+  PhotoBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub home-inventory-photos-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !If
+                - HasCustomDomain
+                - !Sub https://${CustomDomainName}
+                - !Sub https://${CloudFrontDistribution.DomainName}
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # API Gateway HTTP API
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - !If
+            - HasCustomDomain
+            - !Sub https://${CustomDomainName}
+            - !Sub https://${CloudFrontDistribution.DomainName}
+        AllowHeaders:
+          - 'Content-Type'
+          - 'Authorization'
+          - 'X-Amz-Date'
+          - 'X-Api-Key'
+          - 'X-Amz-Security-Token'
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        MaxAge: 600
+        AllowCredentials: true
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              Audience:
+                - !Ref UserPoolClient
+              Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+
+  # Lambda Functions will be added in subsequent tasks
+  # Placeholder for Things Lambda
+  ThingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/things.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+      Events:
+        ListThings:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateThing:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateThing:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteThing:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Placeholder for Locations Lambda
+  LocationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/locations.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+      Events:
+        ListLocations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /locations
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateLocation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /locations
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateLocation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /locations/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteLocation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /locations/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Placeholder for Rooms Lambda
+  RoomsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/rooms.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+      Events:
+        ListRooms:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /rooms
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateRoom:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /rooms
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateRoom:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /rooms/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteRoom:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /rooms/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Placeholder for Categories Lambda
+  CategoriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/categories.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+      Events:
+        ListCategories:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateCategory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateCategory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteCategory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /categories/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Placeholder for People Lambda
+  PeopleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/people.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+      Events:
+        ListPeople:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /people
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreatePerson:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /people
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdatePerson:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /people/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeletePerson:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /people/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Placeholder for Photo Lambda
+  PhotoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/photo.handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref PhotoBucket
+      Events:
+        GenerateUploadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /upload
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateDownloadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /photo/{key}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub ${AWS::StackName}-ApiUrl
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolId
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub ${AWS::StackName}-UserPoolClientId
+
+  BucketName:
+    Description: S3 Bucket Name for Photos
+    Value: !Ref PhotoBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketName
+
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref InventoryTable
+    Export:
+      Name: !Sub ${AWS::StackName}-TableName
+
+  Region:
+    Description: AWS Region
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub ${AWS::StackName}-Region
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDistributionId
+
+  CloudFrontDomainName:
+    Description: CloudFront Distribution Domain Name
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDomainName
+
+  CloudFrontUrl:
+    Description: CloudFront Distribution URL (use this as your application URL)
+    Value: !If
+      - HasCustomDomain
+      - !Sub https://${CustomDomainName}
+      - !Sub https://${CloudFrontDistribution.DomainName}
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontUrl
+
+  WAFWebACLId:
+    Condition: EnableWAFCondition
+    Description: AWS WAF WebACL ID
+    Value: !GetAtt WAFWebACL.Id
+    Export:
+      Name: !Sub ${AWS::StackName}-WAFWebACLId
+
+  WAFWebACLArn:
+    Condition: EnableWAFCondition
+    Description: AWS WAF WebACL ARN
+    Value: !GetAtt WAFWebACL.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-WAFWebACLArn
