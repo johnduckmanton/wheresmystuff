@@ -7,8 +7,12 @@ import type {
   Room,
   Category,
   Person,
+  Inventory,
+  InventoryMembership,
   ApiResponse,
 } from '../types';
+import { isDevelopmentMode, logDevelopmentInfo } from '../config/development';
+import MockApiClient from './mockApi';
 
 // Callback for handling authentication errors
 let authErrorCallback: (() => void) | null = null;
@@ -132,8 +136,9 @@ class ApiClient {
   }
 
   // Things API
-  async getThings(): Promise<Thing[]> {
-    return this.get<Thing[]>('/things');
+  async getThings(inventoryId?: string): Promise<Thing[]> {
+    const url = inventoryId ? `/things?inventoryId=${inventoryId}` : '/things';
+    return this.get<Thing[]>(url);
   }
 
   async getThing(id: string): Promise<Thing> {
@@ -148,13 +153,15 @@ class ApiClient {
     return this.put<Thing>(`/things/${id}`, data);
   }
 
-  async deleteThing(id: string): Promise<void> {
-    return this.delete<void>(`/things/${id}`);
+  async deleteThing(id: string, inventoryId?: string): Promise<void> {
+    const url = inventoryId ? `/things/${id}?inventoryId=${inventoryId}` : `/things/${id}`;
+    return this.delete<void>(url);
   }
 
   // Locations API
-  async getLocations(): Promise<Location[]> {
-    return this.get<Location[]>('/locations');
+  async getLocations(inventoryId?: string): Promise<Location[]> {
+    const url = inventoryId ? `/locations?inventoryId=${inventoryId}` : '/locations';
+    return this.get<Location[]>(url);
   }
 
   async getLocation(id: string): Promise<Location> {
@@ -169,13 +176,18 @@ class ApiClient {
     return this.put<Location>(`/locations/${id}`, data);
   }
 
-  async deleteLocation(id: string): Promise<void> {
-    return this.delete<void>(`/locations/${id}`);
+  async deleteLocation(id: string, inventoryId?: string): Promise<void> {
+    const url = inventoryId ? `/locations/${id}?inventoryId=${inventoryId}` : `/locations/${id}`;
+    return this.delete<void>(url);
   }
 
   // Rooms API
-  async getRooms(locationId?: string): Promise<Room[]> {
-    const url = locationId ? `/rooms?locationId=${locationId}` : '/rooms';
+  async getRooms(locationId?: string, inventoryId?: string): Promise<Room[]> {
+    let url = '/rooms';
+    const params = [];
+    if (locationId) params.push(`locationId=${locationId}`);
+    if (inventoryId) params.push(`inventoryId=${inventoryId}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
     return this.get<Room[]>(url);
   }
 
@@ -191,13 +203,15 @@ class ApiClient {
     return this.put<Room>(`/rooms/${id}`, data);
   }
 
-  async deleteRoom(id: string): Promise<void> {
-    return this.delete<void>(`/rooms/${id}`);
+  async deleteRoom(id: string, inventoryId?: string): Promise<void> {
+    const url = inventoryId ? `/rooms/${id}?inventoryId=${inventoryId}` : `/rooms/${id}`;
+    return this.delete<void>(url);
   }
 
   // Categories API
-  async getCategories(): Promise<Category[]> {
-    return this.get<Category[]>('/categories');
+  async getCategories(inventoryId?: string): Promise<Category[]> {
+    const url = inventoryId ? `/categories?inventoryId=${inventoryId}` : '/categories';
+    return this.get<Category[]>(url);
   }
 
   async getCategory(id: string): Promise<Category> {
@@ -212,13 +226,15 @@ class ApiClient {
     return this.put<Category>(`/categories/${id}`, data);
   }
 
-  async deleteCategory(id: string): Promise<void> {
-    return this.delete<void>(`/categories/${id}`);
+  async deleteCategory(id: string, inventoryId?: string): Promise<void> {
+    const url = inventoryId ? `/categories/${id}?inventoryId=${inventoryId}` : `/categories/${id}`;
+    return this.delete<void>(url);
   }
 
   // People API
-  async getPeople(): Promise<Person[]> {
-    return this.get<Person[]>('/people');
+  async getPeople(inventoryId?: string): Promise<Person[]> {
+    const url = inventoryId ? `/people?inventoryId=${inventoryId}` : '/people';
+    return this.get<Person[]>(url);
   }
 
   async getPerson(id: string): Promise<Person> {
@@ -233,8 +249,43 @@ class ApiClient {
     return this.put<Person>(`/people/${id}`, data);
   }
 
-  async deletePerson(id: string): Promise<void> {
-    return this.delete<void>(`/people/${id}`);
+  async deletePerson(id: string, inventoryId?: string): Promise<void> {
+    const url = inventoryId ? `/people/${id}?inventoryId=${inventoryId}` : `/people/${id}`;
+    return this.delete<void>(url);
+  }
+
+  // Inventory API
+  async getInventories(): Promise<Inventory[]> {
+    return this.get<Inventory[]>('/inventories');
+  }
+
+  async getInventory(id: string): Promise<Inventory> {
+    return this.get<Inventory>(`/inventories/${id}`);
+  }
+
+  async createInventory(data: Omit<Inventory, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'>): Promise<Inventory> {
+    return this.post<Inventory>('/inventories', data);
+  }
+
+  async updateInventory(id: string, data: Partial<Omit<Inventory, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'>>): Promise<Inventory> {
+    return this.put<Inventory>(`/inventories/${id}`, data);
+  }
+
+  async deleteInventory(id: string): Promise<void> {
+    return this.delete<void>(`/inventories/${id}`);
+  }
+
+  // Inventory Membership API
+  async getInventoryMembers(inventoryId: string): Promise<InventoryMembership[]> {
+    return this.get<InventoryMembership[]>(`/inventories/${inventoryId}/members`);
+  }
+
+  async addInventoryMember(inventoryId: string, userId: string): Promise<InventoryMembership> {
+    return this.post<InventoryMembership>(`/inventories/${inventoryId}/members`, { userId });
+  }
+
+  async removeInventoryMember(inventoryId: string, userId: string): Promise<void> {
+    return this.delete<void>(`/inventories/${inventoryId}/members/${userId}`);
   }
 
   // Photo API
@@ -247,6 +298,14 @@ class ApiClient {
   }
 }
 
-// Export singleton instance
-const apiClient = new ApiClient();
+// Export singleton instance - use mock in development mode
+let apiClient: ApiClient | MockApiClient;
+
+if (isDevelopmentMode) {
+  logDevelopmentInfo();
+  apiClient = new MockApiClient();
+} else {
+  apiClient = new ApiClient();
+}
+
 export default apiClient;

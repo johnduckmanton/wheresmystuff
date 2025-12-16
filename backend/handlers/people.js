@@ -1,7 +1,11 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput } = require('../utils/validation');
-const { success, error } = require('../utils/response');
-const { authenticate } = require('../middleware/auth');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { personSchema } = require('../utils/schemas');
+const { success, error, secureError, getAllHeaders } = require('../utils/response');
+const { createValidationErrorResponse } = require('../utils/errorHandler');
+const { authenticate, authorizeInventoryAccess } = require('../middleware/auth');
+const { withRateLimit } = require('../middleware/rateLimit');
+const { logDataAccess } = require('../services/auditLogService');
 
 const ENTITY_TYPE = 'PEOPLE';
 
@@ -9,7 +13,20 @@ const ENTITY_TYPE = 'PEOPLE';
  * Lambda handler for People CRUD operations
  * Handles GET, POST, PUT, DELETE requests for People
  */
-exports.handler = async (event) => {
+const peopleHandler = async (event) => {
+  const context = {
+    endpoint: '/people',
+    method: event.requestContext.http.method,
+    userId: event.user?.userId,
+    ipAddress: event.requestContext.http.sourceIp,
+    userAgent: event.headers?.['user-agent'],
+    requestData: {
+      pathParameters: event.pathParameters,
+      queryStringParameters: event.queryStringParameters,
+      body: event.body ? JSON.parse(event.body) : null
+    }
+  };
+
   try {
     // Authenticate the request
     await authenticate(event);
@@ -20,38 +37,54 @@ exports.handler = async (event) => {
     // Route to appropriate handler based on HTTP method
     switch (httpMethod) {
       case 'GET':
-        return await handleGet();
+        return await handleGet(event);
       case 'POST':
         return await handleCreate(event);
       case 'PUT':
         return await handleUpdate(event, pathParameters.id);
       case 'DELETE':
-        return await handleDelete(pathParameters.id);
+        return await handleDelete(event, pathParameters.id);
       default:
         return error('Method not allowed', 405);
     }
   } catch (err) {
-    console.error('Error in People handler:', err);
-    
-    // Handle authentication errors
-    if (err.statusCode === 401) {
-      return error(err.message || 'Unauthorized', 401);
-    }
-    
-    // Handle other errors
-    return error(err.message || 'Internal server error', err.statusCode || 500);
+    // Use secure error handling
+    return secureError(err, context);
   }
 };
 
 /**
- * Handle GET request - List all people
+ * Handle GET request - List all people for an inventory
  */
-async function handleGet() {
+async function handleGet(event) {
   try {
-    const people = await listEntities(ENTITY_TYPE);
+    // Extract inventory ID from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
+    const people = await listEntities(ENTITY_TYPE, inventoryId);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'read', 'people', 'list', inventoryId);
+    
     return success(people);
   } catch (err) {
     console.error('Error listing people:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to retrieve people');
   }
 }
@@ -64,21 +97,31 @@ async function handleCreate(event) {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, personSchema);
     if (!validation.valid) {
       return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
     }
     
+    const sanitizedData = validation.data;
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
+    
     // Create the person
     const person = await createEntity(ENTITY_TYPE, sanitizedData);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'create', 'people', person.id, sanitizedData.inventoryId);
     
     return success(person, 201);
   } catch (err) {
     console.error('Error creating person:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to create person');
   }
 }
@@ -96,17 +139,22 @@ async function handleUpdate(event, id) {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, personSchema);
     if (!validation.valid) {
       return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
     }
     
+    const sanitizedData = validation.data;
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
+    
     // Update the person
-    const person = await updateEntity(ENTITY_TYPE, id, sanitizedData);
+    const person = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'update', 'people', id, sanitizedData.inventoryId);
     
     return success(person);
   } catch (err) {
@@ -116,6 +164,10 @@ async function handleUpdate(event, id) {
       return error('Person not found', 404);
     }
     
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to update person');
   }
 }
@@ -123,25 +175,50 @@ async function handleUpdate(event, id) {
 /**
  * Handle DELETE request - Delete a person
  */
-async function handleDelete(id) {
+async function handleDelete(event, id) {
   try {
     // Validate ID parameter
     if (!id || !validateUUID(id)) {
       return error('Invalid person ID', 400);
     }
     
+    // Get inventoryId from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
     // Check if person exists before deleting
-    const person = await getEntity(ENTITY_TYPE, id);
+    const person = await getEntity(ENTITY_TYPE, inventoryId, id);
     if (!person) {
       return error('Person not found', 404);
     }
     
     // Delete the person
-    await deleteEntity(ENTITY_TYPE, id);
+    await deleteEntity(ENTITY_TYPE, inventoryId, id);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'delete', 'people', id, inventoryId);
     
     return success({ message: 'Person deleted successfully' });
   } catch (err) {
     console.error('Error deleting person:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to delete person');
   }
 }
+
+// Export the handler wrapped with rate limiting
+exports.handler = withRateLimit(peopleHandler);

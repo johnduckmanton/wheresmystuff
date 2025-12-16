@@ -1,0 +1,78 @@
+version: 2
+updates:
+  # Backend dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@security-team"
+    assignees:
+      - "@security-team"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    # Only update security vulnerabilities automatically
+    allow:
+      - dependency-type: "all"
+    # Group security updates together
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security-update"
+
+  # Frontend dependencies  
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "@security-team"
+    assignees:
+      - "@security-team"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    # Only update security vulnerabilities automatically
+    allow:
+      - dependency-type: "all"
+    # Group security updates together
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security-update"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "@security-team"
+    assignees:
+      - "@security-team"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "security"

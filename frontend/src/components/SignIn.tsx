@@ -80,7 +80,7 @@ export default function SignIn() {
           Sign In
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Home Inventory System
+          Where's My Stuff!
         </Typography>
 
         {error && (

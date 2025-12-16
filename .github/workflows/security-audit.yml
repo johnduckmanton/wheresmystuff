@@ -1,0 +1,86 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        directory: [backend, frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ${{ matrix.directory }}
+      run: npm ci
+    
+    - name: Run security audit
+      working-directory: ${{ matrix.directory }}
+      run: |
+        echo "Running npm audit for ${{ matrix.directory }}"
+        npm run security:check
+    
+    - name: Check for high/critical vulnerabilities
+      working-directory: ${{ matrix.directory }}
+      run: |
+        # This will fail the build if high or critical vulnerabilities are found
+        AUDIT_RESULT=$(npm audit --audit-level=high --json 2>/dev/null || echo '{"vulnerabilities":{}}')
+        HIGH_VULN=$(echo $AUDIT_RESULT | jq '.metadata.vulnerabilities.high // 0')
+        CRITICAL_VULN=$(echo $AUDIT_RESULT | jq '.metadata.vulnerabilities.critical // 0')
+        
+        echo "High vulnerabilities: $HIGH_VULN"
+        echo "Critical vulnerabilities: $CRITICAL_VULN"
+        
+        if [ "$HIGH_VULN" -gt 0 ] || [ "$CRITICAL_VULN" -gt 0 ]; then
+          echo "❌ High or critical vulnerabilities found!"
+          echo "Run 'npm audit' for details and 'npm audit fix' to attempt automatic fixes."
+          exit 1
+        else
+          echo "✅ No high or critical vulnerabilities found."
+        fi
+    
+    - name: Generate audit report
+      if: always()
+      working-directory: ${{ matrix.directory }}
+      run: |
+        npm audit --json > audit-report-${{ matrix.directory }}.json || true
+        npm audit > audit-report-${{ matrix.directory }}.txt || true
+    
+    - name: Upload audit reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: audit-reports-${{ matrix.directory }}
+        path: |
+          ${{ matrix.directory }}/audit-report-${{ matrix.directory }}.json
+          ${{ matrix.directory }}/audit-report-${{ matrix.directory }}.txt
+        retention-days: 30
+
+  notify-security-issues:
+    needs: security-audit
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Notify on security issues
+      run: |
+        echo "Security vulnerabilities detected! Check the audit reports for details."
+        echo "This job failed because high or critical vulnerabilities were found."

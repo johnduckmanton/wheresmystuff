@@ -20,6 +20,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CategoryIcon from '@mui/icons-material/Category';
 import PeopleIcon from '@mui/icons-material/People';
+import InventorySelector from './InventorySelector';
 
 const DRAWER_WIDTH = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
@@ -111,6 +112,11 @@ export default function Sidebar() {
         </IconButton>
       </Box>
       <Divider />
+      
+      {/* Inventory Selector */}
+      <InventorySelector collapsed={!isMobile && !open} />
+      <Divider />
+      
       <List role="navigation" aria-label="main navigation">
         {navigationItems.map((item) => {
           const isActive = location.pathname === item.path;

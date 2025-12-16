@@ -18,6 +18,8 @@ import {
 import type { Thing, Location, Room, Category, Person } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
+import InventoryFormSelector from './InventoryFormSelector';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
 export interface ThingFormDialogProps {
@@ -44,6 +46,7 @@ export default function ThingFormDialog({
   const [formData, setFormData] = useState<Partial<Thing>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or thing changes
   useEffect(() => {
@@ -52,11 +55,12 @@ export default function ThingFormDialog({
         // Editing existing thing
         setFormData({ ...thing });
       } else {
-        // Creating new thing
+        // Creating new thing - auto-select current inventory
         setFormData({
           name: '',
           description: '',
           serialNumber: '',
+          inventoryId: currentInventory?.id || '',
           locationId: '',
           roomId: '',
           ownerId: '',
@@ -98,6 +102,11 @@ export default function ThingFormDialog({
     // Name is required
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
+    }
+
+    // Inventory is required
+    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
+      newErrors.inventoryId = 'Inventory is required';
     }
 
     setErrors(newErrors);
@@ -223,6 +232,13 @@ export default function ThingFormDialog({
             inputProps={{
               'aria-label': 'Thing description',
             }}
+          />
+
+          <InventoryFormSelector
+            value={formData.inventoryId || ''}
+            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+            error={errors.inventoryId}
+            required
           />
 
           <TextField

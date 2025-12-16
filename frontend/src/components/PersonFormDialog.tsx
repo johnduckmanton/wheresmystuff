@@ -9,6 +9,8 @@ import {
   Box,
 } from '@mui/material';
 import type { Person } from '../types';
+import InventoryFormSelector from './InventoryFormSelector';
+import { useInventory } from '../contexts/InventoryContext';
 
 export interface PersonFormDialogProps {
   open: boolean;
@@ -25,6 +27,7 @@ export default function PersonFormDialog({
 }: PersonFormDialogProps) {
   const [formData, setFormData] = useState<Partial<Person>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or person changes
   useEffect(() => {
@@ -33,10 +36,16 @@ export default function PersonFormDialog({
         // Editing existing person
         setFormData({ ...person });
       } else {
-        // Creating new person
+        // Creating new person - auto-select current inventory
         setFormData({
           name: '',
+          inventoryId: currentInventory?.id || '',
           description: '',
+          email: '',
+          phone: '',
+          relationship: '',
+          notes: '',
+          photos: [],
         });
       }
       setErrors({});
@@ -67,6 +76,11 @@ export default function PersonFormDialog({
     // Name is required
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
+    }
+
+    // Inventory is required
+    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
+      newErrors.inventoryId = 'Inventory is required';
     }
 
     setErrors(newErrors);
@@ -121,15 +135,67 @@ export default function PersonFormDialog({
             }}
           />
 
+          <InventoryFormSelector
+            value={formData.inventoryId || ''}
+            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+            error={errors.inventoryId}
+            required
+          />
+
           <TextField
             fullWidth
             label="Description"
             value={formData.description || ''}
             onChange={(e) => handleFieldChange('description', e.target.value)}
             multiline
-            rows={3}
+            rows={2}
             inputProps={{
               'aria-label': 'Person description',
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            value={formData.email || ''}
+            onChange={(e) => handleFieldChange('email', e.target.value)}
+            inputProps={{
+              'aria-label': 'Email address',
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Phone"
+            type="tel"
+            value={formData.phone || ''}
+            onChange={(e) => handleFieldChange('phone', e.target.value)}
+            inputProps={{
+              'aria-label': 'Phone number',
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Relationship"
+            value={formData.relationship || ''}
+            onChange={(e) => handleFieldChange('relationship', e.target.value)}
+            placeholder="e.g., Family member, Friend, Roommate"
+            inputProps={{
+              'aria-label': 'Relationship to you',
+            }}
+          />
+
+          <TextField
+            fullWidth
+            label="Notes"
+            value={formData.notes || ''}
+            onChange={(e) => handleFieldChange('notes', e.target.value)}
+            multiline
+            rows={3}
+            inputProps={{
+              'aria-label': 'Additional notes',
             }}
           />
         </Box>

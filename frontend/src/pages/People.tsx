@@ -1,4 +1,4 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import EntityTable from '../components/EntityTable';
@@ -6,19 +6,24 @@ import type { EntityTableColumn } from '../components/EntityTable';
 import PersonFormDialog from '../components/PersonFormDialog';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Person } from '../types';
 
 const columns: EntityTableColumn[] = [
   { field: 'name', headerName: 'Name', flex: 1 },
-  { field: 'description', headerName: 'Description', flex: 2 },
+  { field: 'relationship', headerName: 'Relationship', flex: 1 },
+  { field: 'email', headerName: 'Email', flex: 1 },
+  { field: 'phone', headerName: 'Phone', flex: 1 },
   { field: 'dateAdded', headerName: 'Date Added', width: 120 },
 ];
 
 interface PersonTableRow {
   id: string;
   name: string;
-  description: string;
+  relationship: string;
+  email: string;
+  phone: string;
   dateAdded: string;
 }
 
@@ -35,17 +40,26 @@ export default function People() {
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
+  const { currentInventory } = useInventory();
 
-  // Fetch all data on mount
+  // Fetch all data when inventory changes
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentInventory) {
+      loadData();
+    }
+  }, [currentInventory]);
 
   const loadData = async () => {
+    if (!currentInventory) {
+      setLoading(false);
+      setGlobalLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setGlobalLoading(true);
-      const peopleData = await apiClient.getPeople();
+      const peopleData = await apiClient.getPeople(currentInventory.id);
       setPeople(peopleData);
     } catch (error) {
       console.error('Error loading people:', error);
@@ -60,7 +74,9 @@ export default function People() {
   const tableData: PersonTableRow[] = people.map(person => ({
     id: person.id,
     name: person.name,
-    description: person.description || '',
+    relationship: person.relationship || '',
+    email: person.email || '',
+    phone: person.phone || '',
     dateAdded: person.dateAdded ? new Date(person.dateAdded).toLocaleDateString() : '',
   }));
 
@@ -84,11 +100,11 @@ export default function People() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!personToDelete) return;
+    if (!personToDelete || !currentInventory) return;
 
     try {
       setGlobalLoading(true);
-      await apiClient.deletePerson(personToDelete.id);
+      await apiClient.deletePerson(personToDelete.id, currentInventory.id);
       setDeleteDialogOpen(false);
       setPersonToDelete(null);
       showSuccess('Person deleted successfully');
@@ -142,11 +158,25 @@ export default function People() {
     handleEdit(row);
   };
 
+  // Show message if no inventory is selected
+  if (!currentInventory) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+          People
+        </Typography>
+        <Alert severity="info">
+          Please select an inventory to view people. You can create a new inventory from the Inventories page.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          People
+          People - {currentInventory.name}
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           Add Person

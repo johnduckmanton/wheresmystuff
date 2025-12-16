@@ -12,6 +12,14 @@ Globals:
         TABLE_NAME: !Ref InventoryTable
         BUCKET_NAME: !Ref PhotoBucket
         USER_POOL_ID: !Ref UserPool
+        USER_POOL_CLIENT_ID: !Ref UserPoolClient
+        AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
+        ALLOWED_ORIGINS: !If
+          - HasCustomDomain
+          - !Sub 'https://${CustomDomainName},http://localhost:5173,http://localhost:3000'
+          - 'http://localhost:5173,http://localhost:3000'
+        NODE_ENV: !Ref Environment
+
 
 Parameters:
   Environment:
@@ -36,11 +44,20 @@ Parameters:
       - 'true'
       - 'false'
     Description: Enable AWS WAF protection
+  
+  EnableAdvancedMonitoring:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable advanced monitoring features (requires additional permissions)
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, '']]
   HasACMCertificate: !Not [!Equals [!Ref ACMCertificateArn, '']]
   EnableWAFCondition: !Equals [!Ref EnableWAF, 'true']
+  EnableAdvancedMonitoringCondition: !Equals [!Ref EnableAdvancedMonitoring, 'true']
 
 Resources:
   # AWS WAF WebACL for CloudFront
@@ -220,6 +237,21 @@ Resources:
             ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; frame-ancestors 'none';"
             Override: true
 
+  # Secrets Manager Secret for Audit Log HMAC
+  AuditLogHMACSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub home-inventory-audit-secret-${Environment}
+      Description: HMAC secret for audit log integrity protection
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: hmac_secret
+        PasswordLength: 64
+        ExcludeCharacters: '"@/\'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
   # S3 Bucket for CloudFront Logs
   CloudFrontLogsBucket:
     Type: AWS::S3::Bucket
@@ -300,9 +332,14 @@ Resources:
         StreamViewType: NEW_AND_OLD_IMAGES
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
+        - Key: Purpose
+          Value: HomeInventorySystem
 
   # S3 Bucket for Photos
   PhotoBucket:
@@ -328,7 +365,7 @@ Resources:
               - !If
                 - HasCustomDomain
                 - !Sub https://${CustomDomainName}
-                - !Sub https://${CloudFrontDistribution.DomainName}
+                - 'http://localhost:3000'
             AllowedMethods:
               - GET
               - PUT
@@ -351,7 +388,8 @@ Resources:
           - !If
             - HasCustomDomain
             - !Sub https://${CustomDomainName}
-            - !Sub https://${CloudFrontDistribution.DomainName}
+            - 'http://localhost:5173'
+          - 'http://localhost:3000'  # Support both Vite and Create React App dev servers
         AllowHeaders:
           - 'Content-Type'
           - 'Authorization'
@@ -385,6 +423,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         ListThings:
           Type: HttpApi
@@ -428,6 +472,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         ListLocations:
           Type: HttpApi
@@ -471,6 +521,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         ListRooms:
           Type: HttpApi
@@ -514,6 +570,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         ListCategories:
           Type: HttpApi
@@ -557,6 +619,12 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         ListPeople:
           Type: HttpApi
@@ -600,6 +668,14 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref PhotoBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
       Events:
         GenerateUploadUrl:
           Type: HttpApi
@@ -615,6 +691,79 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /photo/{key}
             Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Inventory Management Lambda
+  InventoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/inventory.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        ListInventories:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateInventory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateInventory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteInventory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ListMembers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}/members
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        AddMember:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}/members
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        RemoveMember:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}/members/{userId}
+            Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
 

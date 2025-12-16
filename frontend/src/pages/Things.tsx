@@ -1,4 +1,4 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import EntityTable from '../components/EntityTable';
@@ -6,6 +6,7 @@ import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Thing, Location, Room, Category, Person } from '../types';
 
@@ -47,22 +48,31 @@ export default function Things() {
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
+  const { currentInventory } = useInventory();
 
-  // Fetch all data on mount
+  // Fetch all data when inventory changes
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentInventory) {
+      loadData();
+    }
+  }, [currentInventory]);
 
   const loadData = async () => {
+    if (!currentInventory) {
+      setLoading(false);
+      setGlobalLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setGlobalLoading(true);
       const [thingsData, locationsData, roomsData, categoriesData, peopleData] = await Promise.all([
-        apiClient.getThings(),
-        apiClient.getLocations(),
-        apiClient.getRooms(),
-        apiClient.getCategories(),
-        apiClient.getPeople(),
+        apiClient.getThings(currentInventory.id),
+        apiClient.getLocations(currentInventory.id),
+        apiClient.getRooms(undefined, currentInventory.id),
+        apiClient.getCategories(currentInventory.id),
+        apiClient.getPeople(currentInventory.id),
       ]);
       
       setThings(thingsData);
@@ -136,11 +146,11 @@ export default function Things() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!thingToDelete) return;
+    if (!thingToDelete || !currentInventory) return;
 
     try {
       setGlobalLoading(true);
-      await apiClient.deleteThing(thingToDelete.id);
+      await apiClient.deleteThing(thingToDelete.id, currentInventory.id);
       setDeleteDialogOpen(false);
       setThingToDelete(null);
       showSuccess('Thing deleted successfully');
@@ -194,11 +204,25 @@ export default function Things() {
     handleEdit(row);
   };
 
+  // Show message if no inventory is selected
+  if (!currentInventory) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+          Things
+        </Typography>
+        <Alert severity="info">
+          Please select an inventory to view things. You can create a new inventory from the Inventories page.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Things
+          Things - {currentInventory.name}
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           Add Thing

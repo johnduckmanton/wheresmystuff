@@ -4,18 +4,28 @@
   "description": "Backend Lambda functions for Home Inventory System",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:check": "npm audit --audit-level=high",
+    "security:check": "npm audit --audit-level=high --omit=dev",
+    "validate:workflows": "node ../scripts/validate-workflows.js"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.948.0",
     "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/lib-dynamodb": "^3.0.0",
     "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "uuid": "^9.0.0",
     "jsonwebtoken": "^9.0.0",
-    "jwks-rsa": "^3.0.0"
+    "jwks-rsa": "^3.0.0",
+    "uuid": "^9.0.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "fast-check": "^4.4.0",
+    "jest": "^30.2.0"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC"

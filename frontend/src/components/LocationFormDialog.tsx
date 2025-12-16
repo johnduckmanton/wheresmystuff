@@ -21,6 +21,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import type { Location, Room } from '../types';
 import RoomFormDialog from './RoomFormDialog';
+import InventoryFormSelector from './InventoryFormSelector';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
 // ISO 3166-1 alpha-2 country codes with names
@@ -241,6 +243,7 @@ export default function LocationFormDialog({
   const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined);
   const [deleteRoomDialogOpen, setDeleteRoomDialogOpen] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+  const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or location changes
   useEffect(() => {
@@ -249,8 +252,10 @@ export default function LocationFormDialog({
         setFormData({ ...location });
         loadRooms(location.id);
       } else {
+        // Creating new location - auto-select current inventory
         setFormData({
           name: '',
+          inventoryId: currentInventory?.id || '',
           addressLine1: '',
           addressLine2: '',
           town: '',
@@ -298,6 +303,10 @@ export default function LocationFormDialog({
 
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
+    }
+
+    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
+      newErrors.inventoryId = 'Inventory is required';
     }
 
     setErrors(newErrors);
@@ -425,6 +434,13 @@ export default function LocationFormDialog({
               'aria-label': 'Location name',
               'aria-required': 'true',
             }}
+          />
+
+          <InventoryFormSelector
+            value={formData.inventoryId || ''}
+            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+            error={errors.inventoryId}
+            required
           />
 
           <TextField

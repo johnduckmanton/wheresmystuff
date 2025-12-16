@@ -9,6 +9,8 @@ import {
   Box,
 } from '@mui/material';
 import type { Category } from '../types';
+import InventoryFormSelector from './InventoryFormSelector';
+import { useInventory } from '../contexts/InventoryContext';
 
 export interface CategoryFormDialogProps {
   open: boolean;
@@ -25,6 +27,7 @@ export default function CategoryFormDialog({
 }: CategoryFormDialogProps) {
   const [formData, setFormData] = useState<Partial<Category>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or category changes
   useEffect(() => {
@@ -33,9 +36,10 @@ export default function CategoryFormDialog({
         // Editing existing category
         setFormData({ ...category });
       } else {
-        // Creating new category
+        // Creating new category - auto-select current inventory
         setFormData({
           name: '',
+          inventoryId: currentInventory?.id || '',
           description: '',
         });
       }
@@ -67,6 +71,11 @@ export default function CategoryFormDialog({
     // Name is required
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
+    }
+
+    // Inventory is required
+    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
+      newErrors.inventoryId = 'Inventory is required';
     }
 
     setErrors(newErrors);
@@ -119,6 +128,13 @@ export default function CategoryFormDialog({
               'aria-label': 'Category name',
               'aria-required': 'true',
             }}
+          />
+
+          <InventoryFormSelector
+            value={formData.inventoryId || ''}
+            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+            error={errors.inventoryId}
+            required
           />
 
           <TextField

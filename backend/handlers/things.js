@@ -1,7 +1,12 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput } = require('../utils/validation');
-const { success, error } = require('../utils/response');
-const { authenticate } = require('../middleware/auth');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { thingSchema } = require('../utils/schemas');
+const { success, error, secureError, getAllHeaders } = require('../utils/response');
+const { createValidationErrorResponse } = require('../utils/errorHandler');
+const { authenticate, authorizeInventoryAccess, extractInventoryId } = require('../middleware/auth');
+const { withRateLimit } = require('../middleware/rateLimit');
+const { withCorsValidation } = require('../middleware/corsValidation');
+const { logDataAccess } = require('../services/auditLogService');
 
 const ENTITY_TYPE = 'THINGS';
 
@@ -9,7 +14,21 @@ const ENTITY_TYPE = 'THINGS';
  * Lambda handler for Things CRUD operations
  * Handles GET, POST, PUT, DELETE requests for Things
  */
-exports.handler = async (event) => {
+const thingsHandler = async (event) => {
+  const origin = event.headers?.Origin || event.headers?.origin;
+  const context = {
+    endpoint: '/things',
+    method: event.requestContext.http.method,
+    userId: event.user?.userId,
+    ipAddress: event.requestContext.http.sourceIp,
+    userAgent: event.headers?.['user-agent'],
+    requestData: {
+      pathParameters: event.pathParameters,
+      queryStringParameters: event.queryStringParameters,
+      body: event.body ? JSON.parse(event.body) : null
+    }
+  };
+
   try {
     // Authenticate the request
     await authenticate(event);
@@ -20,38 +39,54 @@ exports.handler = async (event) => {
     // Route to appropriate handler based on HTTP method
     switch (httpMethod) {
       case 'GET':
-        return await handleGet(event);
+        return await handleGet(event, origin);
       case 'POST':
-        return await handleCreate(event);
+        return await handleCreate(event, origin);
       case 'PUT':
-        return await handleUpdate(event, pathParameters.id);
+        return await handleUpdate(event, pathParameters.id, origin);
       case 'DELETE':
-        return await handleDelete(event, pathParameters.id);
+        return await handleDelete(event, pathParameters.id, origin);
       default:
-        return error('Method not allowed', 405);
+        return error('Method not allowed', 405, origin);
     }
   } catch (err) {
-    console.error('Error in Things handler:', err);
-    
-    // Handle authentication errors
-    if (err.statusCode === 401) {
-      return error(err.message || 'Unauthorized', 401);
-    }
-    
-    // Handle other errors
-    return error(err.message || 'Internal server error', err.statusCode || 500);
+    // Use secure error handling
+    return secureError(err, context, origin);
   }
 };
 
 /**
- * Handle GET request - List all things
+ * Handle GET request - List all things for an inventory
  */
-async function handleGet(event) {
+async function handleGet(event, origin) {
   try {
-    const things = await listEntities(ENTITY_TYPE);
-    return success(things);
+    // Extract inventory ID from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400, origin);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400, origin);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
+    const things = await listEntities(ENTITY_TYPE, inventoryId);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'read', 'things', 'list', inventoryId);
+    
+    return success(things, 200, origin);
   } catch (err) {
     console.error('Error listing things:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403, origin);
+    }
+    
     throw new Error('Failed to retrieve things');
   }
 }
@@ -59,39 +94,45 @@ async function handleGet(event) {
 /**
  * Handle POST request - Create a new thing
  */
-async function handleCreate(event) {
+async function handleCreate(event, origin) {
   try {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, thingSchema);
     if (!validation.valid) {
-      return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
+      const validationErrorResponse = createValidationErrorResponse(validation.errors);
+      return {
+        statusCode: validationErrorResponse.statusCode,
+        headers: getAllHeaders(origin),
+        body: JSON.stringify({
+          success: false,
+          error: validationErrorResponse.error,
+          requestId: validationErrorResponse.requestId
+        })
+      };
     }
     
-    // Validate optional UUID references if provided
-    const uuidFields = ['locationId', 'roomId', 'ownerId', 'categoryId'];
-    for (const field of uuidFields) {
-      if (sanitizedData[field] && !validateUUID(sanitizedData[field])) {
-        return error(`Invalid ${field} format`, 400);
-      }
-    }
+    const sanitizedData = validation.data;
     
-    // Validate photos array if provided
-    if (sanitizedData.photos && !Array.isArray(sanitizedData.photos)) {
-      return error('Photos must be an array', 400);
-    }
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
     
     // Create the thing
     const thing = await createEntity(ENTITY_TYPE, sanitizedData);
     
-    return success(thing, 201);
+    // Log data access
+    await logDataAccess(event.user.userId, 'create', 'things', thing.id, sanitizedData.inventoryId);
+    
+    return success(thing, 201, origin);
   } catch (err) {
     console.error('Error creating thing:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403, origin);
+    }
+    
     throw new Error('Failed to create thing');
   }
 }
@@ -99,47 +140,52 @@ async function handleCreate(event) {
 /**
  * Handle PUT request - Update an existing thing
  */
-async function handleUpdate(event, id) {
+async function handleUpdate(event, id, origin) {
   try {
     // Validate ID parameter
     if (!id || !validateUUID(id)) {
-      return error('Invalid thing ID', 400);
+      return error('Invalid thing ID', 400, origin);
     }
     
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, thingSchema);
     if (!validation.valid) {
-      return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
+      const validationErrorResponse = createValidationErrorResponse(validation.errors);
+      return {
+        statusCode: validationErrorResponse.statusCode,
+        headers: getAllHeaders(origin),
+        body: JSON.stringify({
+          success: false,
+          error: validationErrorResponse.error,
+          requestId: validationErrorResponse.requestId
+        })
+      };
     }
     
-    // Validate optional UUID references if provided
-    const uuidFields = ['locationId', 'roomId', 'ownerId', 'categoryId'];
-    for (const field of uuidFields) {
-      if (sanitizedData[field] && !validateUUID(sanitizedData[field])) {
-        return error(`Invalid ${field} format`, 400);
-      }
-    }
+    const sanitizedData = validation.data;
     
-    // Validate photos array if provided
-    if (sanitizedData.photos && !Array.isArray(sanitizedData.photos)) {
-      return error('Photos must be an array', 400);
-    }
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
     
     // Update the thing
-    const thing = await updateEntity(ENTITY_TYPE, id, sanitizedData);
+    const thing = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
     
-    return success(thing);
+    // Log data access
+    await logDataAccess(event.user.userId, 'update', 'things', id, sanitizedData.inventoryId);
+    
+    return success(thing, 200, origin);
   } catch (err) {
     console.error('Error updating thing:', err);
     
     if (err.message === 'Entity not found') {
-      return error('Thing not found', 404);
+      return error('Thing not found', 404, origin);
+    }
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403, origin);
     }
     
     throw new Error('Failed to update thing');
@@ -149,25 +195,50 @@ async function handleUpdate(event, id) {
 /**
  * Handle DELETE request - Delete a thing
  */
-async function handleDelete(event, id) {
+async function handleDelete(event, id, origin) {
   try {
     // Validate ID parameter
     if (!id || !validateUUID(id)) {
-      return error('Invalid thing ID', 400);
+      return error('Invalid thing ID', 400, origin);
     }
     
+    // Get inventoryId from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400, origin);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400, origin);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
     // Check if thing exists before deleting
-    const thing = await getEntity(ENTITY_TYPE, id);
+    const thing = await getEntity(ENTITY_TYPE, inventoryId, id);
     if (!thing) {
-      return error('Thing not found', 404);
+      return error('Thing not found', 404, origin);
     }
     
     // Delete the thing
-    await deleteEntity(ENTITY_TYPE, id);
+    await deleteEntity(ENTITY_TYPE, inventoryId, id);
     
-    return success({ message: 'Thing deleted successfully' });
+    // Log data access
+    await logDataAccess(event.user.userId, 'delete', 'things', id, inventoryId);
+    
+    return success({ message: 'Thing deleted successfully' }, 200, origin);
   } catch (err) {
     console.error('Error deleting thing:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403, origin);
+    }
+    
     throw new Error('Failed to delete thing');
   }
 }
+
+// Export the handler wrapped with rate limiting and CORS validation
+exports.handler = withCorsValidation(withRateLimit(thingsHandler));

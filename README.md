@@ -1,4 +1,4 @@
-# Home Inventory Management System
+# Where's My Stuff!
 
 A full-stack serverless web application for tracking and managing personal belongings across multiple locations.
 

@@ -1,13 +1,25 @@
+const { getSecurityHeaders } = require('../middleware/securityHeaders');
+const { handleError, createSecureErrorResponse } = require('./errorHandler');
+const { getCorsHeaders } = require('../middleware/corsValidation');
+
 /**
  * Get CORS headers for API responses
+ * @param {string} origin - Request origin header
  * @returns {object} CORS headers object
  */
-function corsHeaders() {
+function corsHeaders(origin) {
+  return getCorsHeaders(origin);
+}
+
+/**
+ * Get all headers including CORS and security headers
+ * @param {string} origin - Request origin header
+ * @returns {object} Combined headers object
+ */
+function getAllHeaders(origin) {
   return {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    ...corsHeaders(origin),
+    ...getSecurityHeaders()
   };
 }
 
@@ -15,12 +27,13 @@ function corsHeaders() {
  * Create a success response
  * @param {*} data - Response data
  * @param {number} statusCode - HTTP status code (default: 200)
+ * @param {string} origin - Request origin header
  * @returns {object} Lambda response object
  */
-function success(data, statusCode = 200) {
+function success(data, statusCode = 200, origin = null) {
   return {
     statusCode,
-    headers: corsHeaders(),
+    headers: getAllHeaders(origin),
     body: JSON.stringify({
       success: true,
       data
@@ -29,15 +42,16 @@ function success(data, statusCode = 200) {
 }
 
 /**
- * Create an error response
+ * Create an error response (legacy method - use secureError for new code)
  * @param {string} message - Error message
  * @param {number} statusCode - HTTP status code (default: 400)
+ * @param {string} origin - Request origin header
  * @returns {object} Lambda response object
  */
-function error(message, statusCode = 400) {
+function error(message, statusCode = 400, origin = null) {
   return {
     statusCode,
-    headers: corsHeaders(),
+    headers: getAllHeaders(origin),
     body: JSON.stringify({
       success: false,
       error: message
@@ -45,8 +59,31 @@ function error(message, statusCode = 400) {
   };
 }
 
+/**
+ * Create a secure error response using the error handler
+ * @param {Error} errorObj - Error object
+ * @param {object} context - Request context for logging
+ * @param {string} origin - Request origin header
+ * @returns {object} Lambda response object with secure error
+ */
+function secureError(errorObj, context = {}, origin = null) {
+  const secureErrorResponse = handleError(errorObj, context);
+  
+  return {
+    statusCode: secureErrorResponse.statusCode,
+    headers: getAllHeaders(origin),
+    body: JSON.stringify({
+      success: false,
+      error: secureErrorResponse.error,
+      requestId: secureErrorResponse.requestId
+    })
+  };
+}
+
 module.exports = {
   corsHeaders,
+  getAllHeaders,
   success,
-  error
+  error,
+  secureError
 };

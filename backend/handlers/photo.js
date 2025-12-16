@@ -1,13 +1,31 @@
-const { generateUploadUrl, generateDownloadUrl } = require('../services/s3');
-const { success, error } = require('../utils/response');
-const { authenticate } = require('../middleware/auth');
+const { generateUploadUrl, generateDownloadUrl, deleteObject, SECURE_URL_EXPIRATION } = require('../services/s3');
+const { success, error, secureError, getAllHeaders } = require('../utils/response');
+const { createValidationErrorResponse } = require('../utils/errorHandler');
+const { authenticate, authorizeInventoryAccess } = require('../middleware/auth');
+const { validateRequired, validateUUID } = require('../utils/validation');
+const inventoryService = require('../services/inventoryService');
 const { v4: uuidv4 } = require('uuid');
+const { withRateLimit } = require('../middleware/rateLimit');
+const { logDataAccess } = require('../services/auditLogService');
 
 /**
  * Lambda handler for Photo operations
  * Handles POST /upload and GET /photo/{key} requests
  */
-exports.handler = async (event) => {
+const photoHandler = async (event) => {
+  const context = {
+    endpoint: '/photo',
+    method: event.requestContext.http.method,
+    userId: event.user?.userId,
+    ipAddress: event.requestContext.http.sourceIp,
+    userAgent: event.headers?.['user-agent'],
+    requestData: {
+      pathParameters: event.pathParameters,
+      queryStringParameters: event.queryStringParameters,
+      body: event.body ? JSON.parse(event.body) : null
+    }
+  };
+
   try {
     // Authenticate the request
     await authenticate(event);
@@ -21,19 +39,14 @@ exports.handler = async (event) => {
         return await handleGenerateUploadUrl(event);
       case 'GET':
         return await handleGenerateDownloadUrl(event, pathParameters.key);
+      case 'DELETE':
+        return await handleDeletePhoto(event, pathParameters.key);
       default:
         return error('Method not allowed', 405);
     }
   } catch (err) {
-    console.error('Error in Photo handler:', err);
-    
-    // Handle authentication errors
-    if (err.statusCode === 401) {
-      return error(err.message || 'Unauthorized', 401);
-    }
-    
-    // Handle other errors
-    return error(err.message || 'Internal server error', err.statusCode || 500);
+    // Use secure error handling
+    return secureError(err, context);
   }
 };
 
@@ -54,23 +67,51 @@ async function handleGenerateUploadUrl(event) {
       return error('contentType is required', 400);
     }
     
-    // Generate unique key for the file
-    // Format: photos/{uuid}/{timestamp}-{filename}
-    const fileId = uuidv4();
+    if (!body.inventoryId) {
+      return error('inventoryId is required', 400);
+    }
+    
+    if (!body.entityId) {
+      return error('entityId is required', 400);
+    }
+    
+    // Validate UUIDs
+    if (!validateUUID(body.inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    if (!validateUUID(body.entityId)) {
+      return error('Invalid entityId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, body.inventoryId);
+    
+    // Generate user-scoped key for the file
+    // Format: photos/{userId}/{inventoryId}/{entityId}/{timestamp}-{filename}
+    const userId = event.user.userId;
     const timestamp = Date.now();
     const sanitizedFileName = body.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const key = `photos/${fileId}/${timestamp}-${sanitizedFileName}`;
+    const key = `photos/${userId}/${body.inventoryId}/${body.entityId}/${timestamp}-${sanitizedFileName}`;
     
-    // Generate presigned upload URL
-    const uploadUrl = await generateUploadUrl(key, body.contentType);
+    // Generate presigned upload URL with secure expiration (15 minutes)
+    const uploadUrl = await generateUploadUrl(key, body.contentType, true);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'create', 'photos', key, body.inventoryId);
     
     return success({
       uploadUrl,
       key,
-      expiresIn: 3600 // 1 hour
-    }, 200);
+      expiresIn: SECURE_URL_EXPIRATION // 15 minutes
+    }, 201);
   } catch (err) {
     console.error('Error generating upload URL:', err);
+    
+    // Handle authentication/authorization errors
+    if (err.statusCode === 401 || err.statusCode === 403) {
+      return error(err.message || 'Access denied', err.statusCode);
+    }
     
     // Handle validation errors from S3 service
     if (err.message.includes('Invalid file type')) {
@@ -94,16 +135,107 @@ async function handleGenerateDownloadUrl(event, key) {
     // Decode the key (it may be URL encoded)
     const decodedKey = decodeURIComponent(key);
     
-    // Generate presigned download URL
-    const downloadUrl = await generateDownloadUrl(decodedKey);
+    // Verify photo access by extracting inventory and entity info from key
+    const keyParts = decodedKey.split('/');
+    
+    // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
+    if (keyParts.length < 5 || keyParts[0] !== 'photos') {
+      return error('Invalid photo key format', 400);
+    }
+    
+    const [, keyUserId, inventoryId, entityId] = keyParts;
+    const currentUserId = event.user.userId;
+    
+    // Validate UUIDs
+    if (!validateUUID(inventoryId) || !validateUUID(entityId)) {
+      return error('Invalid photo key format', 400);
+    }
+    
+    // Check if user has access to the inventory
+    const hasAccess = await inventoryService.hasInventoryAccess(currentUserId, inventoryId);
+    if (!hasAccess) {
+      return error('Access denied: You do not have access to this photo', 403);
+    }
+    
+    // Generate presigned download URL with secure expiration (15 minutes)
+    const downloadUrl = await generateDownloadUrl(decodedKey, true);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'read', 'photos', decodedKey, inventoryId);
     
     return success({
       downloadUrl,
       key: decodedKey,
-      expiresIn: 3600 // 1 hour
+      expiresIn: SECURE_URL_EXPIRATION // 15 minutes
     }, 200);
   } catch (err) {
     console.error('Error generating download URL:', err);
+    
+    // Handle authentication/authorization errors
+    if (err.statusCode === 401 || err.statusCode === 403) {
+      return error(err.message || 'Access denied', err.statusCode);
+    }
+    
     throw new Error('Failed to generate download URL');
   }
 }
+
+/**
+ * Handle DELETE /photo/{key} - Delete a photo
+ */
+async function handleDeletePhoto(event, key) {
+  try {
+    // Validate key parameter
+    if (!key) {
+      return error('Photo key is required', 400);
+    }
+    
+    // Decode the key (it may be URL encoded)
+    const decodedKey = decodeURIComponent(key);
+    
+    // Verify photo access by extracting inventory and entity info from key
+    const keyParts = decodedKey.split('/');
+    
+    // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
+    if (keyParts.length < 5 || keyParts[0] !== 'photos') {
+      return error('Invalid photo key format', 400);
+    }
+    
+    const [, keyUserId, inventoryId, entityId] = keyParts;
+    const currentUserId = event.user.userId;
+    
+    // Validate UUIDs
+    if (!validateUUID(inventoryId) || !validateUUID(entityId)) {
+      return error('Invalid photo key format', 400);
+    }
+    
+    // Check if user has access to the inventory
+    const hasAccess = await inventoryService.hasInventoryAccess(currentUserId, inventoryId);
+    if (!hasAccess) {
+      return error('Access denied: You do not have access to this photo', 403);
+    }
+    
+    // Delete the photo from S3
+    await deleteObject(decodedKey);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'delete', 'photos', decodedKey, inventoryId);
+    
+    return success({
+      message: 'Photo deleted successfully',
+      key: decodedKey
+    }, 200);
+  } catch (err) {
+    console.error('Error deleting photo:', err);
+    
+    // Handle authentication/authorization errors
+    if (err.statusCode === 401 || err.statusCode === 403) {
+      return error(err.message || 'Access denied', err.statusCode);
+    }
+    
+    throw new Error('Failed to delete photo');
+  }
+}
+
+// Export the handler wrapped with rate limiting
+exports.handler = withRateLimit(photoHandler);

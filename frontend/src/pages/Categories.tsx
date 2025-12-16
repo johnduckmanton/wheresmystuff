@@ -1,4 +1,4 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import EntityTable from '../components/EntityTable';
@@ -6,6 +6,7 @@ import type { EntityTableColumn } from '../components/EntityTable';
 import CategoryFormDialog from '../components/CategoryFormDialog';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Category } from '../types';
 
@@ -35,17 +36,26 @@ export default function Categories() {
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
+  const { currentInventory } = useInventory();
 
-  // Fetch all data on mount
+  // Fetch all data when inventory changes
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentInventory) {
+      loadData();
+    }
+  }, [currentInventory]);
 
   const loadData = async () => {
+    if (!currentInventory) {
+      setLoading(false);
+      setGlobalLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setGlobalLoading(true);
-      const categoriesData = await apiClient.getCategories();
+      const categoriesData = await apiClient.getCategories(currentInventory.id);
       setCategories(categoriesData);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -84,11 +94,11 @@ export default function Categories() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!categoryToDelete) return;
+    if (!categoryToDelete || !currentInventory) return;
 
     try {
       setGlobalLoading(true);
-      await apiClient.deleteCategory(categoryToDelete.id);
+      await apiClient.deleteCategory(categoryToDelete.id, currentInventory.id);
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
       showSuccess('Category deleted successfully');
@@ -142,11 +152,25 @@ export default function Categories() {
     handleEdit(row);
   };
 
+  // Show message if no inventory is selected
+  if (!currentInventory) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+          Categories
+        </Typography>
+        <Alert severity="info">
+          Please select an inventory to view categories. You can create a new inventory from the Inventories page.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Categories
+          Categories - {currentInventory.name}
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           Add Category

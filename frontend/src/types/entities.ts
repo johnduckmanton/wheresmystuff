@@ -45,6 +45,7 @@ export interface Room {
 
 export interface Category {
   id: string; // UUID
+  inventoryId: string; // UUID reference to inventory
   name: string; // Required
   description?: string;
   dateAdded: string; // ISO date, auto-generated
@@ -52,8 +53,14 @@ export interface Category {
 
 export interface Person {
   id: string; // UUID
+  inventoryId: string; // UUID reference to inventory
   name: string; // Required
-  description?: string;
+  description?: string; // Keep for backward compatibility
+  email?: string;
+  phone?: string;
+  relationship?: string;
+  notes?: string;
+  photos?: string[]; // Array of S3 keys
   dateAdded: string; // ISO date, auto-generated
 }
 

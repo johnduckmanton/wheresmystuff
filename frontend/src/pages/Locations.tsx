@@ -17,6 +17,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Alert,
 } from '@mui/material';
 import { useState, useEffect, useMemo } from 'react';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,6 +27,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Location, Thing } from '../types';
 import LocationFormDialog from '../components/LocationFormDialog';
@@ -54,19 +56,28 @@ export default function Locations() {
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
+  const { currentInventory } = useInventory();
 
-  // Fetch all data on mount
+  // Fetch all data when inventory changes
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentInventory) {
+      loadData();
+    }
+  }, [currentInventory]);
 
   const loadData = async () => {
+    if (!currentInventory) {
+      setLoading(false);
+      setGlobalLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setGlobalLoading(true);
       const [locationsData, thingsData] = await Promise.all([
-        apiClient.getLocations(),
-        apiClient.getThings(),
+        apiClient.getLocations(currentInventory.id),
+        apiClient.getThings(currentInventory.id),
       ]);
       
       setLocations(locationsData);
@@ -143,11 +154,11 @@ export default function Locations() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!locationToDelete) return;
+    if (!locationToDelete || !currentInventory) return;
 
     try {
       setGlobalLoading(true);
-      await apiClient.deleteLocation(locationToDelete.id);
+      await apiClient.deleteLocation(locationToDelete.id, currentInventory.id);
       setDeleteDialogOpen(false);
       setLocationToDelete(null);
       showSuccess('Location deleted successfully');
@@ -192,11 +203,25 @@ export default function Locations() {
     setEditingLocation(undefined);
   };
 
+  // Show message if no inventory is selected
+  if (!currentInventory) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+          Locations
+        </Typography>
+        <Alert severity="info">
+          Please select an inventory to view locations. You can create a new inventory from the Inventories page.
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Locations
+          Locations - {currentInventory.name}
         </Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           Add Location

@@ -15,6 +15,7 @@ import {
   ToggleButtonGroup,
 } from '@mui/material';
 import type { Room, Location } from '../types';
+import InventoryFormSelector from './InventoryFormSelector';
 
 const PREDEFINED_FLOORS = [
   'Basement',
@@ -58,6 +59,7 @@ export default function RoomFormDialog({
       } else {
         setFormData({
           name: '',
+          inventoryId: '',
           locationId: preselectedLocationId || '',
           floor: '',
         });
@@ -90,6 +92,10 @@ export default function RoomFormDialog({
 
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
+    }
+
+    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
+      newErrors.inventoryId = 'Inventory is required';
     }
 
     if (!formData.locationId) {
@@ -161,6 +167,13 @@ export default function RoomFormDialog({
               'aria-label': 'Room name',
               'aria-required': 'true',
             }}
+          />
+
+          <InventoryFormSelector
+            value={formData.inventoryId || ''}
+            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+            error={errors.inventoryId}
+            required
           />
 
           <FormControl fullWidth error={!!errors.locationId} required>

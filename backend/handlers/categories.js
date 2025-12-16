@@ -1,7 +1,11 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput } = require('../utils/validation');
-const { success, error } = require('../utils/response');
-const { authenticate } = require('../middleware/auth');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { categorySchema } = require('../utils/schemas');
+const { success, error, secureError, getAllHeaders } = require('../utils/response');
+const { createValidationErrorResponse } = require('../utils/errorHandler');
+const { authenticate, authorizeInventoryAccess } = require('../middleware/auth');
+const { withRateLimit } = require('../middleware/rateLimit');
+const { logDataAccess } = require('../services/auditLogService');
 
 const ENTITY_TYPE = 'CATEGORIES';
 
@@ -9,7 +13,20 @@ const ENTITY_TYPE = 'CATEGORIES';
  * Lambda handler for Categories CRUD operations
  * Handles GET, POST, PUT, DELETE requests for Categories
  */
-exports.handler = async (event) => {
+const categoriesHandler = async (event) => {
+  const context = {
+    endpoint: '/categories',
+    method: event.requestContext.http.method,
+    userId: event.user?.userId,
+    ipAddress: event.requestContext.http.sourceIp,
+    userAgent: event.headers?.['user-agent'],
+    requestData: {
+      pathParameters: event.pathParameters,
+      queryStringParameters: event.queryStringParameters,
+      body: event.body ? JSON.parse(event.body) : null
+    }
+  };
+
   try {
     // Authenticate the request
     await authenticate(event);
@@ -20,38 +37,54 @@ exports.handler = async (event) => {
     // Route to appropriate handler based on HTTP method
     switch (httpMethod) {
       case 'GET':
-        return await handleGet();
+        return await handleGet(event);
       case 'POST':
         return await handleCreate(event);
       case 'PUT':
         return await handleUpdate(event, pathParameters.id);
       case 'DELETE':
-        return await handleDelete(pathParameters.id);
+        return await handleDelete(event, pathParameters.id);
       default:
         return error('Method not allowed', 405);
     }
   } catch (err) {
-    console.error('Error in Categories handler:', err);
-    
-    // Handle authentication errors
-    if (err.statusCode === 401) {
-      return error(err.message || 'Unauthorized', 401);
-    }
-    
-    // Handle other errors
-    return error(err.message || 'Internal server error', err.statusCode || 500);
+    // Use secure error handling
+    return secureError(err, context);
   }
 };
 
 /**
- * Handle GET request - List all categories
+ * Handle GET request - List all categories for an inventory
  */
-async function handleGet() {
+async function handleGet(event) {
   try {
-    const categories = await listEntities(ENTITY_TYPE);
+    // Extract inventory ID from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
+    const categories = await listEntities(ENTITY_TYPE, inventoryId);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'read', 'categories', 'list', inventoryId);
+    
     return success(categories);
   } catch (err) {
     console.error('Error listing categories:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to retrieve categories');
   }
 }
@@ -64,21 +97,40 @@ async function handleCreate(event) {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, categorySchema);
     if (!validation.valid) {
-      return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
+      const validationErrorResponse = createValidationErrorResponse(validation.errors);
+      return {
+        statusCode: validationErrorResponse.statusCode,
+        headers: getAllHeaders(),
+        body: JSON.stringify({
+          success: false,
+          error: validationErrorResponse.error,
+          requestId: validationErrorResponse.requestId
+        })
+      };
     }
+    
+    const sanitizedData = validation.data;
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
     
     // Create the category
     const category = await createEntity(ENTITY_TYPE, sanitizedData);
     
+    // Log data access
+    await logDataAccess(event.user.userId, 'create', 'categories', category.id, sanitizedData.inventoryId);
+    
     return success(category, 201);
   } catch (err) {
     console.error('Error creating category:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to create category');
   }
 }
@@ -96,17 +148,31 @@ async function handleUpdate(event, id) {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
-    // Sanitize input
-    const sanitizedData = sanitizeInput(body);
-    
-    // Validate required fields
-    const validation = validateRequired(sanitizedData, ['name']);
+    // Validate and sanitize using enhanced validation
+    const validation = validateAndSanitize(body, categorySchema);
     if (!validation.valid) {
-      return error(`Validation failed: ${validation.errors.join(', ')}`, 400);
+      const validationErrorResponse = createValidationErrorResponse(validation.errors);
+      return {
+        statusCode: validationErrorResponse.statusCode,
+        headers: getAllHeaders(),
+        body: JSON.stringify({
+          success: false,
+          error: validationErrorResponse.error,
+          requestId: validationErrorResponse.requestId
+        })
+      };
     }
     
+    const sanitizedData = validation.data;
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, sanitizedData.inventoryId);
+    
     // Update the category
-    const category = await updateEntity(ENTITY_TYPE, id, sanitizedData);
+    const category = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'update', 'categories', id, sanitizedData.inventoryId);
     
     return success(category);
   } catch (err) {
@@ -116,6 +182,10 @@ async function handleUpdate(event, id) {
       return error('Category not found', 404);
     }
     
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to update category');
   }
 }
@@ -123,25 +193,50 @@ async function handleUpdate(event, id) {
 /**
  * Handle DELETE request - Delete a category
  */
-async function handleDelete(id) {
+async function handleDelete(event, id) {
   try {
     // Validate ID parameter
     if (!id || !validateUUID(id)) {
       return error('Invalid category ID', 400);
     }
     
+    // Get inventoryId from query parameters
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
     // Check if category exists before deleting
-    const category = await getEntity(ENTITY_TYPE, id);
+    const category = await getEntity(ENTITY_TYPE, inventoryId, id);
     if (!category) {
       return error('Category not found', 404);
     }
     
     // Delete the category
-    await deleteEntity(ENTITY_TYPE, id);
+    await deleteEntity(ENTITY_TYPE, inventoryId, id);
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'delete', 'categories', id, inventoryId);
     
     return success({ message: 'Category deleted successfully' });
   } catch (err) {
     console.error('Error deleting category:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
     throw new Error('Failed to delete category');
   }
 }
+
+// Export the handler wrapped with rate limiting
+exports.handler = withRateLimit(categoriesHandler);

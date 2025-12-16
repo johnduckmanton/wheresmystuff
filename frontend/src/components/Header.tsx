@@ -83,7 +83,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             fontSize: { xs: '1rem', sm: '1.25rem' },
           }}
         >
-          Home Inventory System
+          Where's My Stuff!
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -7,6 +7,7 @@ import { theme } from './theme';
 import ErrorBoundary from './components/ErrorBoundary';
 import { LoadingProvider } from './contexts/LoadingContext';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
+import { InventoryProvider } from './contexts/InventoryContext';
 import SignIn from './components/SignIn';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
@@ -15,6 +16,9 @@ import Things from './pages/Things';
 import Locations from './pages/Locations';
 import Categories from './pages/Categories';
 import People from './pages/People';
+import Inventories from './pages/Inventories';
+import InventorySettings from './pages/InventorySettings';
+import InventoryMembers from './pages/InventoryMembers';
 import apiClient from './services/api';
 
 // Context for mobile sidebar state
@@ -88,7 +92,8 @@ function App() {
         <CssBaseline />
         <NotificationProvider>
           <LoadingProvider>
-            <BrowserRouter>
+            <InventoryProvider>
+              <BrowserRouter>
               <AuthErrorHandler />
               <Routes>
                 <Route path="/signin" element={<SignIn />} />
@@ -132,10 +137,41 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/inventories"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Inventories />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventories/:inventoryId/settings"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <InventorySettings />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventories/:inventoryId/members"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <InventoryMembers />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/" element={<Navigate to="/things" replace />} />
                 <Route path="*" element={<Navigate to="/things" replace />} />
               </Routes>
             </BrowserRouter>
+            </InventoryProvider>
           </LoadingProvider>
         </NotificationProvider>
       </ThemeProvider>

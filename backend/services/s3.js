@@ -6,6 +6,7 @@ const client = new S3Client({});
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
 const URL_EXPIRATION = 3600; // 1 hour in seconds
+const SECURE_URL_EXPIRATION = 900; // 15 minutes in seconds for secure operations
 
 // Allowed image MIME types
 const ALLOWED_IMAGE_TYPES = [
@@ -30,10 +31,11 @@ function isValidImageType(contentType) {
  * Generate a presigned URL for uploading a file to S3
  * @param {string} key - S3 object key (file path)
  * @param {string} contentType - MIME type of the file
+ * @param {boolean} secure - Whether to use secure (short) expiration time
  * @returns {Promise<string>} Presigned upload URL
  * @throws {Error} If content type is not a valid image type
  */
-async function generateUploadUrl(key, contentType) {
+async function generateUploadUrl(key, contentType, secure = true) {
   // Validate file type
   if (!isValidImageType(contentType)) {
     throw new Error(`Invalid file type. Only images are allowed. Received: ${contentType}`);
@@ -45,8 +47,10 @@ async function generateUploadUrl(key, contentType) {
     ContentType: contentType
   });
   
+  const expiresIn = secure ? SECURE_URL_EXPIRATION : URL_EXPIRATION;
+  
   const url = await getSignedUrl(client, command, {
-    expiresIn: URL_EXPIRATION
+    expiresIn
   });
   
   return url;
@@ -55,16 +59,19 @@ async function generateUploadUrl(key, contentType) {
 /**
  * Generate a presigned URL for downloading a file from S3
  * @param {string} key - S3 object key (file path)
+ * @param {boolean} secure - Whether to use secure (short) expiration time
  * @returns {Promise<string>} Presigned download URL
  */
-async function generateDownloadUrl(key) {
+async function generateDownloadUrl(key, secure = true) {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key
   });
   
+  const expiresIn = secure ? SECURE_URL_EXPIRATION : URL_EXPIRATION;
+  
   const url = await getSignedUrl(client, command, {
-    expiresIn: URL_EXPIRATION
+    expiresIn
   });
   
   return url;
@@ -89,5 +96,6 @@ module.exports = {
   generateDownloadUrl,
   deleteObject,
   isValidImageType,
-  ALLOWED_IMAGE_TYPES
+  ALLOWED_IMAGE_TYPES,
+  SECURE_URL_EXPIRATION
 };
