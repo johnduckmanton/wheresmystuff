@@ -13,6 +13,7 @@ export interface Thing {
   notes?: string;
   datePurchased?: string; // ISO date
   purchasedFrom?: string;
+  purchasePrice?: number; // Purchase price in local currency
   warrantyDetails?: string;
   disposalDate?: string; // ISO date
   nextReviewDate?: string; // ISO date
@@ -48,6 +49,8 @@ export interface Category {
   inventoryId: string; // UUID reference to inventory
   name: string; // Required
   description?: string;
+  color?: string; // Hex color code (e.g., #FF5733)
+  icon?: string; // Icon identifier
   dateAdded: string; // ISO date, auto-generated
 }
 

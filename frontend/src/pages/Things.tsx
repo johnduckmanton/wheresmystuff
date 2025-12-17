@@ -17,6 +17,7 @@ const columns: EntityTableColumn[] = [
   { field: 'room', headerName: 'Room', flex: 1 },
   { field: 'owner', headerName: 'Owner', flex: 1 },
   { field: 'category', headerName: 'Category', flex: 1 },
+  { field: 'purchasePrice', headerName: 'Purchase Price', width: 130 },
   { field: 'dateAdded', headerName: 'Date Added', width: 120 },
 ];
 
@@ -28,6 +29,7 @@ interface ThingTableRow {
   room: string;
   owner: string;
   category: string;
+  purchasePrice: string;
   dateAdded: string;
 }
 
@@ -123,6 +125,7 @@ export default function Things() {
     room: getRoomName(thing.roomId),
     owner: getOwnerName(thing.ownerId),
     category: getCategoryName(thing.categoryId),
+    purchasePrice: thing.purchasePrice ? `£${thing.purchasePrice.toFixed(2)}` : '',
     dateAdded: thing.dateAdded ? new Date(thing.dateAdded).toLocaleDateString() : '',
   }));
 
@@ -177,8 +180,9 @@ export default function Things() {
         await apiClient.updateThing(editingThing.id, data);
         showSuccess('Thing updated successfully');
       } else {
-        // Create new thing
-        await apiClient.createThing(data as Omit<Thing, 'id' | 'dateAdded'>);
+        // Create new thing - include tempId if it exists (for photo uploads)
+        const createData = { ...data } as Omit<Thing, 'dateAdded'>;
+        await apiClient.createThing(createData);
         showSuccess('Thing created successfully');
       }
       

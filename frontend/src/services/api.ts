@@ -145,7 +145,7 @@ class ApiClient {
     return this.get<Thing>(`/things/${id}`);
   }
 
-  async createThing(data: Omit<Thing, 'id' | 'dateAdded'>): Promise<Thing> {
+  async createThing(data: Omit<Thing, 'dateAdded'>): Promise<Thing> {
     return this.post<Thing>('/things', data);
   }
 
@@ -289,12 +289,14 @@ class ApiClient {
   }
 
   // Photo API
-  async generateUploadUrl(key: string, contentType: string): Promise<{ uploadUrl: string; key: string }> {
-    return this.post<{ uploadUrl: string; key: string }>('/upload', { key, contentType });
+  async generateUploadUrl(fileName: string, contentType: string, inventoryId: string, entityId: string): Promise<{ uploadUrl: string; key: string }> {
+    return this.post<{ uploadUrl: string; key: string }>('/upload', { fileName, contentType, inventoryId, entityId });
   }
 
   async generateDownloadUrl(key: string): Promise<{ downloadUrl: string }> {
-    return this.get<{ downloadUrl: string }>(`/photo/${key}`);
+    // Use query parameter to handle complex keys with forward slashes
+    const encodedKey = encodeURIComponent(key);
+    return this.get<{ downloadUrl: string }>(`/photo?key=${encodedKey}`);
   }
 }
 

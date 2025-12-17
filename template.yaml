@@ -365,7 +365,9 @@ Resources:
               - !If
                 - HasCustomDomain
                 - !Sub https://${CustomDomainName}
-                - 'http://localhost:3000'
+                - 'https://d2m4d2elac4ekv.cloudfront.net'
+              - 'http://localhost:3000'
+              - 'http://localhost:5173'
             AllowedMethods:
               - GET
               - PUT
@@ -689,7 +691,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /photo/{key}
+            Path: /photo
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer

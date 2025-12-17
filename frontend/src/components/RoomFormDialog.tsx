@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import type { Room, Location } from '../types';
 import InventoryFormSelector from './InventoryFormSelector';
+import { useInventory } from '../contexts/InventoryContext';
 
 const PREDEFINED_FLOORS = [
   'Basement',
@@ -44,6 +45,7 @@ export default function RoomFormDialog({
   onSubmit,
   onClose,
 }: RoomFormDialogProps) {
+  const { currentInventory } = useInventory();
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [floorInputMode, setFloorInputMode] = useState<'dropdown' | 'custom'>('dropdown');
@@ -59,7 +61,7 @@ export default function RoomFormDialog({
       } else {
         setFormData({
           name: '',
-          inventoryId: '',
+          inventoryId: currentInventory?.id || '',
           locationId: preselectedLocationId || '',
           floor: '',
         });
@@ -67,7 +69,7 @@ export default function RoomFormDialog({
       }
       setErrors({});
     }
-  }, [open, room, preselectedLocationId]);
+  }, [open, room, preselectedLocationId, currentInventory]);
 
   // Handle field change
   const handleFieldChange = (name: string, value: any) => {

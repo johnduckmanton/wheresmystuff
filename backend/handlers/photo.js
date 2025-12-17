@@ -38,7 +38,7 @@ const photoHandler = async (event) => {
       case 'POST':
         return await handleGenerateUploadUrl(event);
       case 'GET':
-        return await handleGenerateDownloadUrl(event, pathParameters.key);
+        return await handleGenerateDownloadUrl(event, event.queryStringParameters?.key);
       case 'DELETE':
         return await handleDeletePhoto(event, pathParameters.key);
       default:

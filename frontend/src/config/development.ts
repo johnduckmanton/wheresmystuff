@@ -41,6 +41,7 @@ export const mockData: {
       categoryId: 'cat-1',
       locationId: 'loc-1',
       roomId: 'room-1',
+      purchasePrice: 2499.99,
       dateAdded: new Date().toISOString(),
       photos: [],
       notes: 'Primary work laptop'
@@ -53,6 +54,7 @@ export const mockData: {
       categoryId: 'cat-2',
       locationId: 'loc-1',
       roomId: 'room-2',
+      purchasePrice: 699.95,
       dateAdded: new Date().toISOString(),
       photos: [],
       notes: 'Daily use coffee machine'
@@ -89,6 +91,8 @@ export const mockData: {
       id: 'cat-1',
       name: 'Electronics',
       description: 'Electronic devices and gadgets',
+      color: '#4169E1',
+      icon: 'tv',
       inventoryId: 'inv-1',
       dateAdded: new Date().toISOString()
     },
@@ -96,6 +100,8 @@ export const mockData: {
       id: 'cat-2',
       name: 'Kitchen Appliances',
       description: 'Cooking and food preparation equipment',
+      color: '#FF6347',
+      icon: 'kitchen',
       inventoryId: 'inv-1',
       dateAdded: new Date().toISOString()
     }

@@ -1,5 +1,5 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
 const { thingSchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -9,6 +9,38 @@ const { withCorsValidation } = require('../middleware/corsValidation');
 const { logDataAccess } = require('../services/auditLogService');
 
 const ENTITY_TYPE = 'THINGS';
+
+/**
+ * Decode HTML entities in thing fields for backward compatibility
+ * @param {object} thing - Thing object
+ * @returns {object} Thing object with decoded fields
+ */
+function decodeThingFields(thing) {
+  if (!thing) return thing;
+  
+  // Decode text fields
+  if (thing.name) thing.name = decodeHtmlEntities(thing.name);
+  if (thing.description) thing.description = decodeHtmlEntities(thing.description);
+  if (thing.notes) thing.notes = decodeHtmlEntities(thing.notes);
+  if (thing.serialNumber) thing.serialNumber = decodeHtmlEntities(thing.serialNumber);
+  if (thing.model) thing.model = decodeHtmlEntities(thing.model);
+  if (thing.brand) thing.brand = decodeHtmlEntities(thing.brand);
+  if (thing.condition) thing.condition = decodeHtmlEntities(thing.condition);
+  if (thing.purchasedFrom) thing.purchasedFrom = decodeHtmlEntities(thing.purchasedFrom);
+  if (thing.warrantyDetails) thing.warrantyDetails = decodeHtmlEntities(thing.warrantyDetails);
+  
+  // Decode photo keys
+  if (thing.photos && Array.isArray(thing.photos)) {
+    thing.photos = thing.photos.map(photoKey => decodeHtmlEntities(photoKey));
+  }
+  
+  // Decode tags
+  if (thing.tags && Array.isArray(thing.tags)) {
+    thing.tags = thing.tags.map(tag => decodeHtmlEntities(tag));
+  }
+  
+  return thing;
+}
 
 /**
  * Lambda handler for Things CRUD operations
@@ -76,10 +108,13 @@ async function handleGet(event, origin) {
     
     const things = await listEntities(ENTITY_TYPE, inventoryId);
     
+    // Decode HTML entities for backward compatibility
+    const decodedThings = things.map(thing => decodeThingFields(thing));
+    
     // Log data access
     await logDataAccess(event.user.userId, 'read', 'things', 'list', inventoryId);
     
-    return success(things, 200, origin);
+    return success(decodedThings, 200, origin);
   } catch (err) {
     console.error('Error listing things:', err);
     
@@ -122,10 +157,13 @@ async function handleCreate(event, origin) {
     // Create the thing
     const thing = await createEntity(ENTITY_TYPE, sanitizedData);
     
+    // Decode HTML entities for backward compatibility
+    const decodedThing = decodeThingFields(thing);
+    
     // Log data access
     await logDataAccess(event.user.userId, 'create', 'things', thing.id, sanitizedData.inventoryId);
     
-    return success(thing, 201, origin);
+    return success(decodedThing, 201, origin);
   } catch (err) {
     console.error('Error creating thing:', err);
     
@@ -173,10 +211,13 @@ async function handleUpdate(event, id, origin) {
     // Update the thing
     const thing = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
     
+    // Decode HTML entities for backward compatibility
+    const decodedThing = decodeThingFields(thing);
+    
     // Log data access
     await logDataAccess(event.user.userId, 'update', 'things', id, sanitizedData.inventoryId);
     
-    return success(thing, 200, origin);
+    return success(decodedThing, 200, origin);
   } catch (err) {
     console.error('Error updating thing:', err);
     

@@ -9,10 +9,62 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Category } from '../types';
+import { decodeCategoryFields } from '../utils/htmlDecoder';
 
 const columns: EntityTableColumn[] = [
-  { field: 'name', headerName: 'Name', flex: 1 },
-  { field: 'description', headerName: 'Description', flex: 2 },
+  { 
+    field: 'name', 
+    headerName: 'Name', 
+    flex: 1,
+    renderCell: (params) => (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box
+          sx={{
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            backgroundColor: params.row.color || '#9E9E9E',
+            border: '2px solid #fff',
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.1)',
+            flexShrink: 0,
+          }}
+          title={`Color: ${params.row.color || 'Default'}`}
+        />
+        {params.row.icon && (
+          <span 
+            className="material-icons" 
+            style={{ 
+              fontSize: 18, 
+              color: params.row.color || '#666',
+              flexShrink: 0,
+            }}
+            title={`Icon: ${params.row.icon}`}
+          >
+            {params.row.icon}
+          </span>
+        )}
+        <span style={{ flexGrow: 1 }}>{params.value}</span>
+      </Box>
+    )
+  },
+  { 
+    field: 'description', 
+    headerName: 'Description', 
+    flex: 2,
+    renderCell: (params) => (
+      <Box>
+        <Typography variant="body2" sx={{ mb: 0.5 }}>
+          {params.value}
+        </Typography>
+        {params.row.color && (
+          <Typography variant="caption" color="text.secondary">
+            Color: {params.row.color}
+            {params.row.icon && ` • Icon: ${params.row.icon}`}
+          </Typography>
+        )}
+      </Box>
+    )
+  },
   { field: 'dateAdded', headerName: 'Date Added', width: 120 },
 ];
 
@@ -20,6 +72,8 @@ interface CategoryTableRow {
   id: string;
   name: string;
   description: string;
+  color?: string;
+  icon?: string;
   dateAdded: string;
 }
 
@@ -56,7 +110,9 @@ export default function Categories() {
       setLoading(true);
       setGlobalLoading(true);
       const categoriesData = await apiClient.getCategories(currentInventory.id);
-      setCategories(categoriesData);
+      // Decode HTML entities as a fallback (in case backend hasn't been redeployed)
+      const decodedCategories = categoriesData.map(category => decodeCategoryFields(category));
+      setCategories(decodedCategories);
     } catch (error) {
       console.error('Error loading categories:', error);
       showError(error instanceof Error ? error.message : 'Failed to load categories. Please try again.');
@@ -71,6 +127,8 @@ export default function Categories() {
     id: category.id,
     name: category.name,
     description: category.description || '',
+    color: category.color || '#9E9E9E', // Default gray color if none set
+    icon: category.icon || 'category', // Default icon if none set
     dateAdded: category.dateAdded ? new Date(category.dateAdded).toLocaleDateString() : '',
   }));
 

@@ -20,7 +20,8 @@ async function createEntity(entityType, data) {
     throw new Error('inventoryId is required for all entities');
   }
 
-  const id = uuidv4();
+  // Allow specifying a custom ID (for photo upload scenarios) or generate a new one
+  const id = data.id || uuidv4();
   const dateAdded = new Date().toISOString();
   
   const item = {

@@ -68,6 +68,23 @@ function sanitizeString(input, maxLength = null) {
 }
 
 /**
+ * Decode HTML entities in a string
+ * @param {string} str - String to decode
+ * @returns {string} Decoded string
+ */
+function decodeHtmlEntities(str) {
+  if (typeof str !== 'string') return str;
+  
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
+}
+
+/**
  * Validate data against a schema with type checking
  * @param {any} data - Data to validate
  * @param {object} schema - Schema definition
@@ -120,8 +137,8 @@ function validateAndSanitizeRecursive(data, schema, path) {
       throw new Error(`${path || 'Field'} must be a string`);
     }
     
-    // Sanitize string first
-    const sanitized = sanitizeString(data, schema.maxLength);
+    // Skip sanitization if noSanitize flag is set (e.g., for S3 keys)
+    const sanitized = schema.noSanitize ? data : sanitizeString(data, schema.maxLength);
     
     // Length validation on sanitized string
     if (schema.maxLength && sanitized.length > schema.maxLength) {
@@ -298,5 +315,6 @@ module.exports = {
   sanitizeInput,
   sanitizeString,
   validateSchema,
-  validateAndSanitize
+  validateAndSanitize,
+  decodeHtmlEntities
 };

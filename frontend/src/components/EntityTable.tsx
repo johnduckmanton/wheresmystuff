@@ -1,8 +1,6 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
-  TextField,
-  Typography,
   Paper,
 } from '@mui/material';
 import {
@@ -17,6 +15,7 @@ import type {
 } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FilterPanel from './FilterPanel';
 
 export interface EntityTableColumn {
   field: string;
@@ -25,6 +24,7 @@ export interface EntityTableColumn {
   width?: number;
   sortable?: boolean;
   filterable?: boolean;
+  renderCell?: (params: any) => React.ReactNode;
 }
 
 export interface EntityTableProps {
@@ -99,6 +99,7 @@ export default function EntityTable({
       flex: col.flex,
       width: col.width,
       sortable: col.sortable !== false,
+      renderCell: col.renderCell,
     }));
 
     // Add actions column if onEdit or onDelete are provided
@@ -138,74 +139,45 @@ export default function EntityTable({
   }, [columns, onEdit, onDelete]);
 
   return (
-    <Paper sx={{ width: '100%', p: { xs: 1, sm: 2 } }}>
-      {/* Global Search */}
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          fullWidth
-          label="Search all columns"
-          variant="outlined"
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          size="small"
-          inputProps={{
-            'aria-label': 'Search all columns',
-          }}
-        />
-      </Box>
-
-      {/* Column Filters */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        {columns
-          .filter((col) => col.filterable !== false)
-          .map((col) => (
-            <TextField
-              key={col.field}
-              label={`Filter ${col.headerName}`}
-              variant="outlined"
-              size="small"
-              value={columnFilters[col.field] || ''}
-              onChange={(e) => handleColumnFilterChange(col.field, e.target.value)}
-              sx={{ minWidth: { xs: '100%', sm: 200 } }}
-              inputProps={{
-                'aria-label': `Filter by ${col.headerName}`,
-              }}
-            />
-          ))}
-      </Box>
-
-      {/* Filtered Item Count */}
-      <Box sx={{ mb: 1 }}>
-        <Typography variant="body2" color="text.secondary" role="status" aria-live="polite">
-          Showing {filteredData.length} of {data.length} items
-        </Typography>
-      </Box>
+    <Box sx={{ width: '100%' }}>
+      {/* Filter Panel */}
+      <FilterPanel
+        columns={columns}
+        globalSearch={globalSearch}
+        onGlobalSearchChange={setGlobalSearch}
+        columnFilters={columnFilters}
+        onColumnFilterChange={handleColumnFilterChange}
+        filteredCount={filteredData.length}
+        totalCount={data.length}
+      />
 
       {/* DataGrid */}
-      <DataGrid
-        rows={filteredData}
-        columns={gridColumns}
-        loading={loading}
-        sortModel={sortModel}
-        onSortModelChange={setSortModel}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={[5, 10, 25, 50]}
-        disableRowSelectionOnClick
-        onRowClick={(params) => {
-          if (onRowClick) {
-            onRowClick(params.row);
-          }
-        }}
-        sx={{
-          minHeight: 400,
-          '& .MuiDataGrid-row': {
-            cursor: onRowClick ? 'pointer' : 'default',
-          },
-        }}
-        autoHeight
-        aria-label="Data table"
-      />
-    </Paper>
+      <Paper sx={{ p: { xs: 1, sm: 2 } }}>
+        <DataGrid
+          rows={filteredData}
+          columns={gridColumns}
+          loading={loading}
+          sortModel={sortModel}
+          onSortModelChange={setSortModel}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[5, 10, 25, 50]}
+          disableRowSelectionOnClick
+          onRowClick={(params) => {
+            if (onRowClick) {
+              onRowClick(params.row);
+            }
+          }}
+          sx={{
+            minHeight: 400,
+            '& .MuiDataGrid-row': {
+              cursor: onRowClick ? 'pointer' : 'default',
+            },
+          }}
+          autoHeight
+          aria-label="Data table"
+        />
+      </Paper>
+    </Box>
   );
 }

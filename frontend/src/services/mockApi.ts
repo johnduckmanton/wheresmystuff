@@ -186,6 +186,8 @@ class MockApiClient {
       id: this.generateId('cat'),
       dateAdded: new Date().toISOString(),
       description: data.description || '',
+      color: data.color || '#4ECDC4',
+      icon: data.icon || 'category',
     };
     this.data.categories.push(newCategory);
     return newCategory;
@@ -334,9 +336,10 @@ class MockApiClient {
   }
 
   // Photo API (simplified for mock)
-  async generateUploadUrl(key: string, contentType: string): Promise<{ uploadUrl: string; key: string }> {
+  async generateUploadUrl(fileName: string, contentType: string, inventoryId: string, entityId: string): Promise<{ uploadUrl: string; key: string }> {
     await mockDelay();
-    console.log(`Mock: Generating upload URL for ${key} with type ${contentType}`);
+    console.log(`Mock: Generating upload URL for ${fileName} with type ${contentType} for inventory ${inventoryId} entity ${entityId}`);
+    const key = `photos/mock-user/${inventoryId}/${entityId}/${Date.now()}-${fileName}`;
     return {
       uploadUrl: `mock://upload/${key}`,
       key

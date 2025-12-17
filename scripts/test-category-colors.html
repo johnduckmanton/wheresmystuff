@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Colors Test</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        .icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .name {
+            font-weight: 500;
+            flex-grow: 1;
+        }
+        .description {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Category Colors & Icons Test</h1>
+    <p>This shows how your categories should look with colors and icons:</p>
+    
+    <div id="categories"></div>
+
+    <script>
+        const categories = [
+            { name: "Furniture", color: "#8B4513", icon: "chair", description: "Tables, chairs, sofas, beds, wardrobes, and other furniture items" },
+            { name: "Electronics", color: "#4169E1", icon: "tv", description: "TVs, computers, phones, tablets, gaming consoles, and electronic devices" },
+            { name: "Kitchen Appliances", color: "#FF6347", icon: "kitchen", description: "Refrigerators, ovens, microwaves, dishwashers, kettles, and cooking equipment" },
+            { name: "Small Appliances", color: "#32CD32", icon: "blender", description: "Toasters, blenders, coffee makers, vacuum cleaners, and portable appliances" },
+            { name: "Clothing & Textiles", color: "#FF69B4", icon: "shirt", description: "Clothes, shoes, bedding, curtains, towels, and fabric items" },
+            { name: "Books & Media", color: "#8A2BE2", icon: "book", description: "Books, DVDs, CDs, magazines, vinyl records, and media collections" },
+            { name: "Tools & Hardware", color: "#FF8C00", icon: "hammer", description: "Hand tools, power tools, screws, nails, and DIY equipment" },
+            { name: "Garden & Outdoor", color: "#228B22", icon: "leaf", description: "Garden tools, outdoor furniture, plants, pots, and gardening equipment" },
+            { name: "Sports & Recreation", color: "#FF4500", icon: "sports", description: "Exercise equipment, sports gear, games, toys, and recreational items" },
+            { name: "Art & Collectibles", color: "#9932CC", icon: "palette", description: "Paintings, sculptures, antiques, collectibles, and decorative items" }
+        ];
+
+        const container = document.getElementById('categories');
+        
+        categories.forEach(category => {
+            const item = document.createElement('div');
+            item.className = 'category-item';
+            
+            item.innerHTML = `
+                <div class="color-dot" style="background-color: ${category.color}"></div>
+                <span class="material-icons icon" style="color: ${category.color}">${category.icon}</span>
+                <div>
+                    <div class="name">${category.name}</div>
+                    <div class="description">${category.description}</div>
+                </div>
+            `;
+            
+            container.appendChild(item);
+        });
+    </script>
+</body>
+</html>

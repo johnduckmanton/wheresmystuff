@@ -1,5 +1,5 @@
 const inventoryService = require('../services/inventoryService');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
 const { inventorySchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -78,6 +78,13 @@ const inventoryHandler = async (event) => {
 async function handleGetInventories(event, origin) {
   try {
     const inventories = await inventoryService.getUserInventories(event.user.userId);
+    
+    // Decode HTML entities in photo keys for backward compatibility
+    inventories.forEach(inventory => {
+      if (inventory.photos && Array.isArray(inventory.photos)) {
+        inventory.photos = inventory.photos.map(photo => decodeHtmlEntities(photo));
+      }
+    });
     
     // Log data access
     await logDataAccess(event.user.userId, 'read', 'inventories', 'list', null);

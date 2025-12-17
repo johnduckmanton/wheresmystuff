@@ -33,6 +33,10 @@ export interface ThingFormDialogProps {
   onClose: () => void;
 }
 
+interface ThingFormData extends Partial<Thing> {
+  tempId?: string; // Temporary ID for photo uploads before thing is created
+}
+
 export default function ThingFormDialog({
   open,
   thing,
@@ -43,7 +47,7 @@ export default function ThingFormDialog({
   onSubmit,
   onClose,
 }: ThingFormDialogProps) {
-  const [formData, setFormData] = useState<Partial<Thing>>({});
+  const [formData, setFormData] = useState<ThingFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const { currentInventory } = useInventory();
@@ -68,6 +72,7 @@ export default function ThingFormDialog({
           notes: '',
           datePurchased: '',
           purchasedFrom: '',
+          purchasePrice: undefined,
           warrantyDetails: '',
           disposalDate: '',
           nextReviewDate: '',
@@ -116,7 +121,13 @@ export default function ThingFormDialog({
   // Handle form submission
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData);
+      // For new things with photos, use tempId as the actual id
+      const submitData = { ...formData };
+      if (!thing && formData.tempId) {
+        submitData.id = formData.tempId;
+        delete submitData.tempId;
+      }
+      onSubmit(submitData);
     }
   };
 
@@ -129,16 +140,30 @@ export default function ThingFormDialog({
 
   // Handle photo upload
   const handlePhotoUpload = async (files: File[]) => {
+    if (!currentInventory) {
+      throw new Error('No inventory selected');
+    }
+
     setIsUploadingPhotos(true);
     try {
       const uploadedKeys: string[] = [];
+
+      // For new things, generate a temporary ID that will be used when creating the thing
+      // For existing things, use the existing ID
+      const entityId = thing?.id || formData.tempId || (() => {
+        const tempId = crypto.randomUUID();
+        setFormData(prev => ({ ...prev, tempId }));
+        return tempId;
+      })();
 
       // Upload each file
       for (const file of files) {
         // Generate presigned upload URL
         const { uploadUrl, key } = await apiClient.generateUploadUrl(
           file.name,
-          file.type
+          file.type,
+          currentInventory.id,
+          entityId
         );
 
         // Upload file to S3 using presigned URL
@@ -381,6 +406,23 @@ export default function ThingFormDialog({
             label="Purchased From"
             value={formData.purchasedFrom || ''}
             onChange={(e) => handleFieldChange('purchasedFrom', e.target.value)}
+          />
+
+          <TextField
+            fullWidth
+            label="Purchase Price"
+            type="number"
+            value={formData.purchasePrice || ''}
+            onChange={(e) => handleFieldChange('purchasePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+            InputProps={{
+              startAdornment: <span style={{ marginRight: '8px', color: '#666' }}>£</span>,
+            }}
+            inputProps={{
+              min: 0,
+              step: 0.01,
+              'aria-label': 'Purchase price',
+            }}
+            helperText="Enter the original purchase price"
           />
 
           <TextField

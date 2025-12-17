@@ -10,12 +10,10 @@ const commonFields = {
   },
   inventoryId: {
     type: 'string',
-    required: true,
     pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   },
   name: {
     type: 'string',
-    required: true,
     minLength: 1,
     maxLength: 255
   },
@@ -60,10 +58,25 @@ const thingSchema = {
       type: 'number',
       min: 0
     },
-    purchaseDate: {
+    purchasePrice: {
+      type: 'number',
+      min: 0
+    },
+    datePurchased: {
       type: 'string'
     },
-    warrantyExpiration: {
+    purchasedFrom: {
+      type: 'string',
+      maxLength: 200
+    },
+    warrantyDetails: {
+      type: 'string',
+      maxLength: 500
+    },
+    disposalDate: {
+      type: 'string'
+    },
+    nextReviewDate: {
       type: 'string'
     },
     serialNumber: {
@@ -91,7 +104,8 @@ const thingSchema = {
       maxItems: 10,
       items: {
         type: 'string',
-        maxLength: 500
+        maxLength: 500,
+        noSanitize: true
       }
     },
     tags: {
@@ -101,6 +115,9 @@ const thingSchema = {
         type: 'string',
         maxLength: 50
       }
+    },
+    dateAdded: {
+      type: 'string'
     },
     createdAt: commonFields.createdAt,
     updatedAt: commonFields.updatedAt
@@ -121,6 +138,30 @@ const locationSchema = {
       type: 'string',
       maxLength: 500
     },
+    addressLine1: {
+      type: 'string',
+      maxLength: 200
+    },
+    addressLine2: {
+      type: 'string',
+      maxLength: 200
+    },
+    town: {
+      type: 'string',
+      maxLength: 100
+    },
+    county: {
+      type: 'string',
+      maxLength: 100
+    },
+    postcode: {
+      type: 'string',
+      maxLength: 20
+    },
+    country: {
+      type: 'string',
+      maxLength: 2
+    },
     type: {
       type: 'string',
       maxLength: 50
@@ -134,8 +175,12 @@ const locationSchema = {
       maxItems: 10,
       items: {
         type: 'string',
-        maxLength: 500
+        maxLength: 500,
+        noSanitize: true
       }
+    },
+    dateAdded: {
+      type: 'string'
     },
     createdAt: commonFields.createdAt,
     updatedAt: commonFields.updatedAt
@@ -149,13 +194,19 @@ const roomSchema = {
   required: ['name', 'inventoryId', 'locationId'],
   properties: {
     id: commonFields.id,
-    inventoryId: commonFields.inventoryId,
+    inventoryId: {
+      type: 'string',
+      pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    },
     name: commonFields.name,
     description: commonFields.description,
     locationId: {
       type: 'string',
-      required: true,
       pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    },
+    floor: {
+      type: 'string',
+      maxLength: 50
     },
     type: {
       type: 'string',
@@ -170,8 +221,12 @@ const roomSchema = {
       maxItems: 10,
       items: {
         type: 'string',
-        maxLength: 500
+        maxLength: 500,
+        noSanitize: true
       }
+    },
+    dateAdded: {
+      type: 'string'
     },
     createdAt: commonFields.createdAt,
     updatedAt: commonFields.updatedAt
@@ -197,6 +252,9 @@ const categorySchema = {
       type: 'string',
       maxLength: 50
     },
+    dateAdded: {
+      type: 'string'
+    },
     createdAt: commonFields.createdAt,
     updatedAt: commonFields.updatedAt
   },
@@ -211,6 +269,7 @@ const personSchema = {
     id: commonFields.id,
     inventoryId: commonFields.inventoryId,
     name: commonFields.name,
+    description: commonFields.description,
     email: {
       type: 'string',
       maxLength: 255,
@@ -219,10 +278,6 @@ const personSchema = {
     phone: {
       type: 'string',
       maxLength: 20
-    },
-    relationship: {
-      type: 'string',
-      maxLength: 100
     },
     notes: {
       type: 'string',
@@ -233,8 +288,12 @@ const personSchema = {
       maxItems: 5,
       items: {
         type: 'string',
-        maxLength: 500
+        maxLength: 500,
+        noSanitize: true
       }
+    },
+    dateAdded: {
+      type: 'string'
     },
     createdAt: commonFields.createdAt,
     updatedAt: commonFields.updatedAt

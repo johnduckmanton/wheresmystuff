@@ -1,5 +1,26 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
+
+/**
+ * Decode HTML entities in category fields for backward compatibility
+ * @param {Object} category - Category object to decode
+ * @returns {Object} Category with decoded fields
+ */
+function decodeCategoryFields(category) {
+  if (!category) return category;
+  
+  // Decode text fields
+  if (category.name) category.name = decodeHtmlEntities(category.name);
+  if (category.description) category.description = decodeHtmlEntities(category.description);
+  if (category.icon) category.icon = decodeHtmlEntities(category.icon);
+  
+  // Decode photo keys
+  if (category.photos && Array.isArray(category.photos)) {
+    category.photos = category.photos.map(photo => decodeHtmlEntities(photo));
+  }
+  
+  return category;
+}
 const { categorySchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -74,6 +95,9 @@ async function handleGet(event) {
     
     const categories = await listEntities(ENTITY_TYPE, inventoryId);
     
+    // Decode HTML entities for backward compatibility
+    categories.forEach(decodeCategoryFields);
+    
     // Log data access
     await logDataAccess(event.user.userId, 'read', 'categories', 'list', inventoryId);
     
@@ -119,6 +143,9 @@ async function handleCreate(event) {
     
     // Create the category
     const category = await createEntity(ENTITY_TYPE, sanitizedData);
+    
+    // Decode HTML entities for backward compatibility
+    decodeCategoryFields(category);
     
     // Log data access
     await logDataAccess(event.user.userId, 'create', 'categories', category.id, sanitizedData.inventoryId);
@@ -170,6 +197,9 @@ async function handleUpdate(event, id) {
     
     // Update the category
     const category = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
+    
+    // Decode HTML entities for backward compatibility
+    decodeCategoryFields(category);
     
     // Log data access
     await logDataAccess(event.user.userId, 'update', 'categories', id, sanitizedData.inventoryId);

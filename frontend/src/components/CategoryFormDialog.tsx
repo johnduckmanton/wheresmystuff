@@ -7,10 +7,28 @@ import {
   Button,
   TextField,
   Box,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import type { Category } from '../types';
 import InventoryFormSelector from './InventoryFormSelector';
 import { useInventory } from '../contexts/InventoryContext';
+
+// Predefined color options
+const COLOR_OPTIONS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+  '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+  '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+  '#A3E4D7', '#F9E79F', '#D5A6BD', '#AED6F1', '#A9DFBF'
+];
+
+// Predefined icon options (Material-UI icon names)
+const ICON_OPTIONS = [
+  'chair', 'tv', 'kitchen', 'blender', 'shirt', 'book', 'hammer', 'leaf',
+  'sports', 'palette', 'diamond', 'music', 'briefcase', 'bath', 'spray',
+  'lightbulb', 'box', 'car', 'pets', 'favorite', 'child_care', 'description',
+  'ac_unit', 'help_outline', 'home', 'computer', 'phone', 'camera'
+];
 
 export interface CategoryFormDialogProps {
   open: boolean;
@@ -41,6 +59,8 @@ export default function CategoryFormDialog({
           name: '',
           inventoryId: currentInventory?.id || '',
           description: '',
+          color: '#4ECDC4', // Default color
+          icon: 'category', // Default icon
         });
       }
       setErrors({});
@@ -148,6 +168,75 @@ export default function CategoryFormDialog({
               'aria-label': 'Category description',
             }}
           />
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Autocomplete
+              options={COLOR_OPTIONS}
+              value={formData.color || ''}
+              onChange={(_, newValue) => handleFieldChange('color', newValue)}
+              freeSolo
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Color"
+                  placeholder="Select or enter hex color"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: '50%',
+                          backgroundColor: formData.color || '#4ECDC4',
+                          border: '1px solid #ccc',
+                          mr: 1,
+                        }}
+                      />
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: option,
+                      border: '1px solid #ccc',
+                    }}
+                  />
+                  {option}
+                </Box>
+              )}
+              sx={{ flex: 1 }}
+            />
+
+            <Autocomplete
+              options={ICON_OPTIONS}
+              value={formData.icon || ''}
+              onChange={(_, newValue) => handleFieldChange('icon', newValue)}
+              freeSolo
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Icon"
+                  placeholder="Select or enter icon name"
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span className="material-icons" style={{ fontSize: 16 }}>
+                    {option}
+                  </span>
+                  {option}
+                </Box>
+              )}
+              sx={{ flex: 1 }}
+            />
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

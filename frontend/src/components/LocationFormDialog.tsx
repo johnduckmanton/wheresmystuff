@@ -272,8 +272,10 @@ export default function LocationFormDialog({
 
   // Load rooms for the current location
   const loadRooms = async (locationId: string) => {
+    if (!currentInventory) return;
+    
     try {
-      const roomsData = await apiClient.getRooms(locationId);
+      const roomsData = await apiClient.getRooms(locationId, currentInventory.id);
       setRooms(roomsData);
     } catch (error) {
       console.error('Error loading rooms:', error);
@@ -380,10 +382,10 @@ export default function LocationFormDialog({
   };
 
   const handleConfirmDeleteRoom = async () => {
-    if (!roomToDelete) return;
+    if (!roomToDelete || !currentInventory) return;
 
     try {
-      await apiClient.deleteRoom(roomToDelete.id);
+      await apiClient.deleteRoom(roomToDelete.id, currentInventory.id);
       setDeleteRoomDialogOpen(false);
       setRoomToDelete(null);
       

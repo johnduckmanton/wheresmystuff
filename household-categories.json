@@ -1,0 +1,146 @@
+[
+  {
+    "name": "Furniture",
+    "description": "Tables, chairs, sofas, beds, wardrobes, and other furniture items",
+    "color": "#8B4513",
+    "icon": "chair"
+  },
+  {
+    "name": "Electronics",
+    "description": "TVs, computers, phones, tablets, gaming consoles, and electronic devices",
+    "color": "#4169E1",
+    "icon": "tv"
+  },
+  {
+    "name": "Kitchen Appliances",
+    "description": "Refrigerators, ovens, microwaves, dishwashers, kettles, and cooking equipment",
+    "color": "#FF6347",
+    "icon": "kitchen"
+  },
+  {
+    "name": "Small Appliances",
+    "description": "Toasters, blenders, coffee makers, vacuum cleaners, and portable appliances",
+    "color": "#32CD32",
+    "icon": "blender"
+  },
+  {
+    "name": "Clothing & Textiles",
+    "description": "Clothes, shoes, bedding, curtains, towels, and fabric items",
+    "color": "#FF69B4",
+    "icon": "shirt"
+  },
+  {
+    "name": "Books & Media",
+    "description": "Books, DVDs, CDs, magazines, vinyl records, and media collections",
+    "color": "#8A2BE2",
+    "icon": "book"
+  },
+  {
+    "name": "Tools & Hardware",
+    "description": "Hand tools, power tools, screws, nails, and DIY equipment",
+    "color": "#FF8C00",
+    "icon": "hammer"
+  },
+  {
+    "name": "Garden & Outdoor",
+    "description": "Garden tools, outdoor furniture, plants, pots, and gardening equipment",
+    "color": "#228B22",
+    "icon": "leaf"
+  },
+  {
+    "name": "Sports & Recreation",
+    "description": "Exercise equipment, sports gear, games, toys, and recreational items",
+    "color": "#FF4500",
+    "icon": "sports"
+  },
+  {
+    "name": "Art & Collectibles",
+    "description": "Paintings, sculptures, antiques, collectibles, and decorative items",
+    "color": "#9932CC",
+    "icon": "palette"
+  },
+  {
+    "name": "Jewelry & Accessories",
+    "description": "Jewelry, watches, bags, wallets, and personal accessories",
+    "color": "#FFD700",
+    "icon": "diamond"
+  },
+  {
+    "name": "Musical Instruments",
+    "description": "Guitars, pianos, drums, and other musical instruments and equipment",
+    "color": "#DC143C",
+    "icon": "music"
+  },
+  {
+    "name": "Office & Stationery",
+    "description": "Desk supplies, printers, office chairs, filing cabinets, and work equipment",
+    "color": "#708090",
+    "icon": "briefcase"
+  },
+  {
+    "name": "Bathroom Items",
+    "description": "Toiletries, towels, bathroom scales, and personal care items",
+    "color": "#20B2AA",
+    "icon": "bath"
+  },
+  {
+    "name": "Cleaning Supplies",
+    "description": "Vacuum cleaners, mops, cleaning products, and household maintenance items",
+    "color": "#87CEEB",
+    "icon": "spray"
+  },
+  {
+    "name": "Lighting",
+    "description": "Lamps, light fixtures, bulbs, and lighting equipment",
+    "color": "#FFFF00",
+    "icon": "lightbulb"
+  },
+  {
+    "name": "Storage & Organization",
+    "description": "Boxes, containers, shelving units, and organizational systems",
+    "color": "#A0522D",
+    "icon": "box"
+  },
+  {
+    "name": "Automotive",
+    "description": "Car accessories, tools, maintenance items, and vehicle-related equipment",
+    "color": "#2F4F4F",
+    "icon": "car"
+  },
+  {
+    "name": "Pet Supplies",
+    "description": "Pet food, toys, beds, carriers, and animal care items",
+    "color": "#DDA0DD",
+    "icon": "paw"
+  },
+  {
+    "name": "Health & Fitness",
+    "description": "Medical supplies, fitness equipment, supplements, and health monitoring devices",
+    "color": "#00CED1",
+    "icon": "heart"
+  },
+  {
+    "name": "Baby & Children",
+    "description": "Baby equipment, toys, children's furniture, and childcare items",
+    "color": "#FFB6C1",
+    "icon": "baby"
+  },
+  {
+    "name": "Documents & Papers",
+    "description": "Important documents, certificates, warranties, and paperwork",
+    "color": "#F5F5DC",
+    "icon": "document"
+  },
+  {
+    "name": "Seasonal Items",
+    "description": "Christmas decorations, holiday items, seasonal clothing, and event supplies",
+    "color": "#FF1493",
+    "icon": "snowflake"
+  },
+  {
+    "name": "Miscellaneous",
+    "description": "Items that don't fit into other categories",
+    "color": "#696969",
+    "icon": "question"
+  }
+]
