@@ -16,8 +16,8 @@ Globals:
         AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
         ALLOWED_ORIGINS: !If
           - HasCustomDomain
-          - !Sub 'https://${CustomDomainName},http://localhost:5173,http://localhost:3000'
-          - 'http://localhost:5173,http://localhost:3000'
+          - !Sub 'https://${CustomDomainName},https://d2m4d2elac4ekv.cloudfront.net,http://localhost:5173,http://localhost:3000'
+          - 'https://d2m4d2elac4ekv.cloudfront.net,http://localhost:5173,http://localhost:3000'
         NODE_ENV: !Ref Environment
 
 
@@ -137,35 +137,65 @@ Resources:
           - !GetAtt WAFWebACL.Arn
           - !Ref AWS::NoValue
         
-        # Default cache behavior for API
+        # Default cache behavior for frontend (S3)
         DefaultCacheBehavior:
-          TargetOriginId: ApiGatewayOrigin
+          TargetOriginId: S3Origin
           ViewerProtocolPolicy: redirect-to-https
           AllowedMethods:
             - GET
             - HEAD
             - OPTIONS
-            - PUT
-            - POST
-            - PATCH
-            - DELETE
           CachedMethods:
             - GET
             - HEAD
             - OPTIONS
           Compress: true
           
-          # Cache policy for API (no caching for dynamic content)
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
-          
-          # Origin request policy to forward all headers, query strings, and cookies
-          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewer managed policy
+          # Cache policy for static content (optimized for frontend)
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
           
           # Response headers policy for security headers
           ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
         
-        # Origin configuration for API Gateway
+        # Additional cache behaviors
+        CacheBehaviors:
+          # API routes
+          - PathPattern: "/dev/*"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            
+            # Cache policy for API (no caching for dynamic content)
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
+            
+            # Origin request policy to forward all headers, query strings, and cookies
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewer managed policy
+            
+            # Response headers policy for security headers
+            ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
+        
+        # Origins configuration
         Origins:
+          # S3 Origin for frontend static files
+          - Id: S3Origin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !Ref OriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+          
+          # API Gateway Origin
           - Id: ApiGatewayOrigin
             DomainName: !Sub ${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
             OriginPath: !Sub /${Environment}
@@ -175,15 +205,16 @@ Resources:
               OriginSSLProtocols:
                 - TLSv1.2
         
-        # Custom error responses
+        # Custom error responses for SPA routing
+        DefaultRootObject: index.html
         CustomErrorResponses:
           - ErrorCode: 403
-            ResponseCode: 403
-            ResponsePagePath: /error.html
+            ResponseCode: 200
+            ResponsePagePath: /index.html
             ErrorCachingMinTTL: 300
           - ErrorCode: 404
-            ResponseCode: 404
-            ResponsePagePath: /error.html
+            ResponseCode: 200
+            ResponsePagePath: /index.html
             ErrorCachingMinTTL: 300
         
         # Logging configuration (optional, can be enabled later)
@@ -273,6 +304,50 @@ Resources:
       Tags:
         - Key: Environment
           Value: !Ref Environment
+
+  # S3 Bucket for Frontend Website Hosting
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub home-inventory-frontend-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Origin Access Control for S3
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub home-inventory-oac-${Environment}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # S3 Bucket Policy for CloudFront Access
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${WebsiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
 
   # Cognito User Pool
   UserPool:
@@ -365,7 +440,8 @@ Resources:
               - !If
                 - HasCustomDomain
                 - !Sub https://${CustomDomainName}
-                - 'https://d2m4d2elac4ekv.cloudfront.net'
+                - !Ref AWS::NoValue
+              - 'https://d2m4d2elac4ekv.cloudfront.net'
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -390,7 +466,9 @@ Resources:
           - !If
             - HasCustomDomain
             - !Sub https://${CustomDomainName}
-            - 'http://localhost:5173'
+            - !Ref AWS::NoValue
+          - 'https://d2m4d2elac4ekv.cloudfront.net'
+          - 'http://localhost:5173'
           - 'http://localhost:3000'  # Support both Vite and Create React App dev servers
         AllowHeaders:
           - 'Content-Type'
@@ -728,6 +806,14 @@ Resources:
             Method: POST
             Auth:
               Authorizer: CognitoAuthorizer
+        GetInventory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
         UpdateInventory:
           Type: HttpApi
           Properties:
@@ -769,6 +855,109 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # User Management Lambda
+  UserManagementFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/users.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminUpdateUserAttributes
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPool}
+      Events:
+        UserLookup:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/lookup
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ListInvitations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{inventoryId}/invitations
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateInvitation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{inventoryId}/invitations
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CancelInvitation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{inventoryId}/invitations/{invitationId}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        AcceptInvitation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /invitations/accept
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateMemberRole:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /inventories/{inventoryId}/members/{userId}/role
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetUserProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/profile
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetUserProfileById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/{userId}/profile
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateUserProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/profile
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateUserProfileById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/{userId}/profile
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -793,6 +982,12 @@ Outputs:
     Value: !Ref PhotoBucket
     Export:
       Name: !Sub ${AWS::StackName}-BucketName
+
+  WebsiteBucket:
+    Description: S3 Bucket Name for Frontend Website
+    Value: !Ref WebsiteBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-WebsiteBucket
 
   TableName:
     Description: DynamoDB Table Name

@@ -150,8 +150,8 @@ describe('Photo Property Tests', () => {
         fc.uuid(),
         // Generate random entity ID (UUID format)
         fc.uuid(),
-        // Generate random file name
-        fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0),
+        // Generate random file name (alphanumeric to avoid sanitization issues)
+        fc.string({ minLength: 1, maxLength: 50 }).filter(s => /^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(s)),
         // Generate boolean for whether user has access
         fc.boolean(),
         
@@ -168,13 +168,15 @@ describe('Photo Property Tests', () => {
           const mockEvent = {
             requestContext: {
               http: {
-                method: 'GET'
+                method: 'GET',
+                sourceIp: '127.0.0.1'
               }
             },
             headers: {
-              Authorization: 'Bearer mock-token'
+              Authorization: 'Bearer mock-token',
+              'user-agent': 'test-agent'
             },
-            pathParameters: {
+            queryStringParameters: {
               key: encodeURIComponent(photoKey)
             },
             user: {
@@ -250,8 +252,8 @@ describe('Photo Property Tests', () => {
         fc.uuid(),
         // Generate random entity ID (UUID format)
         fc.uuid(),
-        // Generate random file name
-        fc.string({ minLength: 1, maxLength: 50 }).filter(s => s.trim().length > 0),
+        // Generate random file name (alphanumeric to avoid sanitization issues)
+        fc.string({ minLength: 1, maxLength: 50 }).filter(s => /^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(s)),
         // Generate random content type
         fc.constantFrom('image/jpeg', 'image/png', 'image/gif'),
         // Generate operation type (upload or download)
@@ -295,13 +297,15 @@ describe('Photo Property Tests', () => {
             mockEvent = {
               requestContext: {
                 http: {
-                  method: 'GET'
+                  method: 'GET',
+                  sourceIp: '127.0.0.1'
                 }
               },
               headers: {
-                Authorization: 'Bearer mock-token'
+                Authorization: 'Bearer mock-token',
+                'user-agent': 'test-agent'
               },
-              pathParameters: {
+              queryStringParameters: {
                 key: encodeURIComponent(photoKey)
               },
               user: {

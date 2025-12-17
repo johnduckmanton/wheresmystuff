@@ -79,9 +79,71 @@ export interface Inventory {
 export interface InventoryMembership {
   inventoryId: string; // UUID of inventory
   userId: string; // UUID of member user
-  role: string; // "owner" or "member"
+  role: string; // "owner", "administrator", "member", or "read_only"
   addedAt: string; // ISO 8601 timestamp
   addedBy: string; // User ID who added this member
+  updatedAt?: string; // ISO 8601 timestamp of last role change
+  updatedBy?: string; // User ID who last updated this member's role
+  permissions?: {
+    canAddMembers: boolean;
+    canRemoveMembers: boolean;
+    canModifySettings: boolean;
+    canDeleteInventory: boolean;
+    canManageItems: boolean;
+    canViewItems: boolean;
+    canViewMembers: boolean;
+  };
+  // Enriched user profile information
+  userProfile?: {
+    email: string;
+    displayName: string;
+    username: string;
+  } | null;
+  addedByProfile?: {
+    email: string;
+    displayName: string;
+    username: string;
+  } | null;
+  updatedByProfile?: {
+    email: string;
+    displayName: string;
+    username: string;
+  } | null;
+}
+
+export interface UserProfile {
+  userId: string; // UUID from Cognito
+  email: string;
+  username: string;
+  displayName: string;
+  emailVerified: boolean;
+  userStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
+  found?: boolean; // For lookup responses
+}
+
+export interface UserLookupResult {
+  found: boolean;
+  userId?: string;
+  email?: string;
+  username?: string;
+  displayName?: string;
+  emailVerified?: boolean;
+  userStatus?: string;
+  message?: string;
+}
+
+export interface Invitation {
+  invitationId: string;
+  inventoryId: string;
+  email: string;
+  role: 'member' | 'administrator' | 'read_only';
+  invitedBy: string;
+  status: 'pending' | 'accepted' | 'cancelled' | 'expired';
+  createdAt: string;
+  expiresAt: string;
 }
 
 export interface ApiResponse<T> {

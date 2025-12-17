@@ -9,6 +9,9 @@ import type {
   Person,
   Inventory,
   InventoryMembership,
+  UserProfile,
+  UserLookupResult,
+  Invitation,
   ApiResponse,
 } from '../types';
 import { isDevelopmentMode, logDevelopmentInfo } from '../config/development';
@@ -286,6 +289,57 @@ class ApiClient {
 
   async removeInventoryMember(inventoryId: string, userId: string): Promise<void> {
     return this.delete<void>(`/inventories/${inventoryId}/members/${userId}`);
+  }
+
+  // User Management API
+  async lookupUserByEmail(email: string): Promise<UserLookupResult> {
+    return this.get<UserLookupResult>(`/users/lookup?email=${encodeURIComponent(email)}`);
+  }
+
+  async getUserProfile(userId?: string): Promise<UserProfile> {
+    const url = userId ? `/users/profile/${userId}` : '/users/profile';
+    return this.get<UserProfile>(url);
+  }
+
+  async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+    return this.put<UserProfile>(`/users/profile/${userId}`, updates);
+  }
+
+  // Invitation Management API
+  async getInvitations(inventoryId: string): Promise<Invitation[]> {
+    return this.get<Invitation[]>(`/inventories/${inventoryId}/invitations`);
+  }
+
+  async createInvitation(inventoryId: string, data: {
+    email: string;
+    role: string;
+    inventoryName?: string;
+    inviterName?: string;
+  }): Promise<Invitation> {
+    return this.post<Invitation>(`/inventories/${inventoryId}/invitations`, data);
+  }
+
+  async cancelInvitation(inventoryId: string, invitationId: string): Promise<void> {
+    return this.delete<void>(`/inventories/${inventoryId}/invitations/${invitationId}`);
+  }
+
+  async acceptInvitation(token: string): Promise<{
+    message: string;
+    inventoryId: string;
+    role: string;
+    membership: InventoryMembership;
+  }> {
+    return this.post<{
+      message: string;
+      inventoryId: string;
+      role: string;
+      membership: InventoryMembership;
+    }>('/invitations/accept', { token });
+  }
+
+  // Member Role Management API
+  async updateMemberRole(inventoryId: string, userId: string, role: string, reason?: string): Promise<InventoryMembership> {
+    return this.put<InventoryMembership>(`/inventories/${inventoryId}/members/${userId}/role`, { role, reason });
   }
 
   // Photo API

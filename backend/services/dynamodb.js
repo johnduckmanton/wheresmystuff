@@ -341,20 +341,44 @@ async function listInventoryMembers(inventoryId) {
  * @returns {Promise<Array>} Array of inventories
  */
 async function getUserInventories(userId) {
-  // This would require a GSI in a real implementation
-  // For now, we'll implement a scan-based approach (not recommended for production)
-  const result = await docClient.send(new QueryCommand({
+  // Without a GSI, we need to scan for memberships
+  // This is not optimal for production but works for now
+  const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
+  
+  const result = await docClient.send(new ScanCommand({
     TableName: TABLE_NAME,
-    IndexName: 'GSI1', // This would need to be created
-    KeyConditionExpression: 'GSI1PK = :userId',
+    FilterExpression: 'begins_with(pk, :invPrefix) AND begins_with(sk, :memberPrefix) AND userId = :userId',
     ExpressionAttributeValues: {
-      ':userId': `USER#${userId}`
+      ':invPrefix': 'INVENTORY#',
+      ':memberPrefix': 'MEMBER#',
+      ':userId': userId
     }
   }));
   
-  // For this implementation, we'll return an empty array
-  // In a real system, you'd need to set up the GSI properly
-  return [];
+  if (!result.Items || result.Items.length === 0) {
+    return [];
+  }
+  
+  // Get the full inventory details for each membership
+  const inventories = [];
+  for (const membership of result.Items) {
+    try {
+      const inventory = await getInventory(membership.inventoryId);
+      if (inventory) {
+        // Add the user's role to the inventory object
+        inventories.push({
+          ...inventory,
+          userRole: membership.role,
+          userPermissions: membership.permissions
+        });
+      }
+    } catch (err) {
+      console.error(`Error fetching inventory ${membership.inventoryId}:`, err);
+      // Continue with other inventories
+    }
+  }
+  
+  return inventories;
 }
 
 /**

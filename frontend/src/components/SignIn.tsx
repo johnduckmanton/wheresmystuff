@@ -9,8 +9,10 @@ import {
   Paper,
   Alert,
   CircularProgress,
+  Link,
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { Link as RouterLink } from 'react-router-dom';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -132,6 +134,14 @@ export default function SignIn() {
           >
             {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Don't have an account?{' '}
+              <Link component={RouterLink} to="/signup" underline="hover">
+                Sign Up
+              </Link>
+            </Typography>
+          </Box>
         </Box>
       </Paper>
     </Box>

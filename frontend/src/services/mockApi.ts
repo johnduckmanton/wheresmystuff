@@ -7,6 +7,9 @@ import type {
   Person,
   Inventory,
   InventoryMembership,
+  UserProfile,
+  UserLookupResult,
+  Invitation,
 } from '../types';
 import { mockData, mockDelay } from '../config/development';
 
@@ -350,6 +353,182 @@ class MockApiClient {
     await mockDelay();
     return {
       downloadUrl: `mock://download/${key}`
+    };
+  }
+
+  // User Management API (Mock)
+  async lookupUserByEmail(email: string): Promise<UserLookupResult> {
+    await mockDelay();
+    
+    // Mock some users for testing
+    const mockUsers = [
+      {
+        userId: 'user-123',
+        email: 'john@example.com',
+        username: 'john@example.com',
+        displayName: 'John Doe',
+        emailVerified: true,
+        userStatus: 'CONFIRMED'
+      },
+      {
+        userId: 'user-456',
+        email: 'jane@example.com',
+        username: 'jane@example.com',
+        displayName: 'Jane Smith',
+        emailVerified: true,
+        userStatus: 'CONFIRMED'
+      }
+    ];
+
+    const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    
+    if (user) {
+      return {
+        found: true,
+        ...user
+      };
+    }
+
+    return {
+      found: false,
+      message: 'User not found'
+    };
+  }
+
+  async getUserProfile(userId?: string): Promise<UserProfile> {
+    await mockDelay();
+    
+    // Mock current user profile
+    return {
+      userId: userId || 'user-current',
+      email: 'current@example.com',
+      username: 'current@example.com',
+      displayName: 'Current User',
+      emailVerified: true,
+      userStatus: 'CONFIRMED',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+  }
+
+  async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
+    await mockDelay();
+    
+    // Mock profile update
+    return {
+      userId,
+      email: 'current@example.com',
+      username: 'current@example.com',
+      displayName: updates.displayName || 'Current User',
+      emailVerified: true,
+      userStatus: 'CONFIRMED',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+  }
+
+  // Invitation Management API (Mock)
+  async getInvitations(inventoryId: string): Promise<Invitation[]> {
+    await mockDelay();
+    
+    // Mock some pending invitations
+    return [
+      {
+        invitationId: 'inv-1',
+        inventoryId,
+        email: 'pending@example.com',
+        role: 'member',
+        invitedBy: 'user-current',
+        status: 'pending',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() // 5 days from now
+      }
+    ];
+  }
+
+  async createInvitation(inventoryId: string, data: {
+    email: string;
+    role: string;
+    inventoryName?: string;
+    inviterName?: string;
+  }): Promise<Invitation> {
+    await mockDelay();
+    
+    return {
+      invitationId: this.generateId('inv'),
+      inventoryId,
+      email: data.email,
+      role: data.role as 'member' | 'administrator' | 'read_only',
+      invitedBy: 'user-current',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
+    };
+  }
+
+  async cancelInvitation(inventoryId: string, invitationId: string): Promise<void> {
+    await mockDelay();
+    console.log(`Mock: Cancelling invitation ${invitationId} for inventory ${inventoryId}`);
+  }
+
+  async acceptInvitation(token: string): Promise<{
+    message: string;
+    inventoryId: string;
+    role: string;
+    membership: InventoryMembership;
+  }> {
+    await mockDelay();
+    
+    // Mock successful invitation acceptance
+    const mockInventoryId = 'inv-mock-123';
+    const mockRole = 'member';
+    
+    console.log(`Mock: Accepting invitation with token ${token}`);
+    
+    return {
+      message: 'Invitation accepted successfully',
+      inventoryId: mockInventoryId,
+      role: mockRole,
+      membership: {
+        inventoryId: mockInventoryId,
+        userId: 'user-current',
+        role: mockRole,
+        addedAt: new Date().toISOString(),
+        addedBy: 'inviter-user-id',
+        permissions: {
+          canAddMembers: false,
+          canRemoveMembers: false,
+          canModifySettings: false,
+          canDeleteInventory: false,
+          canManageItems: true,
+          canViewItems: true,
+          canViewMembers: true,
+        }
+      }
+    };
+  }
+
+  // Member Role Management API (Mock)
+  async updateMemberRole(inventoryId: string, userId: string, role: string, _reason?: string): Promise<InventoryMembership> {
+    await mockDelay();
+    
+    return {
+      inventoryId,
+      userId,
+      role,
+      addedAt: new Date().toISOString(),
+      addedBy: 'user-current',
+      permissions: {
+        canAddMembers: role === 'administrator' || role === 'owner',
+        canRemoveMembers: role === 'administrator' || role === 'owner',
+        canModifySettings: role === 'administrator' || role === 'owner',
+        canDeleteInventory: role === 'owner',
+        canManageItems: role !== 'read_only',
+        canViewItems: true,
+        canViewMembers: true
+      }
     };
   }
 

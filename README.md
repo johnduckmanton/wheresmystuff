@@ -98,10 +98,14 @@ This project follows a spec-driven development approach. See `.kiro/specs/home-i
 
 ## Key Features
 
-### Authentication
+### Authentication & User Management
 - Email/password authentication via Cognito
 - JWT token-based API authorization
 - Password policy: min 8 chars, uppercase, lowercase, numbers
+- **Email-based user lookup** - Add members by email address
+- **Role-based access control** - Owner, Administrator, Member, Read-only roles
+- **User invitations** - Invite users who don't have accounts yet
+- **User profiles** - View and share your User ID
 
 ### Data Management
 - **Things**: Track items with photos, serial numbers, purchase info, warranty details
@@ -163,11 +167,24 @@ This project follows a spec-driven development approach. See `.kiro/specs/home-i
 
 ## Documentation
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Step-by-step deployment guide
-- [INFRASTRUCTURE.md](INFRASTRUCTURE.md) - AWS resources and configuration
-- [.kiro/specs/home-inventory-system/requirements.md](.kiro/specs/home-inventory-system/requirements.md) - Detailed requirements
-- [.kiro/specs/home-inventory-system/design.md](.kiro/specs/home-inventory-system/design.md) - System design
-- [.kiro/specs/home-inventory-system/tasks.md](.kiro/specs/home-inventory-system/tasks.md) - Implementation tasks
+📚 **[Complete Documentation Index](DOCUMENTATION_INDEX.md)** - Find all documentation organized by topic and role
+
+### Quick Links
+
+**For Users:**
+- [USER_MANAGEMENT.md](USER_MANAGEMENT.md) - Complete user management guide
+- [USER_MANAGEMENT_QUICK_REFERENCE.md](USER_MANAGEMENT_QUICK_REFERENCE.md) - Quick reference card
+- [USER_MANAGEMENT_TROUBLESHOOTING.md](USER_MANAGEMENT_TROUBLESHOOTING.md) - Troubleshooting guide
+
+**For Developers:**
+- [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) - Local development setup
+- [frontend/src/components/USER_MANAGEMENT_COMPONENTS.md](frontend/src/components/USER_MANAGEMENT_COMPONENTS.md) - Component docs
+- [.kiro/specs/](/.kiro/specs/) - Feature specifications
+
+**For Administrators:**
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
+- [INFRASTRUCTURE.md](INFRASTRUCTURE.md) - Infrastructure overview
+- [backend/scripts/USER_MANAGEMENT_MIGRATION.md](backend/scripts/USER_MANAGEMENT_MIGRATION.md) - Migration guide
 
 ## License
 

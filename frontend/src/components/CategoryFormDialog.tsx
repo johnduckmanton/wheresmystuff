@@ -8,7 +8,6 @@ import {
   TextField,
   Box,
   Autocomplete,
-  Chip,
 } from '@mui/material';
 import type { Category } from '../types';
 import InventoryFormSelector from './InventoryFormSelector';

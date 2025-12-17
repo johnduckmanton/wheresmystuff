@@ -27,6 +27,11 @@ export interface EntityTableColumn {
   renderCell?: (params: any) => React.ReactNode;
 }
 
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
 export interface EntityTableProps {
   columns: EntityTableColumn[];
   data: any[];
@@ -34,6 +39,7 @@ export interface EntityTableProps {
   onDelete?: (row: any) => void;
   onRowClick?: (row: any) => void;
   loading?: boolean;
+  dropdownFilters?: Record<string, FilterOption[]>;
 }
 
 export default function EntityTable({
@@ -43,6 +49,7 @@ export default function EntityTable({
   onDelete,
   onRowClick,
   loading = false,
+  dropdownFilters = {},
 }: EntityTableProps) {
   const [globalSearch, setGlobalSearch] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -71,12 +78,25 @@ export default function EntityTable({
     // Apply column-specific filters
     Object.entries(columnFilters).forEach(([field, filterValue]) => {
       if (filterValue) {
-        const filterLower = filterValue.toLowerCase();
-        filtered = filtered.filter((row) => {
-          const value = row[field];
-          if (value == null) return false;
-          return String(value).toLowerCase().includes(filterLower);
-        });
+        // Check if this field has dropdown options (exact match) or text filter (contains)
+        const hasDropdownOptions = dropdownFilters[field];
+        
+        if (hasDropdownOptions) {
+          // Exact match for dropdown filters
+          filtered = filtered.filter((row) => {
+            const value = row[field];
+            if (value == null) return false;
+            return String(value) === filterValue;
+          });
+        } else {
+          // Contains match for text filters
+          const filterLower = filterValue.toLowerCase();
+          filtered = filtered.filter((row) => {
+            const value = row[field];
+            if (value == null) return false;
+            return String(value).toLowerCase().includes(filterLower);
+          });
+        }
       }
     });
 
@@ -149,6 +169,7 @@ export default function EntityTable({
         onColumnFilterChange={handleColumnFilterChange}
         filteredCount={filteredData.length}
         totalCount={data.length}
+        dropdownFilters={dropdownFilters}
       />
 
       {/* DataGrid */}

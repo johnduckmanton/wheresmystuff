@@ -41,6 +41,16 @@ const inventoryHandler = async (event) => {
       const inventoryId = pathParameters.id;
       const userId = pathParameters.userId;
       
+      // Check for role management sub-route
+      if (path.includes('/role') && userId) {
+        switch (httpMethod) {
+          case 'PUT':
+            return await handleUpdateMemberRole(event, inventoryId, userId, origin);
+          default:
+            return error('Method not allowed', 405, origin);
+        }
+      }
+      
       switch (httpMethod) {
         case 'GET':
           return await handleGetMembers(event, inventoryId, origin);
@@ -55,7 +65,11 @@ const inventoryHandler = async (event) => {
       // Inventory management routes
       switch (httpMethod) {
         case 'GET':
-          return await handleGetInventories(event, origin);
+          if (pathParameters.id) {
+            return await handleGetInventory(event, pathParameters.id, origin);
+          } else {
+            return await handleGetInventories(event, origin);
+          }
         case 'POST':
           return await handleCreateInventory(event, origin);
         case 'PUT':
@@ -93,6 +107,43 @@ async function handleGetInventories(event, origin) {
   } catch (err) {
     console.error('Error listing inventories:', err);
     throw new Error('Failed to retrieve inventories');
+  }
+}
+
+/**
+ * Handle GET request - Get a specific inventory by ID
+ */
+async function handleGetInventory(event, id, origin) {
+  try {
+    // Validate ID parameter
+    if (!id || !validateUUID(id)) {
+      return error('Invalid inventory ID', 400, origin);
+    }
+    
+    // Get the specific inventory
+    const inventory = await inventoryService.getInventory(id, event.user.userId);
+    
+    // Decode HTML entities in photo keys for backward compatibility
+    if (inventory.photos && Array.isArray(inventory.photos)) {
+      inventory.photos = inventory.photos.map(photo => decodeHtmlEntities(photo));
+    }
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'read', 'inventories', id, id);
+    
+    return success(inventory, 200, origin);
+  } catch (err) {
+    console.error('Error getting inventory:', err);
+    
+    if (err.message.includes('Access denied')) {
+      return error(err.message, 403, origin);
+    }
+    
+    if (err.message === 'Inventory not found') {
+      return error('Inventory not found', 404, origin);
+    }
+    
+    throw new Error('Failed to retrieve inventory');
   }
 }
 
@@ -326,6 +377,70 @@ async function handleRemoveMember(event, inventoryId, userId, origin) {
     }
     
     throw new Error('Failed to remove inventory member');
+  }
+}
+
+/**
+ * Handle PUT request - Update a member's role in an inventory
+ */
+async function handleUpdateMemberRole(event, inventoryId, userId, origin) {
+  try {
+    // Validate parameters
+    if (!inventoryId || !validateUUID(inventoryId)) {
+      return error('Invalid inventory ID', 400, origin);
+    }
+    
+    if (!userId || !validateUUID(userId)) {
+      return error('Invalid user ID', 400, origin);
+    }
+    
+    // Parse request body
+    const body = JSON.parse(event.body || '{}');
+    
+    // Validate required fields
+    if (!body.role) {
+      return error('Role is required', 400, origin);
+    }
+    
+    // Validate role value
+    const validRoles = ['owner', 'administrator', 'member', 'read_only'];
+    if (!validRoles.includes(body.role)) {
+      return error(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400, origin);
+    }
+    
+    // Sanitize inputs
+    const role = sanitizeInput(body.role);
+    const reason = body.reason ? sanitizeInput(body.reason) : '';
+    
+    // Update member role
+    const membership = await inventoryService.updateMemberRole(
+      inventoryId, 
+      event.user.userId, 
+      userId, 
+      role, 
+      reason
+    );
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'update', 'inventory_member_role', userId, inventoryId);
+    
+    return success(membership, 200, origin);
+  } catch (err) {
+    console.error('Error updating member role:', err);
+    
+    if (err.message.includes('Access denied')) {
+      return error(err.message, 403, origin);
+    }
+    
+    if (err.message.includes('not a member')) {
+      return error(err.message, 404, origin);
+    }
+    
+    if (err.message.includes('Invalid role')) {
+      return error(err.message, 400, origin);
+    }
+    
+    throw new Error('Failed to update member role');
   }
 }
 

@@ -5,7 +5,6 @@ import {
   Paper,
   TextField,
   IconButton,
-  Collapse,
   Table,
   TableBody,
   TableCell,
@@ -23,13 +22,11 @@ import { useState, useEffect, useMemo } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
-import type { Location, Thing } from '../types';
+import type { Location } from '../types';
 import LocationFormDialog from '../components/LocationFormDialog';
 
 interface LocationTableRow {
@@ -42,9 +39,7 @@ interface LocationTableRow {
 
 export default function Locations() {
   const [locations, setLocations] = useState<Location[]>([]);
-  const [things, setThings] = useState<Thing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [globalSearch, setGlobalSearch] = useState('');
   
   // Dialog states
@@ -75,13 +70,8 @@ export default function Locations() {
     try {
       setLoading(true);
       setGlobalLoading(true);
-      const [locationsData, thingsData] = await Promise.all([
-        apiClient.getLocations(currentInventory.id),
-        apiClient.getThings(currentInventory.id),
-      ]);
-      
+      const locationsData = await apiClient.getLocations(currentInventory.id);
       setLocations(locationsData);
-      setThings(thingsData);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
@@ -117,23 +107,7 @@ export default function Locations() {
     });
   }, [tableData, globalSearch]);
 
-  // Get things for a specific location
-  const getThingsForLocation = (locationId: string): Thing[] => {
-    return things.filter(thing => thing.locationId === locationId);
-  };
 
-  // Toggle row expansion
-  const toggleRowExpansion = (locationId: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(locationId)) {
-        newSet.delete(locationId);
-      } else {
-        newSet.add(locationId);
-      }
-      return newSet;
-    });
-  };
 
   const handleAdd = () => {
     setEditingLocation(undefined);
@@ -276,21 +250,9 @@ export default function Locations() {
                 </TableRow>
               ) : (
                 filteredData.map((row) => {
-                  const isExpanded = expandedRows.has(row.id);
-                  const locationThings = getThingsForLocation(row.id);
-                  
                   return (
-                    <>
                       <TableRow key={row.id} hover>
-                        <TableCell>
-                          <IconButton
-                            size="small"
-                            onClick={() => toggleRowExpansion(row.id)}
-                            disabled={locationThings.length === 0}
-                          >
-                            {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                          </IconButton>
-                        </TableCell>
+                        <TableCell></TableCell>
                         <TableCell>{row.name}</TableCell>
                         <TableCell>{row.addressLine1}</TableCell>
                         <TableCell>{row.town}</TableCell>
@@ -312,48 +274,6 @@ export default function Locations() {
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                      
-                      {/* Expandable Row Content */}
-                      <TableRow>
-                        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                            <Box sx={{ margin: 2 }}>
-                              <Typography variant="h6" gutterBottom component="div">
-                                Things at this Location ({locationThings.length})
-                              </Typography>
-                              {locationThings.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  No things at this location
-                                </Typography>
-                              ) : (
-                                <Table size="small">
-                                  <TableHead>
-                                    <TableRow>
-                                      <TableCell>Name</TableCell>
-                                      <TableCell>Description</TableCell>
-                                      <TableCell>Category</TableCell>
-                                      <TableCell>Date Added</TableCell>
-                                    </TableRow>
-                                  </TableHead>
-                                  <TableBody>
-                                    {locationThings.map((thing) => (
-                                      <TableRow key={thing.id}>
-                                        <TableCell>{thing.name}</TableCell>
-                                        <TableCell>{thing.description || '-'}</TableCell>
-                                        <TableCell>{thing.categoryId || '-'}</TableCell>
-                                        <TableCell>
-                                          {thing.dateAdded ? new Date(thing.dateAdded).toLocaleDateString() : '-'}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </>
                   );
                 })
               )}

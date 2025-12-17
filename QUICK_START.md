@@ -1,95 +1,119 @@
-# Quick Start Guide
+# 🚀 Quick Start: Deploy Frontend to AWS
 
-## ✅ Authentication Issue Fixed
+## Prerequisites Check
 
-The Cognito User Pool Client has been updated to support both `USER_PASSWORD_AUTH` and `USER_SRP_AUTH` authentication flows. The application is now ready to use!
-
-## Running the Application Locally
-
-The backend is deployed to AWS, and you can run the frontend locally to test the full application.
-
-### Prerequisites
-- Node.js 20.x or later
-- The backend is already deployed to AWS
-
-### Steps
-
-1. **Navigate to the frontend directory:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies (if not already installed):**
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser:**
-   Navigate to `http://localhost:5173`
-
-5. **Sign in with test credentials:**
-   - **Email:** `test-1765150434@example.com`
-   - **Password:** `TestPassword123!`
-
-### What You Can Do
-
-Once signed in, you can:
-
-- **Manage Things:** Create, edit, delete, and view your inventory items
-- **Upload Photos:** Drag and drop photos onto Things
-- **Organize by Location:** Create locations and rooms
-- **Categorize Items:** Create categories and assign them to Things
-- **Track Ownership:** Create people and assign them as owners
-- **Search & Filter:** Use the table search and filters to find items
-- **Sort Data:** Click column headers to sort
-
-### Creating Additional Test Users
-
-If you need more test users:
-
+Run this first to make sure everything is ready:
 ```bash
-# Sign up a new user
-aws cognito-idp sign-up \
-  --client-id 6lcv99ikkeekm526u8slo96vb9 \
-  --username your-email@example.com \
-  --password YourPassword123! \
-  --region us-east-1
-
-# Confirm the user (admin command)
-aws cognito-idp admin-confirm-sign-up \
-  --user-pool-id us-east-1_qL27rL63E \
-  --username your-email@example.com \
-  --region us-east-1
+./scripts/check-deployment-ready.sh
 ```
 
-### Troubleshooting
+## 🎯 One-Command Deployment
 
-**Issue:** "Cannot connect to API"
-- **Solution:** Check that the backend is deployed and the API URL in `.env` is correct
+```bash
+# Deploy everything (backend + frontend)
+./scripts/deploy-frontend.sh
+```
 
-**Issue:** "Authentication failed"
-- **Solution:** Verify the User Pool ID and Client ID in `.env` match the deployed values
+This script will:
+1. ✅ Check if backend is deployed (deploy if needed)
+2. 🔨 Build the React frontend
+3. ⚙️ Configure environment variables automatically
+4. 📤 Upload files to S3
+5. 🌐 Configure CloudFront distribution
+6. 🔄 Invalidate cache for immediate updates
 
-**Issue:** "Photos not uploading"
-- **Solution:** Check that the S3 bucket name in `.env` is correct and CORS is configured
+## 📱 Access Your App
 
-### Next Steps
+After deployment (2-3 minutes), you'll get a URL like:
+```
+🌐 CloudFront URL: https://d1234567890abc.cloudfront.net
+```
 
-- Review `DEPLOYMENT_SUMMARY.md` for full deployment details
-- Check `FRONTEND_DEPLOYMENT.md` for production deployment options
-- See `README.md` for project overview and architecture
+## 🔄 Update Frontend
 
-### Deployed Resources
+To deploy changes:
+```bash
+# Make your code changes, then:
+./scripts/deploy-frontend.sh
+```
 
-- **API URL:** https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev
-- **User Pool ID:** us-east-1_qL27rL63E
-- **Client ID:** 6lcv99ikkeekm526u8slo96vb9
-- **S3 Bucket:** home-inventory-photos-982081071280-dev
-- **Region:** us-east-1
+## 🛠️ Manual Steps (if needed)
 
-Enjoy using your Home Inventory Management System! 🎉
+If the automated script doesn't work:
+
+1. **Deploy Backend First**:
+   ```bash
+   sam build
+   sam deploy
+   ```
+
+2. **Build Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
+
+3. **Deploy Frontend**:
+   ```bash
+   ./scripts/deploy-frontend.sh
+   ```
+
+## 🆘 Troubleshooting
+
+### "Stack not found" error
+```bash
+sam build
+sam deploy
+```
+
+### "AWS credentials not configured"
+```bash
+aws configure
+```
+
+### Frontend build fails
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+### CloudFront not updating
+Wait 2-3 minutes, or manually invalidate:
+```bash
+aws cloudfront create-invalidation --distribution-id YOUR_ID --paths "/*"
+```
+
+## 📊 What Gets Created
+
+- **S3 Bucket**: `home-inventory-frontend-{account-id}-dev`
+- **CloudFront Distribution**: Global CDN with HTTPS
+- **Environment Config**: Automatic API/Auth configuration
+
+## 💰 Estimated Costs
+
+- **S3**: ~$0.023/GB/month (storage)
+- **CloudFront**: ~$0.085/GB (data transfer)
+- **Typical small app**: $1-5/month
+
+## 🔐 Security Features
+
+- ✅ HTTPS only (HTTP redirects to HTTPS)
+- ✅ Security headers (CSP, HSTS, etc.)
+- ✅ WAF protection against common attacks
+- ✅ Private S3 bucket (CloudFront access only)
+
+## 🎉 Success!
+
+Once deployed, you can:
+- 📱 Access your app via the CloudFront URL
+- 👤 Sign up for a new account
+- 📦 Create inventories and add items
+- 🎨 See the new category colors and icons
+- 📸 Upload photos to items
+
+---
+
+**Need help?** Check `FRONTEND_DEPLOYMENT.md` for detailed documentation.

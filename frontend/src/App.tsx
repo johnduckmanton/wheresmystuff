@@ -9,6 +9,7 @@ import { LoadingProvider } from './contexts/LoadingContext';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import SignIn from './components/SignIn';
+import SignUp from './components/SignUp';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -19,6 +20,8 @@ import People from './pages/People';
 import Inventories from './pages/Inventories';
 import InventorySettings from './pages/InventorySettings';
 import InventoryMembers from './pages/InventoryMembers';
+import UserProfile from './pages/UserProfile';
+import AcceptInvitation from './pages/AcceptInvitation';
 import apiClient from './services/api';
 
 // Context for mobile sidebar state
@@ -97,6 +100,15 @@ function App() {
               <AuthErrorHandler />
               <Routes>
                 <Route path="/signin" element={<SignIn />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route
+                  path="/accept-invitation"
+                  element={
+                    <ProtectedRoute>
+                      <AcceptInvitation />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/things"
                   element={
@@ -163,6 +175,16 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <InventoryMembers />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <UserProfile />
                       </MainLayout>
                     </ProtectedRoute>
                   }

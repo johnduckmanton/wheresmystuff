@@ -213,6 +213,146 @@ async function logAuthzFailure(userId, action, resource, reason) {
 }
 
 /**
+ * Log a role change event
+ * @param {string} userId - User whose role was changed
+ * @param {string} changedBy - User who made the change
+ * @param {string} inventoryId - Inventory ID
+ * @param {string} oldRole - Previous role
+ * @param {string} newRole - New role
+ * @param {string} reason - Optional reason for the change
+ * @returns {Promise<void>}
+ */
+async function logRoleChange(userId, changedBy, inventoryId, oldRole, newRole, reason = '') {
+  const timestamp = new Date().toISOString();
+  const date = timestamp.split('T')[0];
+  const id = uuidv4();
+  
+  const logEntry = {
+    pk: `AUDITLOG#${date}`,
+    sk: `${timestamp}#${id}`,
+    id,
+    timestamp,
+    eventType: 'role_change',
+    userId: changedBy,
+    action: 'update_member_role',
+    resource: `inventory#${inventoryId}#member#${userId}`,
+    success: true,
+    details: {
+      targetUserId: userId,
+      inventoryId,
+      oldRole,
+      newRole,
+      reason,
+      changedBy
+    }
+  };
+  
+  // Add HMAC for integrity protection
+  logEntry.hmac = generateHMAC(logEntry);
+  
+  try {
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: logEntry
+    }));
+  } catch (error) {
+    console.error('Error logging role change event:', error);
+  }
+}
+
+/**
+ * Log a member addition event
+ * @param {string} userId - User who was added
+ * @param {string} addedBy - User who added the member
+ * @param {string} inventoryId - Inventory ID
+ * @param {string} role - Role assigned to the new member
+ * @param {string} method - How the member was added (email, user_id, invitation)
+ * @returns {Promise<void>}
+ */
+async function logMemberAddition(userId, addedBy, inventoryId, role, method = 'user_id') {
+  const timestamp = new Date().toISOString();
+  const date = timestamp.split('T')[0];
+  const id = uuidv4();
+  
+  const logEntry = {
+    pk: `AUDITLOG#${date}`,
+    sk: `${timestamp}#${id}`,
+    id,
+    timestamp,
+    eventType: 'member_addition',
+    userId: addedBy,
+    action: 'add_member',
+    resource: `inventory#${inventoryId}#member#${userId}`,
+    success: true,
+    details: {
+      targetUserId: userId,
+      inventoryId,
+      role,
+      method,
+      addedBy
+    }
+  };
+  
+  // Add HMAC for integrity protection
+  logEntry.hmac = generateHMAC(logEntry);
+  
+  try {
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: logEntry
+    }));
+  } catch (error) {
+    console.error('Error logging member addition event:', error);
+  }
+}
+
+/**
+ * Log a member removal event
+ * @param {string} userId - User who was removed
+ * @param {string} removedBy - User who removed the member
+ * @param {string} inventoryId - Inventory ID
+ * @param {string} role - Role of the removed member
+ * @param {string} reason - Optional reason for removal
+ * @returns {Promise<void>}
+ */
+async function logMemberRemoval(userId, removedBy, inventoryId, role, reason = '') {
+  const timestamp = new Date().toISOString();
+  const date = timestamp.split('T')[0];
+  const id = uuidv4();
+  
+  const logEntry = {
+    pk: `AUDITLOG#${date}`,
+    sk: `${timestamp}#${id}`,
+    id,
+    timestamp,
+    eventType: 'member_removal',
+    userId: removedBy,
+    action: 'remove_member',
+    resource: `inventory#${inventoryId}#member#${userId}`,
+    success: true,
+    details: {
+      targetUserId: userId,
+      inventoryId,
+      role,
+      reason,
+      removedBy
+    }
+  };
+  
+  // Add HMAC for integrity protection
+  logEntry.hmac = generateHMAC(logEntry);
+  
+  try {
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: logEntry
+    }));
+  } catch (error) {
+    console.error('Error logging member removal event:', error);
+  }
+}
+
+/**
  * Verify HMAC integrity of audit log entry
  * @param {Object} logEntry - The log entry object with HMAC
  * @returns {boolean} True if HMAC is valid
@@ -239,5 +379,8 @@ module.exports = {
   logAuth,
   logDataAccess,
   logAuthzFailure,
+  logRoleChange,
+  logMemberAddition,
+  logMemberRemoval,
   verifyHMAC
 };

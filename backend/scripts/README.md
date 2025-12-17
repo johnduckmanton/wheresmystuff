@@ -4,6 +4,35 @@ This directory contains scripts for migrating the Home Inventory System to the n
 
 ## Scripts
 
+### `add-user-by-email.js`
+
+Admin script for adding users to inventories by their email address with administrator role.
+
+**What it does:**
+1. Looks up user in Cognito by email address
+2. Adds user to specified inventory with administrator role
+3. Logs the operation for audit purposes
+
+**Usage:**
+
+```bash
+# Using the shell wrapper (recommended)
+./backend/scripts/add-admin-user.sh <email> <inventoryId> <adminUserId>
+
+# Using Node.js directly
+node backend/scripts/add-user-by-email.js <email> <inventoryId> <adminUserId>
+
+# Example
+./backend/scripts/add-admin-user.sh johnduckmanton@hotmail.com inv-abc123 admin-user-id
+```
+
+**Requirements:**
+- User must already exist in Cognito
+- Admin user must have permission to add members
+- Environment variables: `TABLE_NAME`, `USER_POOL_ID`
+
+**See also:** [ADD_USER_BY_EMAIL.md](./ADD_USER_BY_EMAIL.md) for detailed documentation
+
 ### `migrate-to-inventory-system.js`
 
 Main migration script that converts existing single-user data to the new multi-user inventory system.

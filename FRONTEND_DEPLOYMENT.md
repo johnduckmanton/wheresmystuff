@@ -1,135 +1,182 @@
 # Frontend Deployment Guide
 
-## Build Complete
+This guide explains how to deploy your React frontend to AWS using S3 and CloudFront.
 
-The frontend has been successfully built and is ready for deployment. The production build is located in `frontend/dist/`.
+## 🏗️ Architecture
 
-## Deployment Options
+Your frontend is deployed using:
+- **S3 Bucket**: Hosts the static React build files
+- **CloudFront**: CDN for fast global delivery and HTTPS
+- **Route53** (optional): Custom domain support
 
-### Option 1: Deploy to AWS S3 + CloudFront
+## 🚀 Quick Deployment
 
-1. **Create an S3 bucket for static website hosting:**
+### Option 1: Automated Script (Recommended)
+
+```bash
+# Deploy both backend and frontend
+./scripts/deploy-frontend.sh
+
+# Or specify custom stack name and region
+./scripts/deploy-frontend.sh my-stack-name us-west-2
+```
+
+### Option 2: Manual Steps
+
+1. **Deploy Backend Infrastructure First**:
    ```bash
-   aws s3 mb s3://home-inventory-frontend-prod
-   aws s3 website s3://home-inventory-frontend-prod --index-document index.html --error-document index.html
+   sam build
+   sam deploy
    ```
 
-2. **Upload the build files:**
-   ```bash
-   cd frontend/dist
-   aws s3 sync . s3://home-inventory-frontend-prod --delete
-   ```
-
-3. **Set bucket policy for public read access:**
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Sid": "PublicReadGetObject",
-         "Effect": "Allow",
-         "Principal": "*",
-         "Action": "s3:GetObject",
-         "Resource": "arn:aws:s3:::home-inventory-frontend-prod/*"
-       }
-     ]
-   }
-   ```
-
-4. **Create CloudFront distribution (optional but recommended):**
-   - Origin: S3 bucket website endpoint
-   - Default root object: index.html
-   - Error pages: Configure 404 to redirect to /index.html (for SPA routing)
-   - SSL certificate: Use ACM certificate for custom domain
-
-### Option 2: Deploy to Vercel
-
-1. **Install Vercel CLI:**
-   ```bash
-   npm install -g vercel
-   ```
-
-2. **Deploy from the frontend directory:**
+2. **Build Frontend**:
    ```bash
    cd frontend
-   vercel --prod
+   npm install
+   npm run build
+   cd ..
    ```
 
-3. **Configure environment variables in Vercel dashboard:**
-   - VITE_AWS_REGION=us-east-1
-   - VITE_USER_POOL_ID=us-east-1_qL27rL63E
-   - VITE_USER_POOL_CLIENT_ID=6lcv99ikkeekm526u8slo96vb9
-   - VITE_API_URL=https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev
-   - VITE_S3_BUCKET=home-inventory-photos-982081071280-dev
-
-### Option 3: Deploy to Netlify
-
-1. **Install Netlify CLI:**
+3. **Deploy Frontend**:
    ```bash
-   npm install -g netlify-cli
+   ./scripts/deploy-frontend.sh
    ```
 
-2. **Deploy:**
+## 🔧 Configuration
+
+### Environment Variables
+
+The deployment script automatically configures these environment variables:
+
+```env
+VITE_AWS_REGION=us-east-1
+VITE_USER_POOL_ID=us-east-1_xxxxxxxxx
+VITE_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxx
+VITE_API_URL=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/dev
+VITE_S3_BUCKET=home-inventory-photos-xxxxxxxxxxxx-dev
+```
+
+### Custom Domain (Optional)
+
+To use a custom domain:
+
+1. **Get SSL Certificate**:
    ```bash
-   cd frontend
-   netlify deploy --prod --dir=dist
+   # Certificate must be in us-east-1 for CloudFront
+   aws acm request-certificate \
+     --domain-name yourdomain.com \
+     --validation-method DNS \
+     --region us-east-1
    ```
 
-3. **Configure redirects for SPA routing:**
-   Create `frontend/dist/_redirects`:
-   ```
-   /*    /index.html   200
-   ```
-
-## Backend Configuration
-
-The frontend is configured to connect to the following backend resources:
-
-- **API URL:** https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev
-- **User Pool ID:** us-east-1_qL27rL63E
-- **User Pool Client ID:** 6lcv99ikkeekm526u8slo96vb9
-- **S3 Bucket:** home-inventory-photos-982081071280-dev
-- **Region:** us-east-1
-
-## CORS Configuration
-
-If you encounter CORS issues after deployment, you may need to update the API Gateway CORS settings to allow your frontend domain:
-
-1. Update `template.yaml` to restrict CORS to your domain:
-   ```yaml
-   CorsConfiguration:
-     AllowOrigins:
-       - 'https://your-domain.com'
-   ```
-
-2. Redeploy the backend:
+2. **Deploy with Custom Domain**:
    ```bash
-   sam build && sam deploy
+   sam deploy \
+     --parameter-overrides \
+     CustomDomainName=yourdomain.com \
+     ACMCertificateArn=arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx
    ```
 
-## Testing the Deployment
+## 📁 File Structure
 
-1. **Create a test user:**
-   ```bash
-   aws cognito-idp sign-up \
-     --client-id 6lcv99ikkeekm526u8slo96vb9 \
-     --username test@example.com \
-     --password TestPassword123
-   ```
+After deployment, your S3 bucket will contain:
 
-2. **Confirm the user (admin command):**
-   ```bash
-   aws cognito-idp admin-confirm-sign-up \
-     --user-pool-id us-east-1_qL27rL63E \
-     --username test@example.com
-   ```
+```
+s3://home-inventory-frontend-xxxxxxxxxxxx-dev/
+├── index.html
+├── assets/
+│   ├── index-xxxxxxxx.js
+│   ├── index-xxxxxxxx.css
+│   └── ...
+└── vite.svg
+```
 
-3. **Access your deployed frontend and sign in with the test credentials**
+## 🌐 Access URLs
 
-## Next Steps
+After deployment, you can access your application at:
 
-1. Choose a deployment option above and deploy the frontend
-2. Configure a custom domain (optional)
-3. Set up SSL/TLS certificate
-4. Test the complete application end-to-end
-5. Set up monitoring and logging
+- **CloudFront URL**: `https://xxxxxxxxxx.cloudfront.net`
+- **Custom Domain** (if configured): `https://yourdomain.com`
+
+## 🔄 Updating the Frontend
+
+To deploy frontend changes:
+
+```bash
+# Make your changes to the frontend code
+# Then redeploy
+./scripts/deploy-frontend.sh
+```
+
+The script will:
+1. Build the updated frontend
+2. Upload new files to S3
+3. Invalidate CloudFront cache
+4. Your changes will be live in 2-3 minutes
+
+## 🛠️ Troubleshooting
+
+### Build Fails
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+### CloudFront Not Updating
+```bash
+# Manually invalidate cache
+aws cloudfront create-invalidation \
+  --distribution-id EXXXXXXXXXXXXXXXXX \
+  --paths "/*"
+```
+
+### Environment Variables Not Working
+Check that your `.env` file in the frontend directory has the correct values:
+```bash
+cat frontend/.env
+```
+
+### S3 Access Denied
+Ensure the bucket policy allows CloudFront access:
+```bash
+aws s3api get-bucket-policy --bucket your-bucket-name
+```
+
+## 📊 Monitoring
+
+### CloudFront Metrics
+- View in AWS Console: CloudFront → Distributions → Monitoring
+- Key metrics: Requests, Data Transfer, Error Rate
+
+### S3 Metrics  
+- View in AWS Console: S3 → Buckets → Metrics
+- Key metrics: Storage, Requests
+
+### Costs
+- CloudFront: ~$0.085 per GB transferred
+- S3: ~$0.023 per GB stored
+- Typical small app: $1-5/month
+
+## 🔐 Security Features
+
+Your deployment includes:
+- **HTTPS Only**: All traffic redirected to HTTPS
+- **Security Headers**: CSP, HSTS, X-Frame-Options
+- **WAF Protection**: DDoS and common attack protection
+- **Private S3**: Bucket not publicly accessible
+
+## 📝 Next Steps
+
+1. **Set up CI/CD**: Automate deployments with GitHub Actions
+2. **Custom Domain**: Configure your own domain name
+3. **Monitoring**: Set up CloudWatch alarms
+4. **Backup**: Configure S3 versioning
+
+## 🆘 Support
+
+If you encounter issues:
+1. Check the deployment script output for errors
+2. Verify AWS credentials are configured
+3. Ensure the backend stack is deployed first
+4. Check CloudFormation stack events in AWS Console

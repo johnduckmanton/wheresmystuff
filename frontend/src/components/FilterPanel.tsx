@@ -7,12 +7,21 @@ import {
   Collapse,
   IconButton,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import type { EntityTableColumn } from './EntityTable';
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
 
 interface FilterPanelProps {
   columns: EntityTableColumn[];
@@ -22,6 +31,7 @@ interface FilterPanelProps {
   onColumnFilterChange: (field: string, value: string) => void;
   filteredCount: number;
   totalCount: number;
+  dropdownFilters?: Record<string, FilterOption[]>;
 }
 
 export default function FilterPanel({
@@ -32,6 +42,7 @@ export default function FilterPanel({
   onColumnFilterChange,
   filteredCount,
   totalCount,
+  dropdownFilters = {},
 }: FilterPanelProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -136,30 +147,69 @@ export default function FilterPanel({
                   Filter by Column
                 </Typography>
                 <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' } }}>
-                  {filterableColumns.map((col) => (
-                    <TextField
-                      key={col.field}
-                      label={`Filter ${col.headerName}`}
-                      variant="outlined"
-                      size="small"
-                      value={columnFilters[col.field] || ''}
-                      onChange={(e) => onColumnFilterChange(col.field, e.target.value)}
-                      inputProps={{
-                        'aria-label': `Filter by ${col.headerName}`,
-                      }}
-                      InputProps={{
-                        endAdornment: columnFilters[col.field] && (
-                          <IconButton
-                            size="small"
-                            onClick={() => onColumnFilterChange(col.field, '')}
-                            aria-label={`Clear ${col.headerName} filter`}
+                  {filterableColumns.map((col) => {
+                    const hasDropdownOptions = dropdownFilters[col.field];
+                    
+                    if (hasDropdownOptions) {
+                      return (
+                        <FormControl key={col.field} size="small" variant="outlined">
+                          <InputLabel>{`Filter ${col.headerName}`}</InputLabel>
+                          <Select
+                            value={columnFilters[col.field] || ''}
+                            onChange={(e) => onColumnFilterChange(col.field, e.target.value)}
+                            label={`Filter ${col.headerName}`}
+                            endAdornment={columnFilters[col.field] && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onColumnFilterChange(col.field, '');
+                                }}
+                                aria-label={`Clear ${col.headerName} filter`}
+                                sx={{ mr: 1 }}
+                              >
+                                <ClearIcon fontSize="small" />
+                              </IconButton>
+                            )}
                           >
-                            <ClearIcon fontSize="small" />
-                          </IconButton>
-                        ),
-                      }}
-                    />
-                  ))}
+                            <MenuItem value="">
+                              <em>All {col.headerName}s</em>
+                            </MenuItem>
+                            {hasDropdownOptions.map((option) => (
+                              <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      );
+                    }
+                    
+                    return (
+                      <TextField
+                        key={col.field}
+                        label={`Filter ${col.headerName}`}
+                        variant="outlined"
+                        size="small"
+                        value={columnFilters[col.field] || ''}
+                        onChange={(e) => onColumnFilterChange(col.field, e.target.value)}
+                        inputProps={{
+                          'aria-label': `Filter by ${col.headerName}`,
+                        }}
+                        InputProps={{
+                          endAdornment: columnFilters[col.field] && (
+                            <IconButton
+                              size="small"
+                              onClick={() => onColumnFilterChange(col.field, '')}
+                              aria-label={`Clear ${col.headerName} filter`}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          ),
+                        }}
+                      />
+                    );
+                  })}
                 </Box>
               </>
             )}

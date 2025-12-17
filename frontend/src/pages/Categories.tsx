@@ -30,19 +30,6 @@ const columns: EntityTableColumn[] = [
           }}
           title={`Color: ${params.row.color || 'Default'}`}
         />
-        {params.row.icon && (
-          <span 
-            className="material-icons" 
-            style={{ 
-              fontSize: 18, 
-              color: params.row.color || '#666',
-              flexShrink: 0,
-            }}
-            title={`Icon: ${params.row.icon}`}
-          >
-            {params.row.icon}
-          </span>
-        )}
         <span style={{ flexGrow: 1 }}>{params.value}</span>
       </Box>
     )
@@ -50,20 +37,7 @@ const columns: EntityTableColumn[] = [
   { 
     field: 'description', 
     headerName: 'Description', 
-    flex: 2,
-    renderCell: (params) => (
-      <Box>
-        <Typography variant="body2" sx={{ mb: 0.5 }}>
-          {params.value}
-        </Typography>
-        {params.row.color && (
-          <Typography variant="caption" color="text.secondary">
-            Color: {params.row.color}
-            {params.row.icon && ` • Icon: ${params.row.icon}`}
-          </Typography>
-        )}
-      </Box>
-    )
+    flex: 2
   },
   { field: 'dateAdded', headerName: 'Date Added', width: 120 },
 ];
@@ -73,7 +47,6 @@ interface CategoryTableRow {
   name: string;
   description: string;
   color?: string;
-  icon?: string;
   dateAdded: string;
 }
 
@@ -123,14 +96,29 @@ export default function Categories() {
   };
 
   // Transform Categories data for table display
-  const tableData: CategoryTableRow[] = categories.map(category => ({
-    id: category.id,
-    name: category.name,
-    description: category.description || '',
-    color: category.color || '#9E9E9E', // Default gray color if none set
-    icon: category.icon || 'category', // Default icon if none set
-    dateAdded: category.dateAdded ? new Date(category.dateAdded).toLocaleDateString() : '',
-  }));
+  const tableData: CategoryTableRow[] = categories.map(category => {
+    // Clean description by removing color/icon metadata
+    let cleanDescription = category.description || '';
+    
+    // Remove color and icon metadata lines that appear in the description
+    cleanDescription = cleanDescription
+      .split('\n')
+      .filter(line => 
+        !line.toLowerCase().includes('color:') && 
+        !line.toLowerCase().includes('icon:') &&
+        line.trim() !== ''
+      )
+      .join('\n')
+      .trim();
+    
+    return {
+      id: category.id,
+      name: category.name,
+      description: cleanDescription,
+      color: category.color || '#9E9E9E', // Default gray color if none set
+      dateAdded: category.dateAdded ? new Date(category.dateAdded).toLocaleDateString() : '',
+    };
+  });
 
   const handleAdd = () => {
     setEditingCategory(undefined);

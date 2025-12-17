@@ -235,11 +235,11 @@ describe('Inventory Property Tests', () => {
           expect(result.addedBy).toBe(ownerId);
           expect(result.addedAt).toBeDefined();
 
-          // Assert: Verify one PutCommand call was made for the new membership
-          expect(putCalls).toHaveLength(1);
+          // Assert: Verify two PutCommand calls were made (membership + audit log)
+          expect(putCalls).toHaveLength(2);
 
-          // Assert: Verify membership record structure
-          const membershipRecord = putCalls[0];
+          // Assert: Verify membership record structure (first call)
+          const membershipRecord = putCalls.find(call => call.pk && call.pk.startsWith('INVENTORY#') && call.sk && call.sk.startsWith('MEMBER#'));
           expect(membershipRecord).toBeDefined();
           expect(membershipRecord.pk).toBe(`INVENTORY#${inventoryId}`);
           expect(membershipRecord.sk).toBe(`MEMBER#${memberUserId}`);
@@ -247,6 +247,15 @@ describe('Inventory Property Tests', () => {
           expect(membershipRecord.userId).toBe(memberUserId);
           expect(membershipRecord.role).toBe('member');
           expect(membershipRecord.addedBy).toBe(ownerId);
+
+          // Assert: Verify audit log record structure (second call)
+          const auditLogRecord = putCalls.find(call => call.pk && call.pk.startsWith('AUDITLOG#'));
+          expect(auditLogRecord).toBeDefined();
+          expect(auditLogRecord.eventType).toBe('member_addition');
+          expect(auditLogRecord.userId).toBe(ownerId); // The user who performed the action
+          expect(auditLogRecord.details.targetUserId).toBe(memberUserId);
+          expect(auditLogRecord.details.inventoryId).toBe(inventoryId);
+          expect(auditLogRecord.details.role).toBe('member');
         }
       ),
       { numRuns: 100 }
@@ -669,5 +678,88 @@ describe('Inventory Property Tests', () => {
       ),
       { numRuns: 100 }
     );
+  });
+});
+
+
+/**
+ * Test: Role management functionality
+ * Validates that role permissions are correctly defined and role transitions are validated
+ */
+describe('Role Management Tests', () => {
+  test('getRolePermissions returns correct permissions for each role', () => {
+    const ownerPerms = inventoryService.getRolePermissions('owner');
+    expect(ownerPerms.canAddMembers).toBe(true);
+    expect(ownerPerms.canRemoveMembers).toBe(true);
+    expect(ownerPerms.canModifySettings).toBe(true);
+    expect(ownerPerms.canDeleteInventory).toBe(true);
+    expect(ownerPerms.canManageItems).toBe(true);
+    expect(ownerPerms.canViewItems).toBe(true);
+    expect(ownerPerms.canViewMembers).toBe(true);
+    expect(ownerPerms.canChangeRoles).toBe(true);
+
+    const adminPerms = inventoryService.getRolePermissions('administrator');
+    expect(adminPerms.canAddMembers).toBe(true);
+    expect(adminPerms.canRemoveMembers).toBe(true);
+    expect(adminPerms.canModifySettings).toBe(true);
+    expect(adminPerms.canDeleteInventory).toBe(false);
+    expect(adminPerms.canManageItems).toBe(true);
+    expect(adminPerms.canViewItems).toBe(true);
+    expect(adminPerms.canViewMembers).toBe(true);
+    expect(adminPerms.canChangeRoles).toBe(false);
+
+    const memberPerms = inventoryService.getRolePermissions('member');
+    expect(memberPerms.canAddMembers).toBe(false);
+    expect(memberPerms.canRemoveMembers).toBe(false);
+    expect(memberPerms.canModifySettings).toBe(false);
+    expect(memberPerms.canDeleteInventory).toBe(false);
+    expect(memberPerms.canManageItems).toBe(true);
+    expect(memberPerms.canViewItems).toBe(true);
+    expect(memberPerms.canViewMembers).toBe(true);
+    expect(memberPerms.canChangeRoles).toBe(false);
+
+    const readOnlyPerms = inventoryService.getRolePermissions('read_only');
+    expect(readOnlyPerms.canAddMembers).toBe(false);
+    expect(readOnlyPerms.canRemoveMembers).toBe(false);
+    expect(readOnlyPerms.canModifySettings).toBe(false);
+    expect(readOnlyPerms.canDeleteInventory).toBe(false);
+    expect(readOnlyPerms.canManageItems).toBe(false);
+    expect(readOnlyPerms.canViewItems).toBe(true);
+    expect(readOnlyPerms.canViewMembers).toBe(false);
+    expect(readOnlyPerms.canChangeRoles).toBe(false);
+  });
+
+  test('validateRoleTransition correctly validates role changes', () => {
+    // Owner can assign any role
+    let result = inventoryService.validateRoleTransition('owner', 'member', 'administrator');
+    expect(result.isValid).toBe(true);
+
+    result = inventoryService.validateRoleTransition('owner', 'member', 'owner');
+    expect(result.isValid).toBe(true);
+
+    // Administrator can only assign member and read_only roles
+    result = inventoryService.validateRoleTransition('administrator', 'member', 'read_only');
+    expect(result.isValid).toBe(true);
+
+    result = inventoryService.validateRoleTransition('administrator', 'member', 'owner');
+    expect(result.isValid).toBe(false);
+
+    result = inventoryService.validateRoleTransition('administrator', 'owner', 'member');
+    expect(result.isValid).toBe(false);
+
+    // Members cannot change roles
+    result = inventoryService.validateRoleTransition('member', 'member', 'administrator');
+    expect(result.isValid).toBe(false);
+
+    // Read-only users cannot change roles
+    result = inventoryService.validateRoleTransition('read_only', 'member', 'administrator');
+    expect(result.isValid).toBe(false);
+  });
+
+  test('getRoleLevel returns correct hierarchy', () => {
+    expect(inventoryService.getRoleLevel('owner')).toBe(4);
+    expect(inventoryService.getRoleLevel('administrator')).toBe(3);
+    expect(inventoryService.getRoleLevel('member')).toBe(2);
+    expect(inventoryService.getRoleLevel('read_only')).toBe(1);
   });
 });
