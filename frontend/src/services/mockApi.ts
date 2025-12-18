@@ -532,6 +532,35 @@ class MockApiClient {
     };
   }
 
+  // AI Analysis API (Mock)
+  async analyzePhoto(_photoKey: string, _inventoryId: string): Promise<any> {
+    await mockDelay(2000); // Simulate AI processing time
+    
+    return {
+      success: true,
+      analysis: {
+        itemName: 'Wireless Bluetooth Headphones',
+        description: 'Black over-ear wireless headphones with adjustable headband and cushioned ear cups. Appears to be in excellent condition with minimal wear signs.',
+        suggestedCategory: 'Electronics',
+        extractedText: {
+          brandNames: ['Sony'],
+          modelNumbers: ['WH-1000XM4'],
+          serialNumbers: ['SN123456789'],
+          otherText: ['Wireless', 'Bluetooth', 'Noise Canceling']
+        },
+        estimatedValue: 250,
+        confidence: {
+          overall: 0.87,
+          itemName: 0.9,
+          description: 0.85,
+          category: 0.85
+        }
+      },
+      processingTimeMs: 2000,
+      mockMode: true
+    };
+  }
+
   // Mock auth methods
   setAuthErrorCallback(callback: () => void) {
     // Mock implementation

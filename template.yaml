@@ -52,6 +52,12 @@ Parameters:
       - 'true'
       - 'false'
     Description: Enable advanced monitoring features (requires additional permissions)
+  
+  OpenAIAPIKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: OpenAI API Key for AI photo analysis (optional, leave empty to use mock mode)
 
 Conditions:
   HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, '']]
@@ -771,6 +777,38 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /photo
             Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # AI Analysis Lambda
+  AIAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/aiAnalysis.handler
+      Timeout: 60  # Longer timeout for AI processing
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+          AI_MOCK_MODE: 'false'
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref PhotoBucket
+        - DynamoDBReadPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        AnalyzePhoto:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /ai/analyze-photo
+            Method: POST
             Auth:
               Authorizer: CognitoAuthorizer
 

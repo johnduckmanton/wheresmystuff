@@ -352,6 +352,11 @@ class ApiClient {
     const encodedKey = encodeURIComponent(key);
     return this.get<{ downloadUrl: string }>(`/photo?key=${encodedKey}`);
   }
+
+  // AI Analysis API
+  async analyzePhoto(photoKey: string, inventoryId: string): Promise<any> {
+    return this.post<any>('/ai/analyze-photo', { photoKey, inventoryId });
+  }
 }
 
 // Export singleton instance - use mock in development mode

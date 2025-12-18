@@ -1,9 +1,11 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
+import AIPhotoUpload from '../components/AIPhotoUpload';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
@@ -199,6 +201,9 @@ export default function Things() {
   const [editingThing, setEditingThing] = useState<Thing | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [thingToDelete, setThingToDelete] = useState<ThingTableRow | null>(null);
+  
+  // AI Upload states
+  const [showAIUpload, setShowAIUpload] = useState(false);
 
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
@@ -396,10 +401,33 @@ export default function Things() {
         <Typography variant="h4" component="h1">
           Things - {currentInventory.name}
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
-          Add Thing
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button 
+            variant="outlined" 
+            startIcon={<AutoAwesomeIcon />} 
+            onClick={() => setShowAIUpload(!showAIUpload)}
+            color={showAIUpload ? 'primary' : 'inherit'}
+          >
+            AI Photo Upload
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
+            Add Thing
+          </Button>
+        </Box>
       </Box>
+
+      {/* AI Photo Upload Section */}
+      <Collapse in={showAIUpload}>
+        <Box sx={{ mb: 3 }}>
+          <AIPhotoUpload 
+            categories={categories}
+            onThingCreated={(newThing) => {
+              setThings(prev => [...prev, newThing]);
+              setShowAIUpload(false);
+            }}
+          />
+        </Box>
+      </Collapse>
 
       <EntityTable
         columns={columns}
