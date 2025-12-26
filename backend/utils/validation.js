@@ -386,8 +386,8 @@ function validateAndSanitizeRecursive(data, schema, path) {
       throw new Error(`${path || 'Field'} cannot be empty`);
     }
     
-    // Pattern validation on sanitized string
-    if (schema.pattern && !schema.pattern.test(sanitized)) {
+    // Pattern validation on sanitized string (skip for empty strings unless required)
+    if (schema.pattern && sanitized.length > 0 && !schema.pattern.test(sanitized)) {
       throw new Error(`${path || 'Field'} does not match required pattern`);
     }
     

@@ -1,0 +1,307 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFront Distribution and WAF for Home Inventory System (us-east-1 only)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  
+  CustomDomainName:
+    Type: String
+    Default: ''
+    Description: Custom domain name for CloudFront (optional, leave empty to skip custom domain)
+  
+  ACMCertificateArn:
+    Type: String
+    Default: ''
+    Description: ARN of ACM certificate for custom domain (must be in us-east-1 region, optional)
+  
+  EnableWAF:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable AWS WAF protection
+  
+  # Cross-region parameters - these will be passed from the main stack
+  ApiGatewayDomainName:
+    Type: String
+    Description: Domain name of the API Gateway in eu-west-1
+  
+  WebsiteBucketDomainName:
+    Type: String
+    Description: Regional domain name of the S3 website bucket in eu-west-1
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, '']]
+  HasACMCertificate: !Not [!Equals [!Ref ACMCertificateArn, '']]
+  EnableWAFCondition: !Equals [!Ref EnableWAF, 'true']
+
+Resources:
+  # AWS WAF WebACL for CloudFront (must be in us-east-1)
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: EnableWAFCondition
+    Properties:
+      Name: !Sub home-inventory-waf-${Environment}
+      Scope: CLOUDFRONT
+      Description: WAF WebACL for Home Inventory System with managed rules
+      DefaultAction:
+        Allow: {}
+      Rules:
+        # AWS Managed Rules - Core Rule Set (CRS)
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSetMetric
+        
+        # AWS Managed Rules - Known Bad Inputs
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSetMetric
+      
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub home-inventory-waf-${Environment}
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for CloudFront Logs (must be in us-east-1)
+  CloudFrontLogsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub home-inv-cf-logs-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudFront Origin Access Control for S3
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub home-inventory-oac-${Environment}
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # CloudFront Response Headers Policy for Security Headers
+  CloudFrontSecurityHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub home-inventory-security-headers-${Environment}
+        Comment: Security headers for Home Inventory System
+        
+        SecurityHeadersConfig:
+          # Strict-Transport-Security
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          
+          # X-Content-Type-Options
+          ContentTypeOptions:
+            Override: true
+          
+          # X-Frame-Options
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          
+          # X-XSS-Protection
+          XSSProtection:
+            ModeBlock: true
+            Protection: true
+            Override: true
+          
+          # Referrer-Policy
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          
+          # Content-Security-Policy
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; frame-ancestors 'none';"
+            Override: true
+
+  # CloudFront Distribution (must be in us-east-1)
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub Home Inventory System - ${Environment}
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        
+        # Custom domain configuration (optional)
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref CustomDomainName]
+          - !Ref AWS::NoValue
+        
+        ViewerCertificate: !If
+          - HasACMCertificate
+          - AcmCertificateArn: !Ref ACMCertificateArn
+            MinimumProtocolVersion: TLSv1.2_2021
+            SslSupportMethod: sni-only
+          - CloudFrontDefaultCertificate: true
+            MinimumProtocolVersion: TLSv1.2_2021
+        
+        # Associate with WAF WebACL
+        WebACLId: !If
+          - EnableWAFCondition
+          - !GetAtt WAFWebACL.Arn
+          - !Ref AWS::NoValue
+        
+        # Default cache behavior for frontend (S3)
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          
+          # Cache policy for static content (optimized for frontend)
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          
+          # Response headers policy for security headers
+          ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
+        
+        # Additional cache behaviors
+        CacheBehaviors:
+          # API routes
+          - PathPattern: "/dev/*"
+            TargetOriginId: ApiGatewayOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            
+            # Cache policy for API (no caching for dynamic content)
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
+            
+            # Origin request policy to forward all headers, query strings, and cookies
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewer managed policy
+            
+            # Response headers policy for security headers
+            ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
+        
+        # Origins configuration
+        Origins:
+          # S3 Origin for frontend static files (cross-region)
+          - Id: S3Origin
+            DomainName: !Ref WebsiteBucketDomainName
+            OriginAccessControlId: !Ref OriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+          
+          # API Gateway Origin (cross-region)
+          - Id: ApiGatewayOrigin
+            DomainName: !Ref ApiGatewayDomainName
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        
+        # Custom error responses for SPA routing
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        
+        # Logging configuration
+        Logging:
+          Bucket: !GetAtt CloudFrontLogsBucket.DomainName
+          Prefix: cloudfront-logs/
+          IncludeCookies: false
+      
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  CloudFrontUrl:
+    Description: CloudFront Distribution URL
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontUrl
+  
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDistributionId
+  
+  OriginAccessControlId:
+    Description: Origin Access Control ID for S3 bucket policy
+    Value: !Ref OriginAccessControl
+    Export:
+      Name: !Sub ${AWS::StackName}-OriginAccessControlId

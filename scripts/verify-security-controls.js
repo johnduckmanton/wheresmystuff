@@ -9,7 +9,7 @@ const config = {
   apiGatewayUrl: process.env.API_GATEWAY_URL || 'https://your-api-id.execute-api.region.amazonaws.com/prod',
   cloudfrontUrl: process.env.CLOUDFRONT_URL || 'https://your-distribution.cloudfront.net',
   testDomain: process.env.TEST_DOMAIN || 'yourdomain.com',
-  region: process.env.AWS_REGION || 'us-east-1'
+  region: process.env.AWS_REGION || 'eu-west-1'
 };
 
 class SecurityVerifier {

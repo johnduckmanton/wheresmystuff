@@ -11,15 +11,12 @@ Globals:
       Variables:
         TABLE_NAME: !Ref InventoryTable
         BUCKET_NAME: !Ref PhotoBucket
+        QR_REPORT_BUCKET_NAME: !Ref QRCodeReportBucket
         USER_POOL_ID: !Ref UserPool
         USER_POOL_CLIENT_ID: !Ref UserPoolClient
         AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
-        ALLOWED_ORIGINS: !If
-          - HasCustomDomain
-          - !Sub 'https://${CustomDomainName},https://d2m4d2elac4ekv.cloudfront.net,http://localhost:5173,http://localhost:3000'
-          - 'https://d2m4d2elac4ekv.cloudfront.net,http://localhost:5173,http://localhost:3000'
+        ALLOWED_ORIGINS: 'https://d24t9lc3ds7gry.cloudfront.net,http://localhost:5173,http://localhost:3000'
         NODE_ENV: !Ref Environment
-
 
 Parameters:
   Environment:
@@ -27,258 +24,19 @@ Parameters:
     Default: dev
     Description: Environment name
   
-  CustomDomainName:
-    Type: String
-    Default: ''
-    Description: Custom domain name for CloudFront (optional, leave empty to skip custom domain)
-  
-  ACMCertificateArn:
-    Type: String
-    Default: ''
-    Description: ARN of ACM certificate for custom domain (must be in us-east-1 region, optional)
-  
-  EnableWAF:
-    Type: String
-    Default: 'true'
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Description: Enable AWS WAF protection
-  
-  EnableAdvancedMonitoring:
-    Type: String
-    Default: 'false'
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Description: Enable advanced monitoring features (requires additional permissions)
-  
   OpenAIAPIKey:
     Type: String
-    Default: ''
+    Default: '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'
+    Description: OpenAI API Key for AI analysis features
     NoEcho: true
-    Description: OpenAI API Key for AI photo analysis (optional, leave empty to use mock mode)
-
-Conditions:
-  HasCustomDomain: !Not [!Equals [!Ref CustomDomainName, '']]
-  HasACMCertificate: !Not [!Equals [!Ref ACMCertificateArn, '']]
-  EnableWAFCondition: !Equals [!Ref EnableWAF, 'true']
-  EnableAdvancedMonitoringCondition: !Equals [!Ref EnableAdvancedMonitoring, 'true']
-
+  
 Resources:
-  # AWS WAF WebACL for CloudFront
-  WAFWebACL:
-    Type: AWS::WAFv2::WebACL
-    Condition: EnableWAFCondition
-    Properties:
-      Name: !Sub home-inventory-waf-${Environment}
-      Scope: CLOUDFRONT
-      Description: WAF WebACL for Home Inventory System with managed rules
-      DefaultAction:
-        Allow: {}
-      Rules:
-        # AWS Managed Rules - Core Rule Set (CRS)
-        - Name: AWSManagedRulesCommonRuleSet
-          Priority: 1
-          OverrideAction:
-            None: {}
-          Statement:
-            ManagedRuleGroupStatement:
-              VendorName: AWS
-              Name: AWSManagedRulesCommonRuleSet
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: AWSManagedRulesCommonRuleSetMetric
-        
-        # AWS Managed Rules - Known Bad Inputs
-        - Name: AWSManagedRulesKnownBadInputsRuleSet
-          Priority: 2
-          OverrideAction:
-            None: {}
-          Statement:
-            ManagedRuleGroupStatement:
-              VendorName: AWS
-              Name: AWSManagedRulesKnownBadInputsRuleSet
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: AWSManagedRulesKnownBadInputsRuleSetMetric
-      
-      VisibilityConfig:
-        SampledRequestsEnabled: true
-        CloudWatchMetricsEnabled: true
-        MetricName: !Sub home-inventory-waf-${Environment}
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
-  # CloudFront Distribution
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Enabled: true
-        Comment: !Sub Home Inventory System - ${Environment}
-        HttpVersion: http2and3
-        IPV6Enabled: true
-        
-        # Custom domain configuration (optional)
-        Aliases: !If
-          - HasCustomDomain
-          - [!Ref CustomDomainName]
-          - !Ref AWS::NoValue
-        
-        ViewerCertificate: !If
-          - HasACMCertificate
-          - AcmCertificateArn: !Ref ACMCertificateArn
-            MinimumProtocolVersion: TLSv1.2_2021
-            SslSupportMethod: sni-only
-          - CloudFrontDefaultCertificate: true
-            MinimumProtocolVersion: TLSv1.2_2021
-        
-        # Associate with WAF WebACL
-        WebACLId: !If
-          - EnableWAFCondition
-          - !GetAtt WAFWebACL.Arn
-          - !Ref AWS::NoValue
-        
-        # Default cache behavior for frontend (S3)
-        DefaultCacheBehavior:
-          TargetOriginId: S3Origin
-          ViewerProtocolPolicy: redirect-to-https
-          AllowedMethods:
-            - GET
-            - HEAD
-            - OPTIONS
-          CachedMethods:
-            - GET
-            - HEAD
-            - OPTIONS
-          Compress: true
-          
-          # Cache policy for static content (optimized for frontend)
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
-          
-          # Response headers policy for security headers
-          ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
-        
-        # Additional cache behaviors
-        CacheBehaviors:
-          # API routes
-          - PathPattern: "/dev/*"
-            TargetOriginId: ApiGatewayOrigin
-            ViewerProtocolPolicy: redirect-to-https
-            AllowedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-              - PUT
-              - POST
-              - PATCH
-              - DELETE
-            CachedMethods:
-              - GET
-              - HEAD
-              - OPTIONS
-            Compress: true
-            
-            # Cache policy for API (no caching for dynamic content)
-            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled managed policy
-            
-            # Origin request policy to forward all headers, query strings, and cookies
-            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewer managed policy
-            
-            # Response headers policy for security headers
-            ResponseHeadersPolicyId: !Ref CloudFrontSecurityHeadersPolicy
-        
-        # Origins configuration
-        Origins:
-          # S3 Origin for frontend static files
-          - Id: S3Origin
-            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
-            OriginAccessControlId: !Ref OriginAccessControl
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-          
-          # API Gateway Origin
-          - Id: ApiGatewayOrigin
-            DomainName: !Sub ${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
-            OriginPath: !Sub /${Environment}
-            CustomOriginConfig:
-              HTTPSPort: 443
-              OriginProtocolPolicy: https-only
-              OriginSSLProtocols:
-                - TLSv1.2
-        
-        # Custom error responses for SPA routing
-        DefaultRootObject: index.html
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-            ErrorCachingMinTTL: 300
-          - ErrorCode: 404
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-            ErrorCachingMinTTL: 300
-        
-        # Logging configuration (optional, can be enabled later)
-        Logging:
-          Bucket: !GetAtt CloudFrontLogsBucket.DomainName
-          Prefix: cloudfront-logs/
-          IncludeCookies: false
-      
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
-  # CloudFront Response Headers Policy for Security Headers
-  CloudFrontSecurityHeadersPolicy:
-    Type: AWS::CloudFront::ResponseHeadersPolicy
-    Properties:
-      ResponseHeadersPolicyConfig:
-        Name: !Sub home-inventory-security-headers-${Environment}
-        Comment: Security headers for Home Inventory System
-        
-        SecurityHeadersConfig:
-          # Strict-Transport-Security
-          StrictTransportSecurity:
-            AccessControlMaxAgeSec: 31536000
-            IncludeSubdomains: true
-            Preload: true
-            Override: true
-          
-          # X-Content-Type-Options
-          ContentTypeOptions:
-            Override: true
-          
-          # X-Frame-Options
-          FrameOptions:
-            FrameOption: DENY
-            Override: true
-          
-          # X-XSS-Protection
-          XSSProtection:
-            ModeBlock: true
-            Protection: true
-            Override: true
-          
-          # Referrer-Policy
-          ReferrerPolicy:
-            ReferrerPolicy: strict-origin-when-cross-origin
-            Override: true
-          
-          # Content-Security-Policy
-          ContentSecurityPolicy:
-            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://*.amazoncognito.com; frame-ancestors 'none';"
-            Override: true
 
   # Secrets Manager Secret for Audit Log HMAC
   AuditLogHMACSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub home-inventory-audit-secret-${Environment}
+      Name: !Sub home-inv-audit-secret-${Environment}
       Description: HMAC secret for audit log integrity protection
       GenerateSecretString:
         SecretStringTemplate: '{}'
@@ -289,77 +47,36 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # S3 Bucket for CloudFront Logs
-  CloudFrontLogsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub home-inventory-cloudfront-logs-${AWS::AccountId}-${Environment}
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldLogs
-            Status: Enabled
-            ExpirationInDays: 90
-      OwnershipControls:
-        Rules:
-          - ObjectOwnership: BucketOwnerPreferred
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-
   # S3 Bucket for Frontend Website Hosting
   WebsiteBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub home-inventory-frontend-${AWS::AccountId}-${Environment}
+      BucketName: !Sub home-inv-frontend-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred
       Tags:
         - Key: Environment
           Value: !Ref Environment
-
-  # CloudFront Origin Access Control for S3
-  OriginAccessControl:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: !Sub home-inventory-oac-${Environment}
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
-
-  # S3 Bucket Policy for CloudFront Access
-  WebsiteBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref WebsiteBucket
-      PolicyDocument:
-        Statement:
-          - Sid: AllowCloudFrontServicePrincipal
-            Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
-            Resource: !Sub "${WebsiteBucket.Arn}/*"
-            Condition:
-              StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
 
   # Cognito User Pool
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: !Sub home-inventory-${Environment}
+      UserPoolName: !Sub home-inv-${Environment}
       AutoVerifiedAttributes:
         - email
       UsernameAttributes:
@@ -384,7 +101,7 @@ Resources:
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
-      ClientName: !Sub home-inventory-client-${Environment}
+      ClientName: !Sub home-inv-client-${Environment}
       UserPoolId: !Ref UserPool
       GenerateSecret: false
       ExplicitAuthFlows:
@@ -397,18 +114,49 @@ Resources:
   InventoryTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub home-inventory-${Environment}
+      TableName: !Sub home-inv-${Environment}
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: pk
           AttributeType: S
         - AttributeName: sk
           AttributeType: S
+        - AttributeName: locationId
+          AttributeType: S
+        - AttributeName: containerId
+          AttributeType: S
+        - AttributeName: projectId
+          AttributeType: S
+        - AttributeName: qrCode
+          AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: ContainerLocationIndex
+          KeySchema:
+            - AttributeName: locationId
+              KeyType: HASH
+            - AttributeName: containerId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ProjectContainerIndex
+          KeySchema:
+            - AttributeName: projectId
+              KeyType: HASH
+            - AttributeName: containerId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: QRCodeIndex
+          KeySchema:
+            - AttributeName: qrCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
       PointInTimeRecoverySpecification:
@@ -416,17 +164,23 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: expiresAt
         Enabled: true
+      SSESpecification:
+        SSEEnabled: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Purpose
           Value: HomeInventorySystem
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
 
   # S3 Bucket for Photos
   PhotoBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub home-inventory-photos-${AWS::AccountId}-${Environment}
+      BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -434,6 +188,10 @@ Resources:
         RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       LifecycleConfiguration:
         Rules:
           - Id: DeleteIncompleteMultipartUploads
@@ -443,11 +201,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
-              - !If
-                - HasCustomDomain
-                - !Sub https://${CustomDomainName}
-                - !Ref AWS::NoValue
-              - 'https://d2m4d2elac4ekv.cloudfront.net'
+              - 'https://d24t9lc3ds7gry.cloudfront.net'
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -462,6 +216,59 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # S3 Bucket for QR Codes and Reports
+  QRCodeReportBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub home-inv-qr-reports-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldQRCodes
+            Status: Enabled
+            ExpirationInDays: 365
+          - Id: DeleteOldReports
+            Status: Enabled
+            Prefix: reports/
+            ExpirationInDays: 90
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - 'https://d24t9lc3ds7gry.cloudfront.net'
+              - 'http://localhost:3000'
+              - 'http://localhost:5173'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            ExposedHeaders:
+              - 'Content-Length'
+              - 'Content-Type'
+              - 'ETag'
+            MaxAge: 3000
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
   # API Gateway HTTP API
   HttpApi:
     Type: AWS::Serverless::HttpApi
@@ -469,11 +276,8 @@ Resources:
       StageName: !Ref Environment
       CorsConfiguration:
         AllowOrigins:
-          - !If
-            - HasCustomDomain
-            - !Sub https://${CustomDomainName}
-            - !Ref AWS::NoValue
-          - 'https://d2m4d2elac4ekv.cloudfront.net'
+          
+          - 'https://d24t9lc3ds7gry.cloudfront.net'  # Current CloudFront URL
           - 'http://localhost:5173'
           - 'http://localhost:3000'  # Support both Vite and Create React App dev servers
         AllowHeaders:
@@ -579,6 +383,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /locations
             Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetLocation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /locations/{id}
+            Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
         UpdateLocation:
@@ -777,6 +589,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /photo
             Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeletePhoto:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /photo/{key+}
+            Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
 
@@ -996,6 +816,1119 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Container Management Lambda
+  ContainerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/containers.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        ListContainers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        MoveContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}/move
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        BulkMoveContainers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/bulk-move
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateContainerStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}/status
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetContainerContents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}/contents
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateContainerContents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{id}/contents
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        QRLookup:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/qr-lookup
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Packing Operations Lambda
+  PackingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/packing.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        AddItemsToContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/containers/{containerId}/add-items
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        RemoveItemsFromContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/containers/{containerId}/remove-items
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        TransferItems:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/transfer-items
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        BulkAssignItems:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/bulk-assign
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetAvailableItems:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/available-items
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ValidateCapacity:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/containers/{containerId}/validate-capacity
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetPackingContents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/containers/{containerId}/contents
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # QR Code Management Lambda
+  QRCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/qrCode.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - S3CrudPolicy:
+            BucketName: !Ref QRCodeReportBucket
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: 
+                - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/home-inventory-security-metrics-dev'
+                - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/home-inventory-security-metrics-dev:*'
+      Events:
+        GenerateQRCode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{containerId}/qr-code
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetContainerQRCode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{containerId}/qr-code
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateBatchQRCodes:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /qr-codes/batch
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DecodeQRCode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /qr-codes/decode
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateLabel:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/{containerId}/label
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateBatchLabels:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /labels/batch
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ScanQRCode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /qr-codes/scan
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ContainerLookup:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/lookup
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetScanHistory:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /qr-codes/history
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetRecentScans:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /qr-codes/recent
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Moving Project Management Lambda
+  ProjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/projects.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetProjects:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateProjectStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/status
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        AssignContainersToProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/containers
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        RemoveContainersFromProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/containers
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Storage Management Lambda
+  StorageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/storage.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        StartStorageTracking:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/{id}/start
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        EndStorageTracking:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/{id}/end
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetStorageInfo:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/{id}/info
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetStorageProjections:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/{id}/projections
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateStorageRate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/{id}/rate
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ListStorageContainers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage/list
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Reports Lambda
+  ReportsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/reports.handler
+      Timeout: 60  # Longer timeout for report generation
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InventoryTable
+        - S3CrudPolicy:
+            BucketName: !Ref QRCodeReportBucket
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GenerateLocationReport:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reports/location/{locationId}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateProjectReport:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reports/project/{projectId}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateContainerManifest:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reports/container/{containerId}/manifest
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ExportContainerList:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reports/containers/export
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Analytics Lambda
+  AnalyticsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/analytics.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetPackingMetrics:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /analytics/packing-metrics
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetContainerUtilization:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /analytics/container-utilization
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetMovingProgress:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /analytics/moving-progress/{projectId}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetStorageCosts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /analytics/storage-costs
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Container Sharing Lambda
+  ContainerSharingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/containerSharing.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        CreateSharingLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sharing/containers/{containerId}/link
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetSharedContainer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sharing/containers/{shareId}
+            Method: GET
+        ListSharingLinks:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sharing/links
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        RevokeSharingLink:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sharing/links/{shareId}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Notifications Lambda
+  NotificationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/notifications.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetNotifications:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /notifications
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        MarkAsRead:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /notifications/{id}/read
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateNotification:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /notifications
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Collaboration Lambda
+  CollaborationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/collaboration.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetActivityFeed:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /collaboration/activity
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateActivity:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /collaboration/activity
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Data Migration Lambda
+  DataMigrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/dataMigration.handler
+      Timeout: 300  # 5 minutes for migration operations
+      MemorySize: 1024
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        MigrateInventoryData:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /migration/inventory-to-containers
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ValidateData:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /migration/validate
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Data Synchronization Lambda
+  DataSynchronizationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/dataSynchronization.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        SyncInventoryData:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sync/inventory
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CheckConsistency:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sync/check-consistency
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Audit Logs Lambda
+  AuditLogsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/auditLogs.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetAuditLogs:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /audit-logs
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetContainerAuditLogs:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /audit-logs/container/{containerId}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Performance Metrics Lambda
+  PerformanceMetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/performanceMetrics.handler
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:GetMetricStatistics
+                - cloudwatch:ListMetrics
+                - logs:DescribeLogGroups
+                - logs:DescribeLogStreams
+                - logs:GetLogEvents
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GetPerformanceMetrics:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /performance/metrics
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # Storage Alerts Lambda
+  StorageAlertsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/storageAlerts.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        CheckStorageAlerts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage-alerts/check
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateStorageAlert:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage-alerts/create
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ListStorageAlerts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage-alerts
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        MarkAlertAsRead:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage-alerts/{id}/read
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        ResolveAlert:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /storage-alerts/{id}/resolve
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+
+  # CloudWatch Resources for Monitoring and Alerting
+
+  # SNS Topic for Alerts
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub home-inventory-alerts-${Environment}
+      DisplayName: Home Inventory System Alerts
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Dashboard
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub home-inventory-${Environment}
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${ContainerFunction}" ],
+                  [ ".", ".", ".", "${PackingFunction}" ],
+                  [ ".", ".", ".", "${QRCodeFunction}" ],
+                  [ ".", ".", ".", "${ProjectFunction}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda Function Duration",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${ContainerFunction}" ],
+                  [ ".", ".", ".", "${PackingFunction}" ],
+                  [ ".", ".", ".", "${QRCodeFunction}" ],
+                  [ ".", ".", ".", "${ProjectFunction}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda Function Errors",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${InventoryTable}" ],
+                  [ ".", "ConsumedWriteCapacityUnits", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "DynamoDB Capacity Usage",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApiGateway", "Count", "ApiName", "${HttpApi}" ],
+                  [ ".", "4XXError", ".", "." ],
+                  [ ".", "5XXError", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "API Gateway Requests and Errors",
+                "period": 300
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms
+
+  # High Error Rate Alarm
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-high-error-rate-${Environment}
+      AlarmDescription: High error rate detected in Lambda functions
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # High Duration Alarm
+  HighDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-high-duration-${Environment}
+      AlarmDescription: High duration detected in Lambda functions
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 25000  # 25 seconds
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # DynamoDB Throttling Alarm
+  DynamoDBThrottlingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-dynamodb-throttling-${Environment}
+      AlarmDescription: DynamoDB throttling detected
+      MetricName: ThrottledRequests
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InventoryTable
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # API Gateway 5XX Error Alarm
+  APIGateway5XXAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-api-5xx-errors-${Environment}
+      AlarmDescription: High 5XX error rate in API Gateway
+      MetricName: 5XXError
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HttpApi
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Cost Budget Alert
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub home-inventory-budget-${Environment}
+        BudgetLimit:
+          Amount: 50  # $50 monthly budget
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          Service:
+            - Amazon Simple Storage Service
+            - AWS Lambda
+            - Amazon DynamoDB
+            - Amazon API Gateway
+            - Amazon CloudFront
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80  # Alert at 80% of budget
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref AlertTopic
+
+  # Log Groups for Lambda Functions
+  ContainerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ContainerFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PackingFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PackingFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  QRCodeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${QRCodeFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ProjectFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ProjectFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ReportsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ReportsFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  AnalyticsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AnalyticsFunction}
+      RetentionInDays: 14
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -1021,6 +1954,24 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-BucketName
 
+  QRReportBucketName:
+    Description: S3 Bucket Name for QR Codes and Reports
+    Value: !Ref QRCodeReportBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-QRReportBucketName
+
+  AlertTopicArn:
+    Description: SNS Topic ARN for Alerts
+    Value: !Ref AlertTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-AlertTopicArn
+
+  DashboardUrl:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${MonitoringDashboard}
+    Export:
+      Name: !Sub ${AWS::StackName}-DashboardUrl
+
   WebsiteBucket:
     Description: S3 Bucket Name for Frontend Website
     Value: !Ref WebsiteBucket
@@ -1039,37 +1990,3 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-Region
 
-  CloudFrontDistributionId:
-    Description: CloudFront Distribution ID
-    Value: !Ref CloudFrontDistribution
-    Export:
-      Name: !Sub ${AWS::StackName}-CloudFrontDistributionId
-
-  CloudFrontDomainName:
-    Description: CloudFront Distribution Domain Name
-    Value: !GetAtt CloudFrontDistribution.DomainName
-    Export:
-      Name: !Sub ${AWS::StackName}-CloudFrontDomainName
-
-  CloudFrontUrl:
-    Description: CloudFront Distribution URL (use this as your application URL)
-    Value: !If
-      - HasCustomDomain
-      - !Sub https://${CustomDomainName}
-      - !Sub https://${CloudFrontDistribution.DomainName}
-    Export:
-      Name: !Sub ${AWS::StackName}-CloudFrontUrl
-
-  WAFWebACLId:
-    Condition: EnableWAFCondition
-    Description: AWS WAF WebACL ID
-    Value: !GetAtt WAFWebACL.Id
-    Export:
-      Name: !Sub ${AWS::StackName}-WAFWebACLId
-
-  WAFWebACLArn:
-    Condition: EnableWAFCondition
-    Description: AWS WAF WebACL ARN
-    Value: !GetAtt WAFWebACL.Arn
-    Export:
-      Name: !Sub ${AWS::StackName}-WAFWebACLArn

@@ -48,7 +48,7 @@ function showHelp() {
   console.log('Required Environment Variables:');
   console.log('  TABLE_NAME    - DynamoDB table name (default: home-inventory-dev)');
   console.log('  USER_POOL_ID  - Cognito User Pool ID (required)');
-  console.log('  AWS_REGION    - AWS region (default: us-east-1)');
+  console.log('  AWS_REGION    - AWS region (default: eu-west-1)');
   console.log('  ROLE          - Role to assign (default: administrator)');
   console.log();
 }

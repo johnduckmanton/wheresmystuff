@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const Inventory = require('../models/inventory');
 const InventoryMembership = require('../models/inventoryMembership');
 
-const client = new DynamoDBClient({ region: 'us-east-1' });
+const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 
 const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';

@@ -17,7 +17,7 @@
   // Try to get categories from the API
   try {
     // Get the API URL from the environment
-    const apiUrl = 'https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev';
+    const apiUrl = 'https://f5jrvv9716.execute-api.eu-west-1.amazonaws.com/dev';
     
     // Try to get auth token from localStorage
     let authToken;

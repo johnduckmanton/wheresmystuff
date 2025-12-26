@@ -7,7 +7,8 @@ jest.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
     from: jest.fn(() => ({ send: mockSend }))
   },
-  PutCommand: jest.fn().mockImplementation((input) => ({ input, constructor: { name: 'PutCommand' } }))
+  PutCommand: jest.fn().mockImplementation((input) => ({ input, constructor: { name: 'PutCommand' } })),
+  QueryCommand: jest.fn().mockImplementation((input) => ({ input, constructor: { name: 'QueryCommand' } }))
 }));
 
 jest.mock('@aws-sdk/client-dynamodb', () => ({
@@ -189,6 +190,218 @@ describe('Audit Logging Service', () => {
           expect(isTamperedValid).toBe(false);
         }
       ), { numRuns: 100 });
+    });
+
+    // **Feature: moving-storage-system, Property 11: Container operations are logged**
+    // **Validates: Requirements 14.1**
+    test('Property 11: Container operations are logged', async () => {
+      await fc.assert(fc.asyncProperty(
+        fc.string({ minLength: 1, maxLength: 50 }), // userId
+        fc.constantFrom('create', 'update', 'delete', 'move'), // action
+        fc.string({ minLength: 1, maxLength: 50 }), // containerId
+        fc.string({ minLength: 1, maxLength: 50 }), // inventoryId
+        fc.record({
+          containerName: fc.string({ minLength: 1, maxLength: 100 }),
+          containerType: fc.constantFrom('box', 'bag', 'crate'),
+          locationId: fc.string({ minLength: 1, maxLength: 50 })
+        }), // details
+        async (userId, action, containerId, inventoryId, details) => {
+          // Clear previous calls
+          mockSend.mockClear();
+          
+          // Call the logContainerOperation function
+          await auditLogService.logContainerOperation(userId, action, containerId, inventoryId, details);
+          
+          // Verify that DynamoDB was called
+          expect(mockSend).toHaveBeenCalledTimes(1);
+          
+          // Get the call arguments
+          const call = mockSend.mock.calls[0][0];
+          expect(call.constructor.name).toBe('PutCommand');
+          
+          // Verify the log entry structure
+          const logEntry = call.input.Item;
+          expect(logEntry.eventType).toBe('container_operation');
+          expect(logEntry.userId).toBe(userId);
+          expect(logEntry.action).toBe(action);
+          expect(logEntry.resource).toBe(`container#${containerId}`);
+          expect(logEntry.success).toBe(true);
+          expect(logEntry.details.containerId).toBe(containerId);
+          expect(logEntry.details.inventoryId).toBe(inventoryId);
+          expect(logEntry.details.action).toBe(action);
+          expect(logEntry.details.containerName).toBe(details.containerName);
+          expect(logEntry.timestamp).toBeDefined();
+          expect(logEntry.id).toBeDefined();
+          expect(logEntry.pk).toMatch(/^AUDITLOG#\d{4}-\d{2}-\d{2}$/);
+          expect(logEntry.sk).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z#/);
+          expect(logEntry.hmac).toBeDefined();
+          expect(typeof logEntry.hmac).toBe('string');
+          expect(logEntry.hmac.length).toBe(64); // SHA256 hex string length
+        }
+      ), { numRuns: 100 });
+    });
+
+    // **Feature: moving-storage-system, Property 12: Packing operations are logged**
+    // **Validates: Requirements 14.2**
+    test('Property 12: Packing operations are logged', async () => {
+      await fc.assert(fc.asyncProperty(
+        fc.string({ minLength: 1, maxLength: 50 }), // userId
+        fc.constantFrom('pack_items', 'unpack_items', 'transfer_items'), // action
+        fc.string({ minLength: 1, maxLength: 50 }), // containerId
+        fc.string({ minLength: 1, maxLength: 50 }), // inventoryId
+        fc.record({
+          itemIds: fc.array(fc.string({ minLength: 1, maxLength: 50 }), { minLength: 1, maxLength: 10 }),
+          itemCount: fc.integer({ min: 1, max: 100 }),
+          containerName: fc.string({ minLength: 1, maxLength: 100 })
+        }), // details
+        async (userId, action, containerId, inventoryId, details) => {
+          // Clear previous calls
+          mockSend.mockClear();
+          
+          // Call the logPackingOperation function
+          await auditLogService.logPackingOperation(userId, action, containerId, inventoryId, details);
+          
+          // Verify that DynamoDB was called
+          expect(mockSend).toHaveBeenCalledTimes(1);
+          
+          // Get the call arguments
+          const call = mockSend.mock.calls[0][0];
+          expect(call.constructor.name).toBe('PutCommand');
+          
+          // Verify the log entry structure
+          const logEntry = call.input.Item;
+          expect(logEntry.eventType).toBe('packing_operation');
+          expect(logEntry.userId).toBe(userId);
+          expect(logEntry.action).toBe(action);
+          expect(logEntry.resource).toBe(`container#${containerId}`);
+          expect(logEntry.success).toBe(true);
+          expect(logEntry.details.containerId).toBe(containerId);
+          expect(logEntry.details.inventoryId).toBe(inventoryId);
+          expect(logEntry.details.action).toBe(action);
+          expect(logEntry.details.itemCount).toBe(details.itemCount);
+          expect(Array.isArray(logEntry.details.itemIds)).toBe(true);
+          expect(logEntry.timestamp).toBeDefined();
+          expect(logEntry.id).toBeDefined();
+          expect(logEntry.pk).toMatch(/^AUDITLOG#\d{4}-\d{2}-\d{2}$/);
+          expect(logEntry.sk).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z#/);
+          expect(logEntry.hmac).toBeDefined();
+          expect(typeof logEntry.hmac).toBe('string');
+          expect(logEntry.hmac.length).toBe(64); // SHA256 hex string length
+        }
+      ), { numRuns: 100 });
+    });
+
+    // **Feature: moving-storage-system, Property 13: Bulk operations are logged**
+    // **Validates: Requirements 14.3**
+    test('Property 13: Bulk operations are logged', async () => {
+      await fc.assert(fc.asyncProperty(
+        fc.string({ minLength: 1, maxLength: 50 }), // userId
+        fc.constantFrom('bulk_move_containers', 'bulk_pack_items', 'bulk_unpack_items'), // action
+        fc.string({ minLength: 1, maxLength: 50 }), // inventoryId
+        fc.record({
+          containerIds: fc.array(fc.string({ minLength: 1, maxLength: 50 }), { minLength: 1, maxLength: 20 }),
+          containerCount: fc.integer({ min: 1, max: 100 }),
+          success: fc.boolean()
+        }), // details
+        async (userId, action, inventoryId, details) => {
+          // Clear previous calls
+          mockSend.mockClear();
+          
+          // Call the logBulkOperation function
+          await auditLogService.logBulkOperation(userId, action, inventoryId, details);
+          
+          // Verify that DynamoDB was called
+          expect(mockSend).toHaveBeenCalledTimes(1);
+          
+          // Get the call arguments
+          const call = mockSend.mock.calls[0][0];
+          expect(call.constructor.name).toBe('PutCommand');
+          
+          // Verify the log entry structure
+          const logEntry = call.input.Item;
+          expect(logEntry.eventType).toBe('bulk_operation');
+          expect(logEntry.userId).toBe(userId);
+          expect(logEntry.action).toBe(action);
+          expect(logEntry.resource).toBe(`inventory#${inventoryId}`);
+          expect(logEntry.success).toBe(details.success);
+          expect(logEntry.details.inventoryId).toBe(inventoryId);
+          expect(logEntry.details.action).toBe(action);
+          expect(logEntry.details.containerCount).toBe(details.containerCount);
+          expect(Array.isArray(logEntry.details.containerIds)).toBe(true);
+          expect(logEntry.timestamp).toBeDefined();
+          expect(logEntry.id).toBeDefined();
+          expect(logEntry.pk).toMatch(/^AUDITLOG#\d{4}-\d{2}-\d{2}$/);
+          expect(logEntry.sk).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z#/);
+          expect(logEntry.hmac).toBeDefined();
+          expect(typeof logEntry.hmac).toBe('string');
+          expect(logEntry.hmac.length).toBe(64); // SHA256 hex string length
+        }
+      ), { numRuns: 100 });
+    });
+  });
+
+  describe('Unit Tests', () => {
+    test('should query audit logs with filters', async () => {
+      const mockItems = [
+        {
+          pk: 'AUDITLOG#2024-01-01',
+          sk: '2024-01-01T10:00:00.000Z#123',
+          eventType: 'container_operation',
+          userId: 'user1',
+          action: 'create',
+          details: { inventoryId: 'inv1' }
+        }
+      ];
+      
+      mockSend.mockResolvedValue({ Items: mockItems });
+      
+      const result = await auditLogService.queryAuditLogs('inv1', {
+        eventType: 'container_operation',
+        startDate: '2024-01-01',
+        endDate: '2024-01-01',
+        limit: 10
+      });
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].eventType).toBe('container_operation');
+      expect(mockSend).toHaveBeenCalled();
+    });
+
+    test('should handle empty query results', async () => {
+      mockSend.mockResolvedValue({ Items: [] });
+      
+      const result = await auditLogService.queryAuditLogs('inv1');
+      
+      expect(result).toHaveLength(0);
+      expect(mockSend).toHaveBeenCalled();
+    });
+
+    test('should filter results by inventory ID', async () => {
+      const mockItems = [
+        {
+          pk: 'AUDITLOG#2024-01-01',
+          sk: '2024-01-01T10:00:00.000Z#123',
+          eventType: 'container_operation',
+          userId: 'user1',
+          action: 'create',
+          details: { inventoryId: 'inv1' }
+        },
+        {
+          pk: 'AUDITLOG#2024-01-01',
+          sk: '2024-01-01T10:01:00.000Z#124',
+          eventType: 'container_operation',
+          userId: 'user1',
+          action: 'create',
+          details: { inventoryId: 'inv2' }
+        }
+      ];
+      
+      mockSend.mockResolvedValue({ Items: mockItems });
+      
+      const result = await auditLogService.queryAuditLogs('inv1');
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].details.inventoryId).toBe('inv1');
     });
   });
 });

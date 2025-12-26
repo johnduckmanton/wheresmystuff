@@ -1,0 +1,432 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Box,
+  Typography,
+  Chip,
+  Card,
+  CardContent,
+  IconButton,
+  Tooltip,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  QrCode as QrCodeIcon,
+  LocationOn as LocationIcon,
+  Inventory as InventoryIcon,
+  AttachMoney as MoneyIcon,
+  CalendarToday as CalendarIcon,
+  Close as CloseIcon,
+  ViewList as ContentsIcon,
+  Info as InfoIcon,
+  Share as ShareIcon,
+} from '@mui/icons-material';
+
+
+import ContainerContentsView from './ContainerContentsView';
+import QRCodeGenerator from './QRCodeGenerator';
+import HandlingFlagChip from './HandlingFlagChip';
+import ContainerPhotoUpload from './ContainerPhotoUpload';
+import ContainerSharingDialog from './ContainerSharingDialog';
+import type { Container, Location, ContainerStatus } from '../types/entities';
+import apiClient from '../services/api';
+
+interface ContainerDetailDialogProps {
+  open: boolean;
+  container: Container;
+  inventoryId: string;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+export default function ContainerDetailDialog({
+  open,
+  container,
+  inventoryId,
+  onClose,
+  onEdit,
+  onDelete,
+}: ContainerDetailDialogProps) {
+  const [location, setLocation] = useState<Location | null>(null);
+  const [currentTab, setCurrentTab] = useState(0);
+  const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
+
+  // Load location when dialog opens
+  useEffect(() => {
+    if (open && container) {
+      loadLocation();
+      setUpdatedContainer(container);
+    }
+  }, [open, container]);
+
+  const loadLocation = async () => {
+    if (!container.locationId) {
+      setLocation(null);
+      return;
+    }
+
+    try {
+      const locationData = await apiClient.getLocation(container.locationId, inventoryId);
+      setLocation(locationData);
+    } catch (error) {
+      console.error('Error loading location:', error);
+      setLocation(null);
+    }
+  };
+
+  const getStatusColor = (status: ContainerStatus) => {
+    switch (status) {
+      case 'empty': return 'default';
+      case 'packing': return 'info';
+      case 'packed': return 'success';
+      case 'in_transit': return 'warning';
+      case 'stored': return 'secondary';
+      case 'unpacking': return 'info';
+      case 'unpacked': return 'success';
+      default: return 'default';
+    }
+  };
+
+  // const getHandlingFlagColor = (flag: HandlingFlag) => {
+  //   switch (flag) {
+  //     case 'fragile': return 'error';
+  //     case 'heavy': return 'warning';
+  //     case 'valuable': return 'success';
+  //     case 'priority': return 'primary';
+  //     default: return 'default';
+  //   }
+  // };
+
+  // const formatHandlingFlag = (flag: HandlingFlag) => {
+  //   return flag.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  // };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
+  };
+
+  const handleContainerUpdated = (container: Container) => {
+    setUpdatedContainer(container);
+  };
+
+  const handleItemsChanged = () => {
+    // Refresh container data when items change
+    // This could trigger a parent component refresh
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      aria-labelledby="container-detail-dialog-title"
+    >
+      <DialogTitle 
+        id="container-detail-dialog-title"
+        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <Typography variant="h6" component="div">
+          {updatedContainer.name}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Generate QR Code">
+            <IconButton onClick={() => setQrCodeDialogOpen(true)} size="small" color="secondary">
+              <QrCodeIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Share Container">
+            <IconButton onClick={() => setSharingDialogOpen(true)} size="small" color="primary">
+              <ShareIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Edit Container">
+            <IconButton onClick={onEdit} size="small">
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Container">
+            <IconButton onClick={onDelete} size="small" color="error">
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={currentTab} onChange={handleTabChange} aria-label="container detail tabs">
+          <Tab 
+            icon={<InfoIcon />} 
+            label="Details" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<ContentsIcon />} 
+            label={`Contents (${updatedContainer.itemCount})`}
+            iconPosition="start"
+          />
+        </Tabs>
+      </Box>
+      
+      <DialogContent sx={{ p: 0 }}>
+        {/* Details Tab */}
+        {currentTab === 0 && (
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Top Row - Container Info and Statistics */}
+              <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+                {/* Container Information */}
+                <Box sx={{ flex: 1 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Container Details
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {/* Type and Status */}
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                            Type:
+                          </Typography>
+                          <Chip
+                            label={updatedContainer.type.charAt(0).toUpperCase() + updatedContainer.type.slice(1)}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                            Status:
+                          </Typography>
+                          <Chip
+                            label={updatedContainer.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            size="small"
+                            color={getStatusColor(updatedContainer.status)}
+                          />
+                        </Box>
+
+                        {/* Size and Color */}
+                        {updatedContainer.size && (
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                              Size:
+                            </Typography>
+                            <Typography variant="body2">{updatedContainer.size}</Typography>
+                          </Box>
+                        )}
+
+                        {updatedContainer.color && (
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                              Color:
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  width: 20,
+                                  height: 20,
+                                  backgroundColor: updatedContainer.color,
+                                  border: '1px solid #ccc',
+                                  borderRadius: 1,
+                                }}
+                              />
+                              <Typography variant="body2">{updatedContainer.color}</Typography>
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Location */}
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                            Location:
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <LocationIcon fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {location?.name || 'No location set'}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* Handling Flags */}
+                        {updatedContainer.handlingFlags.length > 0 && (
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Handling Requirements:
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                              {updatedContainer.handlingFlags.map((flag) => (
+                                <HandlingFlagChip
+                                  key={flag}
+                                  flag={flag}
+                                  size="small"
+                                  showIcon={true}
+                                  showLabel={true}
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Description */}
+                        {updatedContainer.description && (
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Description:
+                            </Typography>
+                            <Typography variant="body2">{updatedContainer.description}</Typography>
+                          </Box>
+                        )}
+
+                        {/* Container Photos */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Photos:
+                          </Typography>
+                          <ContainerPhotoUpload
+                            containerId={updatedContainer.id}
+                            inventoryId={inventoryId}
+                            photos={updatedContainer.photos || []}
+                            onPhotosUpdated={(photos) => {
+                              setUpdatedContainer(prev => ({ ...prev, photos }));
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Box>
+
+                {/* Statistics */}
+                <Box sx={{ flex: 1 }}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        Statistics
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <InventoryIcon color="action" />
+                          <Typography variant="body2">
+                            <strong>{updatedContainer.itemCount}</strong> items
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <MoneyIcon color="action" />
+                          <Typography variant="body2">
+                            <strong>${updatedContainer.estimatedValue.toFixed(2)}</strong> total value
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CalendarIcon color="action" />
+                          <Typography variant="body2">
+                            Created {formatDate(updatedContainer.createdAt)}
+                          </Typography>
+                        </Box>
+
+                        {updatedContainer.storageStartDate && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CalendarIcon color="action" />
+                            <Typography variant="body2">
+                              In storage since {formatDate(updatedContainer.storageStartDate)}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {updatedContainer.storageRate && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <MoneyIcon color="action" />
+                            <Typography variant="body2">
+                              Storage: <strong>${updatedContainer.storageRate}/month</strong>
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* QR Code */}
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1,
+                            cursor: 'pointer',
+                            '&:hover': {
+                              backgroundColor: 'action.hover',
+                              borderRadius: 1,
+                              p: 0.5,
+                              m: -0.5
+                            }
+                          }}
+                          onClick={() => setQrCodeDialogOpen(true)}
+                        >
+                          <QrCodeIcon color="primary" />
+                          <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
+                            Generate QR Code
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        )}
+
+        {/* Contents Tab */}
+        {currentTab === 1 && (
+          <ContainerContentsView
+            container={updatedContainer}
+            onContainerUpdated={handleContainerUpdated}
+            onItemsChanged={handleItemsChanged}
+          />
+        )}
+      </DialogContent>
+      
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+
+      {/* QR Code Generator Dialog */}
+      <QRCodeGenerator
+        open={qrCodeDialogOpen}
+        onClose={() => setQrCodeDialogOpen(false)}
+        container={updatedContainer}
+        onQRCodeGenerated={() => {
+          // Optionally show success message or update container
+          setQrCodeDialogOpen(false);
+        }}
+      />
+
+      {/* Container Sharing Dialog */}
+      <ContainerSharingDialog
+        open={sharingDialogOpen}
+        onClose={() => setSharingDialogOpen(false)}
+        container={updatedContainer}
+        inventoryId={inventoryId}
+      />
+    </Dialog>
+  );
+}

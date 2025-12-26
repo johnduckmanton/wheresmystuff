@@ -10,6 +10,7 @@ export interface Thing {
   roomId?: string; // UUID reference
   ownerId?: string; // UUID reference (Person)
   categoryId?: string; // UUID reference
+  containerId?: string; // UUID reference to container (if packed)
   notes?: string;
   datePurchased?: string; // ISO date
   purchasedFrom?: string;
@@ -144,6 +145,115 @@ export interface Invitation {
   status: 'pending' | 'accepted' | 'cancelled' | 'expired';
   createdAt: string;
   expiresAt: string;
+}
+
+// Container types for Moving & Storage System
+export const ContainerType = {
+  Box: 'box',
+  Bag: 'bag',
+  Crate: 'crate',
+  Bin: 'bin',
+  Suitcase: 'suitcase',
+  Trunk: 'trunk',
+  Custom: 'custom'
+} as const;
+
+export type ContainerType = typeof ContainerType[keyof typeof ContainerType];
+
+export const HandlingFlag = {
+  Fragile: 'fragile',
+  Heavy: 'heavy',
+  Valuable: 'valuable',
+  Priority: 'priority',
+  KeepUpright: 'keep_upright',
+  TemperatureSensitive: 'temperature_sensitive'
+} as const;
+
+export type HandlingFlag = typeof HandlingFlag[keyof typeof HandlingFlag];
+
+export const ContainerStatus = {
+  Empty: 'empty',
+  Packing: 'packing',
+  Packed: 'packed',
+  InTransit: 'in_transit',
+  Stored: 'stored',
+  Unpacking: 'unpacking',
+  Unpacked: 'unpacked'
+} as const;
+
+export type ContainerStatus = typeof ContainerStatus[keyof typeof ContainerStatus];
+
+export interface Container {
+  id: string;                    // UUID
+  inventoryId: string;           // Reference to inventory
+  projectId?: string;            // Optional project assignment
+  name: string;                  // User-defined name
+  type: ContainerType;           // Box, Bag, Crate, etc.
+  size?: string;                 // Small, Medium, Large, Custom
+  color?: string;                // Visual identifier
+  description?: string;          // Additional notes
+  photos?: string[];             // Array of S3 keys for container photos
+  qrCode: string;                // Unique QR code identifier
+  qrCodeUrl?: string;            // S3 URL for QR code image
+  locationId?: string;           // Current location
+  handlingFlags: HandlingFlag[]; // Fragile, Heavy, Valuable, etc.
+  itemCount: number;             // Number of items in container
+  estimatedValue: number;        // Total value of contents
+  createdAt: string;             // ISO timestamp
+  updatedAt: string;             // ISO timestamp
+  createdBy: string;             // User ID
+  updatedBy: string;             // User ID
+  status: ContainerStatus;       // Packed, InTransit, Stored, Unpacked
+  storageStartDate?: string;     // When moved to storage
+  storageRate?: number;          // Cost per month
+  metadata: Record<string, any>; // Extensible metadata
+}
+
+// Moving Project types
+export const ProjectStatus = {
+  Planning: 'planning',
+  Active: 'active',
+  Paused: 'paused',
+  Completed: 'completed',
+  Archived: 'archived'
+} as const;
+
+export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
+
+export interface MovingProject {
+  id: string;                    // UUID
+  inventoryId: string;           // Reference to inventory
+  name: string;                  // Project name
+  description?: string;          // Project details
+  startDate: string;             // ISO timestamp
+  targetDate?: string;           // Target completion date
+  completionDate?: string;       // Actual completion date
+  status: ProjectStatus;         // Planning, Active, Completed, Archived
+  sourceLocation?: string;       // Origin location
+  destinationLocation?: string;  // Target location
+  containerCount: number;        // Number of containers
+  itemCount: number;             // Number of items
+  completionPercentage: number;  // 0-100
+  createdAt: string;             // ISO timestamp
+  updatedAt: string;             // ISO timestamp
+  createdBy: string;             // User ID
+  metadata: Record<string, any>; // Extensible metadata
+}
+
+// Container-Item relationship
+export interface ContainerItem {
+  containerId: string;           // Container reference
+  itemId: string;                // Thing reference
+  addedAt: string;               // ISO timestamp
+  addedBy: string;               // User ID
+  position?: number;             // Optional ordering
+}
+
+// Extended Thing entity with container reference
+export interface ThingWithContainer extends Thing {
+  containerId?: string;          // Current container (if packed)
+  packedAt?: string;             // When added to container
+  previousLocationId?: string;   // Location before packing
 }
 
 export interface ApiResponse<T> {

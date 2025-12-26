@@ -32,7 +32,7 @@ command -v npm >/dev/null 2>&1 || { echo -e "${RED}❌ npm is required but not i
 
 # Get stack name and region
 STACK_NAME=${1:-home-inventory-dev}
-AWS_REGION=${2:-us-east-1}
+AWS_REGION=${2:-eu-west-1}
 
 echo -e "${BLUE}📋 Configuration:${NC}"
 echo "   Stack Name: $STACK_NAME"

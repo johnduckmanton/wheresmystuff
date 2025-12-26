@@ -60,7 +60,8 @@ export default function People() {
       setLoading(true);
       setGlobalLoading(true);
       const peopleData = await apiClient.getPeople(currentInventory.id);
-      setPeople(peopleData);
+      // Ensure we have an array, fallback to empty array if not
+      setPeople(Array.isArray(peopleData) ? peopleData : []);
     } catch (error) {
       console.error('Error loading people:', error);
       showError(error instanceof Error ? error.message : 'Failed to load people. Please try again.');
@@ -71,14 +72,14 @@ export default function People() {
   };
 
   // Transform People data for table display
-  const tableData: PersonTableRow[] = people.map(person => ({
+  const tableData: PersonTableRow[] = Array.isArray(people) ? people.map(person => ({
     id: person.id,
     name: person.name,
     relationship: person.relationship || '',
     email: person.email || '',
     phone: person.phone || '',
     dateAdded: person.dateAdded ? new Date(person.dateAdded).toLocaleDateString() : '',
-  }));
+  })) : [];
 
   const handleAdd = () => {
     setEditingPerson(undefined);

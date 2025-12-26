@@ -10,6 +10,9 @@ import type {
   UserProfile,
   UserLookupResult,
   Invitation,
+  Container,
+  MovingProject,
+
 } from '../types';
 import { mockData, mockDelay } from '../config/development';
 
@@ -561,10 +564,1220 @@ class MockApiClient {
     };
   }
 
+  // Container API (Mock)
+  async getContainers(inventoryId?: string): Promise<Container[]> {
+    await mockDelay();
+    
+    // Mock container data
+    const mockContainers: Container[] = [
+      {
+        id: 'container-1',
+        inventoryId: inventoryId || 'inv-1',
+        name: 'Kitchen Box 1',
+        type: 'box',
+        size: 'Large',
+        color: 'Brown',
+        description: 'Kitchen utensils and small appliances',
+        qrCode: 'QR-KITCHEN-001',
+        qrCodeUrl: 'https://example.com/qr/kitchen-001.png',
+        locationId: 'loc-1',
+        handlingFlags: ['fragile'],
+        itemCount: 15,
+        estimatedValue: 250,
+        createdAt: '2024-01-15T10:00:00.000Z',
+        updatedAt: '2024-01-15T10:00:00.000Z',
+        createdBy: 'user-current',
+        updatedBy: 'user-current',
+        status: 'packed',
+        metadata: {}
+      },
+      {
+        id: 'container-2',
+        inventoryId: inventoryId || 'inv-1',
+        name: 'Bedroom Box 1',
+        type: 'box',
+        size: 'Medium',
+        color: 'Blue',
+        description: 'Clothes and personal items',
+        qrCode: 'QR-BEDROOM-001',
+        qrCodeUrl: 'https://example.com/qr/bedroom-001.png',
+        locationId: 'loc-2',
+        handlingFlags: [],
+        itemCount: 8,
+        estimatedValue: 150,
+        createdAt: '2024-01-16T14:30:00.000Z',
+        updatedAt: '2024-01-16T14:30:00.000Z',
+        createdBy: 'user-current',
+        updatedBy: 'user-current',
+        status: 'packing',
+        metadata: {}
+      },
+      {
+        id: 'container-3',
+        inventoryId: inventoryId || 'inv-1',
+        name: 'Electronics Storage',
+        type: 'crate',
+        size: 'Large',
+        color: 'Black',
+        description: 'TV, gaming console, and cables',
+        qrCode: 'QR-ELECTRONICS-001',
+        qrCodeUrl: 'https://example.com/qr/electronics-001.png',
+        locationId: 'loc-3',
+        handlingFlags: ['fragile', 'valuable'],
+        itemCount: 5,
+        estimatedValue: 1200,
+        createdAt: '2024-01-17T09:15:00.000Z',
+        updatedAt: '2024-01-17T09:15:00.000Z',
+        createdBy: 'user-current',
+        updatedBy: 'user-current',
+        status: 'stored',
+        metadata: {}
+      }
+    ];
+    
+    return inventoryId ? mockContainers.filter(c => c.inventoryId === inventoryId) : mockContainers;
+  }
+
+  async getContainer(id: string): Promise<Container> {
+    await mockDelay();
+    const containers = await this.getContainers();
+    const container = containers.find(c => c.id === id);
+    if (!container) throw new Error('Container not found');
+    return container;
+  }
+
+  async createContainer(data: Omit<Container, 'id' | 'qrCode' | 'itemCount' | 'estimatedValue' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>): Promise<Container> {
+    await mockDelay();
+    
+    const newContainer: Container = {
+      ...data,
+      id: this.generateId('container'),
+      qrCode: `QR-${data.name.toUpperCase().replace(/\s+/g, '-')}-${Date.now()}`,
+      itemCount: 0,
+      estimatedValue: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-current',
+      updatedBy: 'user-current',
+    };
+    
+    return newContainer;
+  }
+
+  async updateContainer(id: string, data: Partial<Omit<Container, 'id' | 'qrCode' | 'createdAt' | 'createdBy'>>): Promise<Container> {
+    await mockDelay();
+    const container = await this.getContainer(id);
+    
+    return {
+      ...container,
+      ...data,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'user-current',
+    };
+  }
+
+  async deleteContainer(id: string): Promise<void> {
+    await mockDelay();
+    console.log(`Mock: Deleting container ${id}`);
+  }
+
+  // Moving Project API (Mock)
+  async getProjects(inventoryId?: string): Promise<MovingProject[]> {
+    await mockDelay();
+    
+    const mockProjects: MovingProject[] = [
+      {
+        id: 'project-1',
+        inventoryId: inventoryId || 'inv-1',
+        name: 'House Move to New City',
+        description: 'Moving from current apartment to new house in Seattle',
+        startDate: '2024-01-15T00:00:00.000Z',
+        targetDate: '2024-02-15T00:00:00.000Z',
+        status: 'active',
+        sourceLocation: 'Current Apartment',
+        destinationLocation: 'New House - Seattle',
+        containerCount: 12,
+        itemCount: 150,
+        completionPercentage: 65,
+        createdAt: '2024-01-10T10:00:00.000Z',
+        updatedAt: '2024-01-18T15:30:00.000Z',
+        createdBy: 'user-current',
+        metadata: {}
+      },
+      {
+        id: 'project-2',
+        inventoryId: inventoryId || 'inv-1',
+        name: 'Storage Unit Organization',
+        description: 'Reorganizing items in storage unit for better access',
+        startDate: '2024-01-20T00:00:00.000Z',
+        targetDate: '2024-01-25T00:00:00.000Z',
+        status: 'planning',
+        sourceLocation: 'Storage Unit A',
+        destinationLocation: 'Storage Unit A (Reorganized)',
+        containerCount: 8,
+        itemCount: 75,
+        completionPercentage: 15,
+        createdAt: '2024-01-18T09:00:00.000Z',
+        updatedAt: '2024-01-18T09:00:00.000Z',
+        createdBy: 'user-current',
+        metadata: {}
+      }
+    ];
+    
+    return inventoryId ? mockProjects.filter(p => p.inventoryId === inventoryId) : mockProjects;
+  }
+
+  async getProject(id: string): Promise<MovingProject> {
+    await mockDelay();
+    const projects = await this.getProjects();
+    const project = projects.find(p => p.id === id);
+    if (!project) throw new Error('Project not found');
+    return project;
+  }
+
+  async createProject(data: Omit<MovingProject, 'id' | 'containerCount' | 'itemCount' | 'completionPercentage' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<MovingProject> {
+    await mockDelay();
+    
+    const newProject: MovingProject = {
+      ...data,
+      id: this.generateId('project'),
+      containerCount: 0,
+      itemCount: 0,
+      completionPercentage: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-current',
+    };
+    
+    return newProject;
+  }
+
+  async updateProject(id: string, data: Partial<Omit<MovingProject, 'id' | 'createdAt' | 'createdBy'>>): Promise<MovingProject> {
+    await mockDelay();
+    const project = await this.getProject(id);
+    
+    return {
+      ...project,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await mockDelay();
+    console.log(`Mock: Deleting project ${id}`);
+  }
+
+  // Packing API - Container Contents Management
+  async getContainerContents(containerId: string, _inventoryId: string): Promise<{
+    container: Container;
+    items: Thing[];
+    itemCount: number;
+    totalValue: number;
+    categories: number;
+    summary: {
+      itemCount: number;
+      totalValue: number;
+      categoriesCount: number;
+      hasPhotos: boolean;
+    };
+  }> {
+    await mockDelay();
+    const container = await this.getContainer(containerId);
+    const items = this.data.things.filter(t => 
+      t.inventoryId === _inventoryId && (t as any).containerId === containerId
+    );
+    
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+    const categories = new Set(items.filter(item => item.categoryId).map(item => item.categoryId)).size;
+    const hasPhotos = items.some(item => item.photos && item.photos.length > 0);
+
+    return {
+      container,
+      items,
+      itemCount: items.length,
+      totalValue,
+      categories,
+      summary: {
+        itemCount: items.length,
+        totalValue,
+        categoriesCount: categories,
+        hasPhotos,
+      },
+    };
+  }
+
+  async addItemsToContainer(containerId: string, _inventoryId: string, itemIds: string[]): Promise<{
+    container: Container;
+    packedItems: Thing[];
+    packedCount: number;
+    totalValue: number;
+    newItemCount: number;
+    newEstimatedValue: number;
+  }> {
+    await mockDelay();
+    const container = await this.getContainer(containerId);
+    const items = itemIds.map(id => this.data.things.find(t => t.id === id)).filter(Boolean) as Thing[];
+    
+    // Update items with container reference
+    items.forEach(item => {
+      (item as any).containerId = containerId;
+      (item as any).packedAt = new Date().toISOString();
+    });
+
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+    const newItemCount = container.itemCount + items.length;
+    const newEstimatedValue = container.estimatedValue + totalValue;
+
+    // Update container
+    container.itemCount = newItemCount;
+    container.estimatedValue = newEstimatedValue;
+
+    return {
+      container,
+      packedItems: items,
+      packedCount: items.length,
+      totalValue,
+      newItemCount,
+      newEstimatedValue,
+    };
+  }
+
+  async removeItemsFromContainer(containerId: string, _inventoryId: string, itemIds: string[]): Promise<{
+    container: Container;
+    unpackedItems: Thing[];
+    unpackedCount: number;
+    totalValue: number;
+    newItemCount: number;
+    newEstimatedValue: number;
+  }> {
+    await mockDelay();
+    const container = await this.getContainer(containerId);
+    const items = itemIds.map(id => this.data.things.find(t => t.id === id)).filter(Boolean) as Thing[];
+    
+    // Update items to remove container reference
+    items.forEach(item => {
+      (item as any).containerId = null;
+      (item as any).packedAt = null;
+    });
+
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+    const newItemCount = Math.max(0, container.itemCount - items.length);
+    const newEstimatedValue = Math.max(0, container.estimatedValue - totalValue);
+
+    // Update container
+    container.itemCount = newItemCount;
+    container.estimatedValue = newEstimatedValue;
+
+    return {
+      container,
+      unpackedItems: items,
+      unpackedCount: items.length,
+      totalValue,
+      newItemCount,
+      newEstimatedValue,
+    };
+  }
+
+  async transferItemsBetweenContainers(
+    sourceContainerId: string,
+    targetContainerId: string,
+    _inventoryId: string,
+    itemIds: string[]
+  ): Promise<{
+    sourceContainer: Container;
+    targetContainer: Container;
+    transferredItems: Thing[];
+    transferredCount: number;
+    totalValue: number;
+    sourceNewItemCount: number;
+    targetNewItemCount: number;
+  }> {
+    await mockDelay();
+    const sourceContainer = await this.getContainer(sourceContainerId);
+    const targetContainer = await this.getContainer(targetContainerId);
+    const items = itemIds.map(id => this.data.things.find(t => t.id === id)).filter(Boolean) as Thing[];
+    
+    // Update items with new container reference
+    items.forEach(item => {
+      (item as any).containerId = targetContainerId;
+      (item as any).packedAt = new Date().toISOString();
+    });
+
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+    
+    // Update containers
+    const sourceNewItemCount = Math.max(0, sourceContainer.itemCount - items.length);
+    const targetNewItemCount = targetContainer.itemCount + items.length;
+    
+    sourceContainer.itemCount = sourceNewItemCount;
+    sourceContainer.estimatedValue = Math.max(0, sourceContainer.estimatedValue - totalValue);
+    
+    targetContainer.itemCount = targetNewItemCount;
+    targetContainer.estimatedValue = targetContainer.estimatedValue + totalValue;
+
+    return {
+      sourceContainer,
+      targetContainer,
+      transferredItems: items,
+      transferredCount: items.length,
+      totalValue,
+      sourceNewItemCount,
+      targetNewItemCount,
+    };
+  }
+
+  async getAvailableItems(inventoryId: string, filters?: {
+    locationId?: string;
+    categoryId?: string;
+    search?: string;
+    limit?: number;
+    lastEvaluatedKey?: any;
+  }): Promise<{
+    items: Thing[];
+    count: number;
+    lastEvaluatedKey?: any;
+    hasMore: boolean;
+    totalValue: number;
+  }> {
+    await mockDelay();
+    let items = this.data.things.filter(t => 
+      t.inventoryId === inventoryId && !(t as any).containerId
+    );
+
+    // Apply filters
+    if (filters?.locationId) {
+      items = items.filter(t => t.locationId === filters.locationId);
+    }
+    if (filters?.categoryId) {
+      items = items.filter(t => t.categoryId === filters.categoryId);
+    }
+    if (filters?.search) {
+      const search = filters.search.toLowerCase();
+      items = items.filter(t => 
+        t.name.toLowerCase().includes(search) || 
+        (t.description && t.description.toLowerCase().includes(search))
+      );
+    }
+
+    // Apply limit
+    const limit = filters?.limit || 50;
+    const limitedItems = items.slice(0, limit);
+    const totalValue = limitedItems.reduce((sum, item) => sum + (item.purchasePrice || 0), 0);
+
+    return {
+      items: limitedItems,
+      count: limitedItems.length,
+      hasMore: items.length > limit,
+      totalValue,
+    };
+  }
+
+  // QR Code API (Mock)
+  async generateQRCode(containerId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+    qrCodeId: string;
+    s3Key: string;
+    size: string;
+    containerId: string;
+    generatedAt: string;
+    downloadUrl: string;
+  }> {
+    await mockDelay();
+    const qrCodeId = `CONT_${containerId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    return {
+      qrCodeId,
+      s3Key: `qr-codes/${containerId}/${size}_${Date.now()}.png`,
+      size,
+      containerId,
+      generatedAt: new Date().toISOString(),
+      downloadUrl: `https://mock-s3-url.com/qr-codes/${containerId}/${size}.png`
+    };
+  }
+
+  async generateBatchQRCodes(containerIds: string[], size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+    successful: Array<{
+      qrCodeId: string;
+      s3Key: string;
+      size: string;
+      containerId: string;
+      generatedAt: string;
+      downloadUrl: string;
+    }>;
+    failed: Array<{
+      containerId: string;
+      error: string;
+    }>;
+    totalProcessed: number;
+    successCount: number;
+    failureCount: number;
+  }> {
+    await mockDelay();
+    const successful = containerIds.map(containerId => ({
+      qrCodeId: `CONT_${containerId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      s3Key: `qr-codes/${containerId}/${size}_${Date.now()}.png`,
+      size,
+      containerId,
+      generatedAt: new Date().toISOString(),
+      downloadUrl: `https://mock-s3-url.com/qr-codes/${containerId}/${size}.png`
+    }));
+
+    return {
+      successful,
+      failed: [],
+      totalProcessed: containerIds.length,
+      successCount: containerIds.length,
+      failureCount: 0
+    };
+  }
+
+  async generateLabel(containerId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+    containerId: string;
+    s3Key: string;
+    size: string;
+    downloadUrl: string;
+    generatedAt: string;
+  }> {
+    await mockDelay();
+    return {
+      containerId,
+      s3Key: `labels/${containerId}/${size}_label_${Date.now()}.png`,
+      size,
+      downloadUrl: `https://mock-s3-url.com/labels/${containerId}/${size}.png`,
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  async generateBatchLabels(containers: Array<{
+    id: string;
+    name: string;
+    type: string;
+    createdAt: string;
+  }>, size: 'small' | 'medium' | 'large' = 'medium', sheetFormat: boolean = false): Promise<{
+    type: 'sheet' | 'individual';
+    s3Key?: string;
+    downloadUrl?: string;
+    containerCount?: number;
+    successful?: Array<{
+      containerId: string;
+      s3Key: string;
+      size: string;
+      downloadUrl: string;
+      generatedAt: string;
+    }>;
+    failed?: Array<{
+      containerId: string;
+      error: string;
+    }>;
+    totalProcessed: number;
+    successCount: number;
+    failureCount: number;
+    size: string;
+    generatedAt: string;
+  }> {
+    await mockDelay();
+    
+    if (sheetFormat) {
+      return {
+        type: 'sheet',
+        s3Key: `label-sheets/batch_${Date.now()}_${size}.png`,
+        downloadUrl: `https://mock-s3-url.com/label-sheets/batch_${size}.png`,
+        containerCount: containers.length,
+        totalProcessed: containers.length,
+        successCount: containers.length,
+        failureCount: 0,
+        size,
+        generatedAt: new Date().toISOString()
+      };
+    } else {
+      const successful = containers.map(container => ({
+        containerId: container.id,
+        s3Key: `labels/${container.id}/${size}_label_${Date.now()}.png`,
+        size,
+        downloadUrl: `https://mock-s3-url.com/labels/${container.id}/${size}.png`,
+        generatedAt: new Date().toISOString()
+      }));
+
+      return {
+        type: 'individual',
+        successful,
+        failed: [],
+        totalProcessed: containers.length,
+        successCount: containers.length,
+        failureCount: 0,
+        size,
+        generatedAt: new Date().toISOString()
+      };
+    }
+  }
+
+  // QR Code Scanning API (Mock)
+  async scanQRCode(qrCodeData: string, _inventoryId: string): Promise<{
+    scanResult: {
+      success: boolean;
+      containerId: string;
+      qrCodeId: string;
+      generatedAt: string;
+      timestamp: number;
+    };
+    container: Container;
+    items: any[];
+    itemCount: number;
+    scannedAt: string;
+  }> {
+    await mockDelay();
+    
+    // Mock QR code validation
+    if (!qrCodeData.startsWith('CONT_') && !qrCodeData.startsWith('QR-')) {
+      throw new Error('Invalid QR code format');
+    }
+
+    // Find a mock container
+    const container = this.data.containers.find(c => 
+      c.qrCode === qrCodeData || qrCodeData.includes(c.id)
+    ) || this.data.containers[0];
+
+    if (!container) {
+      throw new Error('Container not found');
+    }
+
+    // Get items in this container (mock)
+    const items = this.data.things.filter(t => t.containerId === container.id);
+
+    return {
+      scanResult: {
+        success: true,
+        containerId: container.id,
+        qrCodeId: qrCodeData,
+        generatedAt: container.createdAt,
+        timestamp: Date.now(),
+      },
+      container,
+      items,
+      itemCount: items.length,
+      scannedAt: new Date().toISOString(),
+    };
+  }
+
+  async lookupContainer(_inventoryId: string, containerId?: string, containerName?: string): Promise<{
+    type: 'single_match' | 'multiple_matches';
+    container?: Container;
+    items?: any[];
+    itemCount?: number;
+    lookedUpAt?: string;
+    containers?: Array<{
+      id: string;
+      name: string;
+      type: string;
+      itemCount: number;
+      locationId?: string;
+    }>;
+    message?: string;
+  }> {
+    await mockDelay();
+
+    if (containerId) {
+      const container = this.data.containers.find(c => c.id === containerId);
+      if (!container) {
+        throw new Error('Container not found');
+      }
+      const items = this.data.things.filter(t => t.containerId === containerId);
+      return {
+        type: 'single_match',
+        container,
+        items,
+        itemCount: items.length,
+        lookedUpAt: new Date().toISOString(),
+      };
+    }
+
+    if (containerName) {
+      const matches = this.data.containers.filter(c => 
+        c.name.toLowerCase().includes(containerName.toLowerCase())
+      );
+      
+      if (matches.length === 1) {
+        const container = matches[0];
+        const items = this.data.things.filter(t => t.containerId === container.id);
+        return {
+          type: 'single_match',
+          container,
+          items,
+          itemCount: items.length,
+          lookedUpAt: new Date().toISOString(),
+        };
+      } else if (matches.length > 1) {
+        return {
+          type: 'multiple_matches',
+          containers: matches.map(c => ({
+            id: c.id,
+            name: c.name,
+            type: c.type,
+            itemCount: this.data.things.filter(t => t.containerId === c.id).length,
+            locationId: c.locationId,
+          })),
+          message: 'Multiple containers found. Please select one.',
+        };
+      }
+    }
+
+    throw new Error('No containers found');
+  }
+
+  async getScanHistory(inventoryId?: string, options?: {
+    limit?: number;
+    lastEvaluatedKey?: string;
+    successOnly?: boolean;
+  }): Promise<{
+    scans: Array<{
+      id: string;
+      userId: string;
+      inventoryId: string;
+      timestamp: string;
+      type: string;
+      success: boolean;
+      containerId?: string;
+      containerName?: string;
+      qrCodeId?: string;
+      method?: string;
+      error?: string;
+      itemCount?: number;
+    }>;
+    lastEvaluatedKey?: string;
+    count: number;
+    hasMore: boolean;
+  }> {
+    await mockDelay();
+    
+    // Mock scan history
+    const mockScans = [
+      {
+        id: 'scan-1',
+        userId: 'user-1',
+        inventoryId: inventoryId || 'inv-1',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        type: 'qr_scan',
+        success: true,
+        containerId: this.data.containers[0]?.id,
+        containerName: this.data.containers[0]?.name,
+        qrCodeId: this.data.containers[0]?.qrCode,
+        method: 'camera',
+        itemCount: 5,
+      },
+      {
+        id: 'scan-2',
+        userId: 'user-1',
+        inventoryId: inventoryId || 'inv-1',
+        timestamp: new Date(Date.now() - 7200000).toISOString(),
+        type: 'manual_lookup',
+        success: true,
+        containerId: this.data.containers[1]?.id,
+        containerName: this.data.containers[1]?.name,
+        method: 'name_search',
+        itemCount: 3,
+      },
+    ];
+
+    const filteredScans = options?.successOnly 
+      ? mockScans.filter(s => s.success)
+      : mockScans;
+
+    return {
+      scans: filteredScans.slice(0, options?.limit || 20),
+      count: filteredScans.length,
+      hasMore: false,
+    };
+  }
+
+  async getRecentScans(_inventoryId: string, limit: number = 10): Promise<{
+    recentScans: Array<{
+      containerId: string;
+      containerName: string;
+      timestamp: string;
+      method: string;
+      itemCount: number;
+    }>;
+    count: number;
+  }> {
+    await mockDelay();
+    
+    const recentScans = this.data.containers.slice(0, limit).map((container, index) => ({
+      containerId: container.id,
+      containerName: container.name,
+      timestamp: new Date(Date.now() - (index + 1) * 3600000).toISOString(),
+      method: index % 2 === 0 ? 'camera' : 'manual_entry',
+      itemCount: this.data.things.filter(t => t.containerId === container.id).length,
+    }));
+
+    return {
+      recentScans,
+      count: recentScans.length,
+    };
+  }
+
+  // Reports API (Mock)
+  async generateLocationReport(
+    locationId: string, 
+    _inventoryId: string, 
+    _options: any = {}
+  ): Promise<any> {
+    await mockDelay();
+    
+    // Mock report data
+    const mockReport = {
+      location: {
+        id: locationId,
+        name: 'Mock Location',
+        description: 'Mock location for testing'
+      },
+      summary: {
+        totalContainers: 3,
+        totalItems: 15,
+        totalValue: 450.75,
+        categorySummary: {
+          'Kitchen': { count: 8, value: 200.50 },
+          'Electronics': { count: 4, value: 150.25 },
+          'Books': { count: 3, value: 100.00 }
+        }
+      },
+      containers: [
+        {
+          container: {
+            id: 'container-1',
+            name: 'Kitchen Box 1',
+            type: 'box',
+            status: 'packed',
+            createdAt: '2024-01-01T00:00:00Z',
+            handlingFlags: ['fragile']
+          },
+          itemCount: 8,
+          estimatedValue: 200.50,
+          items: [
+            {
+              id: 'item-1',
+              name: 'Plates',
+              categoryName: 'Kitchen',
+              value: '50.00',
+              quantity: 8
+            }
+          ]
+        }
+      ],
+      filters: _options,
+      generatedAt: new Date().toISOString(),
+      generatedBy: 'mock-user'
+    };
+
+    if (_options.format === 'csv') {
+      return 'Container Name,Container Type,Container Status,Item Count,Estimated Value\n"Kitchen Box 1","box","packed",8,200.50';
+    }
+
+    return mockReport;
+  }
+
+  async generateContainerManifest(
+    _containerId: string, 
+    _inventoryId: string, 
+    options: any = {}
+  ): Promise<any> {
+    await mockDelay();
+    
+    const mockManifest = {
+      container: {
+        id: _containerId,
+        name: 'Mock Container',
+        type: 'box',
+        status: 'packed',
+        qrCode: 'QR123456',
+        handlingFlags: ['fragile'],
+        createdAt: '2024-01-01T00:00:00Z'
+      },
+      location: {
+        id: 'location-1',
+        name: 'Storage Room A'
+      },
+      summary: {
+        itemCount: 5,
+        totalValue: 125.00,
+        categorySummary: {
+          'Kitchen': { count: 3, value: 75.00 },
+          'Electronics': { count: 2, value: 50.00 }
+        }
+      },
+      items: [
+        {
+          id: 'item-1',
+          name: 'Plates',
+          category: 'Kitchen',
+          value: 25.00,
+          quantity: 4
+        }
+      ],
+      generatedAt: new Date().toISOString(),
+      generatedBy: 'mock-user'
+    };
+
+    if (options.format === 'csv') {
+      return 'Item Name,Category,Description,Value,Quantity\n"Plates","Kitchen","",25.00,4';
+    }
+
+    return mockManifest;
+  }
+
+  async generateProjectReport(
+    projectId: string, 
+    _inventoryId: string, 
+    options: any = {}
+  ): Promise<any> {
+    await mockDelay();
+    
+    const mockProjectReport = {
+      project: {
+        id: projectId,
+        name: 'Mock Moving Project',
+        description: 'Mock project for testing',
+        startDate: '2024-01-01T00:00:00Z',
+        status: 'active'
+      },
+      summary: {
+        totalContainers: 5,
+        totalItems: 25,
+        totalValue: 750.00,
+        completionPercentage: 60,
+        statusSummary: {
+          'packed': 3,
+          'packing': 2
+        },
+        locationSummary: {
+          'location-1': 3,
+          'location-2': 2
+        }
+      },
+      containers: [
+        {
+          container: {
+            id: 'container-1',
+            name: 'Project Box 1',
+            type: 'box',
+            status: 'packed'
+          },
+          itemCount: 5,
+          estimatedValue: 150.00
+        }
+      ],
+      generatedAt: new Date().toISOString(),
+      generatedBy: 'mock-user'
+    };
+
+    if (options.format === 'csv') {
+      return 'Container Name,Container Type,Container Status,Item Count,Estimated Value\n"Project Box 1","box","packed",5,150.00';
+    }
+
+    return mockProjectReport;
+  }
+
   // Mock auth methods
   setAuthErrorCallback(callback: () => void) {
     // Mock implementation
     console.log('Mock: Auth error callback set', callback);
+  }
+  // Container Sharing API (Mock implementation)
+  async createSharingLink(_containerId: string, options: any): Promise<any> {
+    await mockDelay();
+    // Mock implementation - return a fake sharing link
+    return {
+      shareId: this.generateId('share'),
+      token: 'mock-token-' + Math.random().toString(36).substr(2, 16),
+      shareUrl: `http://localhost:5173/shared/container/mock-share-id?token=mock-token`,
+      expiresAt: options.expiresAt,
+      privacySettings: {
+        includeItemDetails: options.includeItemDetails ?? true,
+        includePhotos: options.includePhotos ?? false,
+        includeSensitiveData: options.includeSensitiveData ?? false
+      },
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  async getSharingLinks(_containerId: string, _inventoryId: string): Promise<any> {
+    await mockDelay();
+    // Mock implementation - return empty array
+    return { sharingLinks: [] };
+  }
+
+  async deactivateSharingLink(_shareId: string): Promise<any> {
+    await mockDelay();
+    return { message: 'Sharing link deactivated' };
+  }
+
+  async deleteSharingLink(_shareId: string): Promise<any> {
+    await mockDelay();
+    return { message: 'Sharing link deleted' };
+  }
+
+  async getSharedContainer(_shareId: string, _token: string): Promise<any> {
+    await mockDelay();
+    
+    // Mock implementation - return a sample shared container
+    const mockContainer = this.data.containers[0] || {
+      id: 'mock-container-1',
+      name: 'Sample Shared Container',
+      type: 'box',
+      description: 'This is a mock shared container for development',
+      status: 'packed',
+      itemCount: 3,
+      handlingFlags: ['fragile'],
+      createdAt: new Date().toISOString()
+    };
+
+    const mockItems = this.data.things.slice(0, 3).map(thing => ({
+      id: thing.id,
+      name: thing.name,
+      category: 'Sample Category',
+      description: thing.description || 'Sample item description',
+      photos: thing.photos || [],
+      value: (thing as any).value,
+      serialNumber: 'MOCK-123',
+      model: 'Mock Model',
+      brand: 'Mock Brand'
+    }));
+
+    return {
+      shareId: _shareId,
+      container: mockContainer,
+      items: mockItems,
+      itemCount: mockItems.length,
+      privacySettings: {
+        includeItemDetails: true,
+        includePhotos: false,
+        includeSensitiveData: false
+      },
+      description: 'Mock shared container for development',
+      createdAt: new Date().toISOString(),
+      accessCount: 1
+    };
+  }
+
+  // Storage Management API Methods
+  async checkStorageAlerts(_inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      summary: {
+        containersWithAlerts: 3,
+        totalContainersInStorage: 10,
+        highPriorityAlerts: 1,
+        totalAlertCost: 150.00,
+        totalStorageCost: 500.00,
+        averageDuration: '45'
+      }
+    };
+  }
+
+  async getStorageAlerts(_inventoryId: string, _options: any = {}): Promise<any> {
+    await mockDelay();
+    return {
+      alerts: [
+        {
+          id: 'alert-1',
+          containerId: 'container-1',
+          containerName: 'Storage Box 1',
+          type: 'cost_threshold',
+          priority: 'high',
+          message: 'Storage cost exceeds threshold',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        }
+      ],
+      pagination: { page: 1, limit: 10, total: 1 }
+    };
+  }
+
+  async markStorageAlertAsRead(_alertId: string, _inventoryId: string): Promise<void> {
+    await mockDelay();
+    // Mock implementation
+  }
+
+  async resolveStorageAlert(_alertId: string, _inventoryId: string, _resolution: string): Promise<void> {
+    await mockDelay();
+    // Mock implementation
+  }
+
+  async listStorageContainers(_inventoryId: string, _params: any = {}): Promise<any> {
+    await mockDelay();
+    return {
+      containers: this.data.containers.slice(0, 5).map(container => ({
+        ...container,
+        storageInfo: {
+          location: 'Storage Unit A',
+          startDate: '2024-01-01',
+          monthlyRate: 50.00,
+          totalCost: 150.00
+        }
+      })),
+      pagination: { page: 1, limit: 10, total: 5 }
+    };
+  }
+
+  async getStorageInfo(_containerId: string, _inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      storageInfo: {
+        location: 'Storage Unit A',
+        startDate: '2024-01-01',
+        monthlyRate: 50.00,
+        totalCost: 150.00,
+        isActive: true
+      }
+    };
+  }
+
+  async getStorageCostProjections(_containerId: string, _inventoryId: string, months: number): Promise<any> {
+    await mockDelay();
+    return {
+      projections: Array.from({ length: months }, (_, i) => ({
+        month: i + 1,
+        cost: 50.00,
+        cumulativeCost: (i + 1) * 50.00
+      }))
+    };
+  }
+
+  async startStorageTracking(_containerId: string, _inventoryId: string, _locationId: string, _rate: number): Promise<void> {
+    await mockDelay();
+    // Mock implementation
+  }
+
+  async endStorageTracking(_containerId: string, _inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      finalCost: 150.00,
+      duration: 90,
+      summary: 'Storage tracking ended'
+    };
+  }
+
+  async updateStorageRate(_containerId: string, _inventoryId: string, _newRate: number): Promise<void> {
+    await mockDelay();
+    // Mock implementation
+  }
+
+  // Photo management methods
+  async uploadPhoto(_file: File, _inventoryId: string): Promise<string> {
+    await mockDelay();
+    // Mock implementation - return a fake photo key
+    return `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async deletePhoto(_photoKey: string, _inventoryId: string): Promise<void> {
+    await mockDelay();
+    // Mock implementation
+  }
+
+  getPhotoUrl(photoKey: string): string {
+    // Mock implementation - return a placeholder image URL
+    return `https://via.placeholder.com/300x200?text=${encodeURIComponent(photoKey)}`;
+  }
+
+  // Analytics methods
+  async getPackingMetrics(_inventoryId: string, _options: any = {}): Promise<any> {
+    await mockDelay();
+    return {
+      metrics: {
+        totalContainers: 25,
+        totalItems: 150,
+        avgItemsPerContainer: 6,
+        avgValuePerContainer: 250,
+        totalValue: 6250,
+        typeBreakdown: {
+          small: 10,
+          medium: 12,
+          large: 3
+        },
+        statusBreakdown: {
+          packed: 20,
+          in_progress: 3,
+          empty: 2
+        },
+        packingVelocity: {
+          containersPerDay: 2.5,
+          trend: 'increasing'
+        }
+      },
+      timeline: []
+    };
+  }
+
+  async getContainerUtilization(_inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      utilization: {
+        utilizationScore: 75,
+        wellPacked: 15,
+        lightlyPacked: 8,
+        overPacked: 2,
+        emptyContainers: 0
+      },
+      efficiency: {
+        efficiency: 78,
+        optimalContainers: 22,
+        wastedSpace: 3,
+        recommendations: ['Consider consolidating lightly packed containers']
+      }
+    };
+  }
+
+  async getMovingProgress(_inventoryId: string, _projectId?: string): Promise<any> {
+    await mockDelay();
+    return {
+      progress: {
+        completionPercentage: 65,
+        packedItems: 98,
+        unpackedItems: 52,
+        packedContainers: 20,
+        emptyContainers: 5,
+        totalContainers: 25,
+        packingRate: 65,
+        containersByStatus: {
+          packed: 20,
+          in_progress: 3,
+          empty: 2
+        }
+      },
+      completionTimeline: []
+    };
+  }
+
+  async getStorageCosts(_inventoryId: string, _options: any = {}): Promise<any> {
+    await mockDelay();
+    return {
+      costs: {
+        totalMonthlyCost: 125.50,
+        totalCost: 450.75,
+        totalContainers: 15,
+        avgDuration: 90,
+        costBreakdown: []
+      },
+      projections: {
+        nextMonth: 125.50,
+        next3Months: 376.50,
+        next6Months: 753.00,
+        nextYear: 1506.00
+      }
+    };
+  }
+
+  async getRecommendations(_inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      recommendations: [
+        {
+          title: 'Optimize Container Utilization',
+          description: 'Several containers are lightly packed and could be consolidated',
+          type: 'efficiency',
+          priority: 'medium',
+          action: 'Review containers with fewer than 5 items and consider consolidating'
+        }
+      ]
+    };
   }
 }
 

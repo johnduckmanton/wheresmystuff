@@ -181,7 +181,7 @@
   }
 
   // Get API URL and auth token
-  const apiUrl = 'https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev';
+  const apiUrl = 'https://nboc1a77g3.execute-api.eu-west-1.amazonaws.com/dev';
   
   // Try to get auth token from localStorage or sessionStorage
   let authToken;

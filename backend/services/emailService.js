@@ -6,7 +6,7 @@ const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
  */
 class EmailService {
   constructor() {
-    this.sesClient = new SESClient({ region: process.env.AWS_REGION || 'us-east-1' });
+    this.sesClient = new SESClient({ region: process.env.AWS_REGION || 'eu-west-1' });
     this.fromEmail = process.env.FROM_EMAIL || 'noreply@home-inventory.com';
     this.baseUrl = process.env.FRONTEND_URL || 'https://home-inventory.com';
   }

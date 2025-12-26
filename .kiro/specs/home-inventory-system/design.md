@@ -1200,9 +1200,9 @@ npm run build
 **Environment Variables** (.env.production):
 ```
 VITE_API_URL=https://api.example.com
-VITE_USER_POOL_ID=us-east-1_xxxxx
+VITE_USER_POOL_ID=eu-west-1_xxxxx
 VITE_USER_POOL_CLIENT_ID=xxxxx
-VITE_AWS_REGION=us-east-1
+VITE_AWS_REGION=eu-west-1
 VITE_BUCKET_NAME=home-inventory-photos-xxxxx
 ```
 

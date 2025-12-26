@@ -13,6 +13,7 @@
     "validate:workflows": "node ../scripts/validate-workflows.js"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.955.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.948.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.0.0",
     "@aws-sdk/client-dynamodb": "^3.0.0",
@@ -22,6 +23,7 @@
     "@aws-sdk/s3-request-presigner": "^3.0.0",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",
+    "qrcode": "^1.5.4",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

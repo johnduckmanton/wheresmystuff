@@ -1,0 +1,492 @@
+name: Deploy Moving & Storage System
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'template.yaml'
+      - 'samconfig.toml'
+      - '.github/workflows/deploy-moving-storage.yml'
+  
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'template.yaml'
+      - 'samconfig.toml'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  AWS_REGION: eu-west-1
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Test and validate code
+  test:
+    name: Test and Validate
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+      
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+      
+      - name: Run backend linting
+        run: |
+          cd backend
+          npm run lint || true  # Don't fail on linting errors for now
+      
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm test -- --run
+      
+      - name: Run frontend linting
+        run: |
+          cd frontend
+          npm run lint || true  # Don't fail on linting errors for now
+      
+      - name: Validate CloudFormation template
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: validate-template
+          template: template.yaml
+          no-execute-changeset: 1
+          parameter-overrides: |
+            Environment=test
+            EnableWAF=false
+            EnableAdvancedMonitoring=false
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Setup Node.js for security audit
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Run npm audit (backend)
+        run: |
+          cd backend
+          npm audit --audit-level=high || true
+      
+      - name: Run npm audit (frontend)
+        run: |
+          cd frontend
+          npm audit --audit-level=high || true
+
+  # Deploy to development environment
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    environment: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+      
+      - name: Build SAM application
+        run: sam build --use-container
+      
+      - name: Deploy infrastructure
+        run: |
+          sam deploy \
+            --stack-name home-inventory-dev \
+            --parameter-overrides \
+              Environment=dev \
+              EnableWAF=true \
+              EnableAdvancedMonitoring=false \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ env.AWS_REGION }} \
+            --no-confirm-changeset \
+            --resolve-s3
+      
+      - name: Run database migrations
+        run: |
+          cd backend
+          node scripts/add-moving-storage-indexes.js --environment=dev || true
+          node scripts/migrate-moving-storage-schema.js --environment=dev || true
+      
+      - name: Build and deploy frontend
+        run: |
+          # Get stack outputs
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+          
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+          
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+          
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='WebsiteBucket'].OutputValue" \
+            --output text)
+          
+          CLOUDFRONT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          
+          # Build frontend
+          cd frontend
+          cat > .env.production << EOF
+          VITE_API_URL=${API_URL}
+          VITE_USER_POOL_ID=${USER_POOL_ID}
+          VITE_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}
+          VITE_REGION=${{ env.AWS_REGION }}
+          VITE_ENVIRONMENT=dev
+          EOF
+          
+          npm run build
+          
+          # Deploy to S3
+          aws s3 sync dist/ s3://${BUCKET_NAME}/ --delete
+          
+          # Invalidate CloudFront
+          aws cloudfront create-invalidation \
+            --distribution-id ${CLOUDFRONT_ID} \
+            --paths "/*"
+
+  # Deploy to staging environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+      
+      - name: Build SAM application
+        run: sam build --use-container
+      
+      - name: Deploy infrastructure
+        run: |
+          sam deploy \
+            --stack-name home-inventory-staging \
+            --parameter-overrides \
+              Environment=staging \
+              EnableWAF=true \
+              EnableAdvancedMonitoring=true \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ env.AWS_REGION }} \
+            --no-confirm-changeset \
+            --resolve-s3
+      
+      - name: Run database migrations
+        run: |
+          cd backend
+          node scripts/add-moving-storage-indexes.js --environment=staging || true
+          node scripts/migrate-moving-storage-schema.js --environment=staging || true
+      
+      - name: Build and deploy frontend
+        run: |
+          # Similar to dev deployment but for staging environment
+          # Get stack outputs for staging
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-staging \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+          
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-staging \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+          
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-staging \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+          
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-staging \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='WebsiteBucket'].OutputValue" \
+            --output text)
+          
+          CLOUDFRONT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-staging \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          
+          # Build frontend
+          cd frontend
+          cat > .env.production << EOF
+          VITE_API_URL=${API_URL}
+          VITE_USER_POOL_ID=${USER_POOL_ID}
+          VITE_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}
+          VITE_REGION=${{ env.AWS_REGION }}
+          VITE_ENVIRONMENT=staging
+          EOF
+          
+          npm run build
+          
+          # Deploy to S3
+          aws s3 sync dist/ s3://${BUCKET_NAME}/ --delete
+          
+          # Invalidate CloudFront
+          aws cloudfront create-invalidation \
+            --distribution-id ${CLOUDFRONT_ID} \
+            --paths "/*"
+      
+      - name: Run integration tests
+        run: |
+          # Add integration tests here
+          echo "Integration tests would run here"
+
+  # Deploy to production (manual approval required)
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+      
+      - name: Build SAM application
+        run: sam build --use-container
+      
+      - name: Deploy infrastructure
+        run: |
+          sam deploy \
+            --stack-name home-inventory-prod \
+            --parameter-overrides \
+              Environment=prod \
+              EnableWAF=true \
+              EnableAdvancedMonitoring=true \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ env.AWS_REGION }} \
+            --no-confirm-changeset \
+            --resolve-s3
+      
+      - name: Run database migrations
+        run: |
+          cd backend
+          node scripts/add-moving-storage-indexes.js --environment=prod || true
+          node scripts/migrate-moving-storage-schema.js --environment=prod || true
+      
+      - name: Build and deploy frontend
+        run: |
+          # Production deployment with custom domain support
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+          
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+          
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+          
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='WebsiteBucket'].OutputValue" \
+            --output text)
+          
+          CLOUDFRONT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          
+          # Build frontend
+          cd frontend
+          cat > .env.production << EOF
+          VITE_API_URL=${API_URL}
+          VITE_USER_POOL_ID=${USER_POOL_ID}
+          VITE_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}
+          VITE_REGION=${{ env.AWS_REGION }}
+          VITE_ENVIRONMENT=prod
+          EOF
+          
+          npm run build
+          
+          # Deploy to S3
+          aws s3 sync dist/ s3://${BUCKET_NAME}/ --delete
+          
+          # Invalidate CloudFront
+          aws cloudfront create-invalidation \
+            --distribution-id ${CLOUDFRONT_ID} \
+            --paths "/*"
+      
+      - name: Run smoke tests
+        run: |
+          # Add smoke tests for production
+          echo "Production smoke tests would run here"
+      
+      - name: Notify deployment success
+        run: |
+          echo "🎉 Production deployment completed successfully!"

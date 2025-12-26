@@ -235,11 +235,12 @@ export default function Things() {
         apiClient.getPeople(currentInventory.id),
       ]);
       
-      setThings(thingsData);
-      setLocations(locationsData);
-      setRooms(roomsData);
-      setCategories(categoriesData);
-      setPeople(peopleData);
+      // Ensure all data are arrays, fallback to empty arrays if not
+      setThings(Array.isArray(thingsData) ? thingsData : []);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setRooms(Array.isArray(roomsData) ? roomsData : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setPeople(Array.isArray(peopleData) ? peopleData : []);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');

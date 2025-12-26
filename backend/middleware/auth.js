@@ -13,7 +13,7 @@ let client = null;
  */
 function getJwksClient() {
   if (!client) {
-    const region = process.env.AWS_REGION || 'us-east-1';
+    const region = process.env.AWS_REGION || 'eu-west-1';
     const userPoolId = process.env.USER_POOL_ID;
     
     if (!userPoolId) {
@@ -69,7 +69,7 @@ function verifyToken(token) {
     const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
     
     // Get expected issuer and audience from environment
-    const region = process.env.AWS_REGION || 'us-east-1';
+    const region = process.env.AWS_REGION || 'eu-west-1';
     const userPoolId = process.env.USER_POOL_ID;
     const clientId = process.env.USER_POOL_CLIENT_ID;
     

@@ -51,7 +51,8 @@ export default function Inventories() {
     try {
       setLoading(true);
       const data = await apiClient.getInventories();
-      setInventories(data);
+      // Ensure we have an array, fallback to empty array if not
+      setInventories(Array.isArray(data) ? data : []);
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to load inventories');
     } finally {

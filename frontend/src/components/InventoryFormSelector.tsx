@@ -34,11 +34,13 @@ export default function InventoryFormSelector({
 
   return (
     <FormControl fullWidth error={!!error} required={required}>
-      <InputLabel id="inventory-select-label">Inventory</InputLabel>
+      <InputLabel id="inventory-select-label">
+        Inventory{required ? ' *' : ''}
+      </InputLabel>
       <Select
         labelId="inventory-select-label"
         value={effectiveValue}
-        label="Inventory"
+        label={`Inventory${required ? ' *' : ''}`}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         inputProps={{

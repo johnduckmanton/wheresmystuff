@@ -83,8 +83,10 @@ export default function Categories() {
       setLoading(true);
       setGlobalLoading(true);
       const categoriesData = await apiClient.getCategories(currentInventory.id);
+      // Ensure we have an array, fallback to empty array if not
+      const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
       // Decode HTML entities as a fallback (in case backend hasn't been redeployed)
-      const decodedCategories = categoriesData.map(category => decodeCategoryFields(category));
+      const decodedCategories = safeCategoriesData.map(category => decodeCategoryFields(category));
       setCategories(decodedCategories);
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -96,7 +98,7 @@ export default function Categories() {
   };
 
   // Transform Categories data for table display
-  const tableData: CategoryTableRow[] = categories.map(category => {
+  const tableData: CategoryTableRow[] = Array.isArray(categories) ? categories.map(category => {
     // Clean description by removing color/icon metadata
     let cleanDescription = category.description || '';
     
@@ -118,7 +120,7 @@ export default function Categories() {
       color: category.color || '#9E9E9E', // Default gray color if none set
       dateAdded: category.dateAdded ? new Date(category.dateAdded).toLocaleDateString() : '',
     };
-  });
+  }) : [];
 
   const handleAdd = () => {
     setEditingCategory(undefined);

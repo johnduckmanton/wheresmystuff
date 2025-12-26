@@ -1,18 +1,25 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
+
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
+import Fab from '@mui/material/Fab';
+import Tooltip from '@mui/material/Tooltip';
+import { Accessibility as AccessibilityIcon } from '@mui/icons-material';
 import { useEffect, useState, createContext, useContext } from 'react';
-import { theme } from './theme';
+
 import ErrorBoundary from './components/ErrorBoundary';
 import { LoadingProvider } from './contexts/LoadingContext';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import { InventoryProvider } from './contexts/InventoryContext';
+import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import SkipLink from './components/accessibility/SkipLink';
+import AccessibilitySettings from './components/accessibility/AccessibilitySettings';
+import Home from './pages/Home';
 import Things from './pages/Things';
 import Locations from './pages/Locations';
 import Categories from './pages/Categories';
@@ -22,7 +29,15 @@ import InventorySettings from './pages/InventorySettings';
 import InventoryMembers from './pages/InventoryMembers';
 import UserProfile from './pages/UserProfile';
 import AcceptInvitation from './pages/AcceptInvitation';
+import MovingDashboard from './pages/MovingDashboard';
+import StorageDashboard from './pages/StorageDashboard';
+import Containers from './pages/Containers';
+import Projects from './pages/Projects';
+import SharedContainerView from './components/SharedContainerView';
 import apiClient from './services/api';
+
+// Import accessibility styles
+import './styles/accessibility.css';
 
 // Context for mobile sidebar state
 const MobileSidebarContext = createContext<{
@@ -41,6 +56,7 @@ export const useMobileSidebar = () => useContext(MobileSidebarContext);
  */
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accessibilitySettingsOpen, setAccessibilitySettingsOpen] = useState(false);
 
   const handleMobileToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -48,11 +64,14 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <MobileSidebarContext.Provider value={{ toggleMobileSidebar: handleMobileToggle }}>
+      <SkipLink />
       <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         <Header onMenuClick={handleMobileToggle} />
         <Sidebar />
         <Box
           component="main"
+          id="main-content"
+          tabIndex={-1}
           sx={{
             flexGrow: 1,
             p: { xs: 2, sm: 3 },
@@ -60,9 +79,33 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             width: { xs: '100%', md: 'calc(100% - 240px)' },
             minWidth: 0, // Prevent overflow
           }}
+          role="main"
+          aria-label="Main content"
         >
           {children}
         </Box>
+        
+        {/* Accessibility Settings FAB */}
+        <Tooltip title="Accessibility Settings" placement="left">
+          <Fab
+            color="primary"
+            aria-label="Open accessibility settings"
+            onClick={() => setAccessibilitySettingsOpen(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 16,
+              right: 16,
+              zIndex: 1000,
+            }}
+          >
+            <AccessibilityIcon />
+          </Fab>
+        </Tooltip>
+        
+        <AccessibilitySettings
+          open={accessibilitySettingsOpen}
+          onClose={() => setAccessibilitySettingsOpen(false)}
+        />
       </Box>
     </MobileSidebarContext.Provider>
   );
@@ -91,7 +134,7 @@ function AuthErrorHandler() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={theme}>
+      <AccessibilityProvider>
         <CssBaseline />
         <NotificationProvider>
           <LoadingProvider>
@@ -101,11 +144,62 @@ function App() {
               <Routes>
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
+                <Route path="/shared/container/:shareId" element={<SharedContainerView />} />
                 <Route
                   path="/accept-invitation"
                   element={
                     <ProtectedRoute>
                       <AcceptInvitation />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/home"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Home />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/moving"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <MovingDashboard />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/storage"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <StorageDashboard />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/projects"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Projects />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/containers"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Containers />
+                      </MainLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -189,14 +283,14 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/" element={<Navigate to="/things" replace />} />
-                <Route path="*" element={<Navigate to="/things" replace />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="*" element={<Navigate to="/home" replace />} />
               </Routes>
             </BrowserRouter>
             </InventoryProvider>
           </LoadingProvider>
         </NotificationProvider>
-      </ThemeProvider>
+      </AccessibilityProvider>
     </ErrorBoundary>
   );
 }

@@ -11,15 +11,21 @@ import {
   Divider,
   Box,
   Toolbar,
+  Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CategoryIcon from '@mui/icons-material/Category';
 import PeopleIcon from '@mui/icons-material/People';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import AllInboxIcon from '@mui/icons-material/AllInbox';
+import FolderIcon from '@mui/icons-material/Folder';
+import StorageIcon from '@mui/icons-material/Storage';
 import InventorySelector from './InventorySelector';
 
 const DRAWER_WIDTH = 240;
@@ -32,6 +38,14 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
+  {
+    label: 'Home',
+    path: '/home',
+    icon: <HomeIcon />,
+  },
+];
+
+const inventoryItems: NavigationItem[] = [
   {
     label: 'Things',
     path: '/things',
@@ -51,6 +65,29 @@ const navigationItems: NavigationItem[] = [
     label: 'People',
     path: '/people',
     icon: <PeopleIcon />,
+  },
+];
+
+const movingItems: NavigationItem[] = [
+  {
+    label: 'Moving Dashboard',
+    path: '/moving',
+    icon: <LocalShippingIcon />,
+  },
+  {
+    label: 'Storage Management',
+    path: '/storage',
+    icon: <StorageIcon />,
+  },
+  {
+    label: 'Projects',
+    path: '/projects',
+    icon: <FolderIcon />,
+  },
+  {
+    label: 'Containers',
+    path: '/containers',
+    icon: <AllInboxIcon />,
   },
 ];
 
@@ -91,34 +128,25 @@ export default function Sidebar() {
     }
   };
 
-  const drawerContent = (
+  // Determine current module based on path
+  const isInventoryModule = ['/things', '/locations', '/categories', '/people', '/inventories'].some(
+    path => location.pathname.startsWith(path)
+  );
+  const isMovingModule = ['/moving', '/containers'].some(
+    path => location.pathname.startsWith(path)
+  );
+
+  const renderNavigationSection = (items: NavigationItem[], title?: string) => (
     <>
-      <Toolbar />
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: (isMobile || open) ? 'flex-end' : 'center',
-          px: 1,
-          py: 1,
-        }}
-      >
-        <IconButton 
-          onClick={handleToggle} 
-          aria-label={(isMobile || open) ? 'close navigation menu' : 'open navigation menu'}
-          aria-expanded={isMobile ? mobileOpen : open}
-        >
-          {(isMobile || open) ? <ChevronLeftIcon /> : <MenuIcon />}
-        </IconButton>
-      </Box>
-      <Divider />
-      
-      {/* Inventory Selector */}
-      <InventorySelector collapsed={!isMobile && !open} />
-      <Divider />
-      
-      <List role="navigation" aria-label="main navigation">
-        {navigationItems.map((item) => {
+      {title && (isMobile || open) && (
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+            {title}
+          </Typography>
+        </Box>
+      )}
+      <List role="navigation" aria-label={title ? `${title} navigation` : 'main navigation'}>
+        {items.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <ListItem key={item.path} disablePadding sx={{ display: 'block' }}>
@@ -154,6 +182,51 @@ export default function Sidebar() {
           );
         })}
       </List>
+    </>
+  );
+
+  const drawerContent = (
+    <>
+      <Toolbar />
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: (isMobile || open) ? 'flex-end' : 'center',
+          px: 1,
+          py: 1,
+        }}
+      >
+        <IconButton 
+          onClick={handleToggle} 
+          aria-label={(isMobile || open) ? 'close navigation menu' : 'open navigation menu'}
+          aria-expanded={isMobile ? mobileOpen : open}
+        >
+          {(isMobile || open) ? <ChevronLeftIcon /> : <MenuIcon />}
+        </IconButton>
+      </Box>
+      <Divider />
+      
+      {/* Always show Home navigation */}
+      {renderNavigationSection(navigationItems)}
+      
+      {/* Show inventory selector and navigation when in inventory module */}
+      {isInventoryModule && (
+        <>
+          <Divider />
+          <InventorySelector collapsed={!isMobile && !open} />
+          <Divider />
+          {renderNavigationSection(inventoryItems, 'Inventory')}
+        </>
+      )}
+      
+      {/* Show moving navigation when in moving module */}
+      {isMovingModule && (
+        <>
+          <Divider />
+          {renderNavigationSection(movingItems, 'Moving & Storage')}
+        </>
+      )}
     </>
   );
 

@@ -71,7 +71,8 @@ export default function Locations() {
       setLoading(true);
       setGlobalLoading(true);
       const locationsData = await apiClient.getLocations(currentInventory.id);
-      setLocations(locationsData);
+      // Ensure we have an array, fallback to empty array if not
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
@@ -83,13 +84,13 @@ export default function Locations() {
 
   // Transform Locations data for table display
   const tableData: LocationTableRow[] = useMemo(() => {
-    return locations.map(location => ({
+    return Array.isArray(locations) ? locations.map(location => ({
       id: location.id,
       name: location.name,
       addressLine1: location.addressLine1 || '',
       town: location.town || '',
       country: location.country || '',
-    }));
+    })) : [];
   }, [locations]);
 
   // Filter data based on global search

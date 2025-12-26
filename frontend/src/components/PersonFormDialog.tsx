@@ -7,6 +7,7 @@ import {
   Button,
   TextField,
   Box,
+  Typography,
 } from '@mui/material';
 import type { Person } from '../types';
 import InventoryFormSelector from './InventoryFormSelector';
@@ -121,9 +122,20 @@ export default function PersonFormDialog({
             pt: 1,
           }}
         >
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              mb: 1,
+              fontStyle: 'italic'
+            }}
+          >
+            Fields marked with * are required
+          </Typography>
+
           <TextField
             fullWidth
-            label="Name"
+            label="Name *"
             value={formData.name || ''}
             onChange={(e) => handleFieldChange('name', e.target.value)}
             error={!!errors.name}
@@ -144,58 +156,61 @@ export default function PersonFormDialog({
 
           <TextField
             fullWidth
-            label="Description"
+            label="Description (Optional)"
             value={formData.description || ''}
             onChange={(e) => handleFieldChange('description', e.target.value)}
             multiline
             rows={2}
             inputProps={{
-              'aria-label': 'Person description',
+              'aria-label': 'Person description (optional)',
             }}
           />
 
           <TextField
             fullWidth
-            label="Email"
+            label="Email (Optional)"
             type="email"
             value={formData.email || ''}
             onChange={(e) => handleFieldChange('email', e.target.value)}
+            placeholder="e.g., person@example.com"
             inputProps={{
-              'aria-label': 'Email address',
+              'aria-label': 'Email address (optional)',
             }}
           />
 
           <TextField
             fullWidth
-            label="Phone"
+            label="Phone (Optional)"
             type="tel"
             value={formData.phone || ''}
             onChange={(e) => handleFieldChange('phone', e.target.value)}
+            placeholder="e.g., +1 (555) 123-4567"
             inputProps={{
-              'aria-label': 'Phone number',
+              'aria-label': 'Phone number (optional)',
             }}
           />
 
           <TextField
             fullWidth
-            label="Relationship"
+            label="Relationship (Optional)"
             value={formData.relationship || ''}
             onChange={(e) => handleFieldChange('relationship', e.target.value)}
             placeholder="e.g., Family member, Friend, Roommate"
             inputProps={{
-              'aria-label': 'Relationship to you',
+              'aria-label': 'Relationship to you (optional)',
             }}
           />
 
           <TextField
             fullWidth
-            label="Notes"
+            label="Notes (Optional)"
             value={formData.notes || ''}
             onChange={(e) => handleFieldChange('notes', e.target.value)}
             multiline
             rows={3}
+            placeholder="Additional information about this person..."
             inputProps={{
-              'aria-label': 'Additional notes',
+              'aria-label': 'Additional notes (optional)',
             }}
           />
         </Box>

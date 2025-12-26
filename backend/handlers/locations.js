@@ -83,10 +83,13 @@ const locationsHandler = async (event) => {
 };
 
 /**
- * Handle GET request - List all locations for an inventory
+ * Handle GET request - List all locations for an inventory OR get a single location by ID
  */
 async function handleGet(event) {
   try {
+    const pathParameters = event.pathParameters || {};
+    const locationId = pathParameters.id;
+    
     // Extract inventory ID from query parameters
     const inventoryId = event.queryStringParameters?.inventoryId;
     
@@ -101,23 +104,45 @@ async function handleGet(event) {
     // Check inventory access
     await authorizeInventoryAccess(event, inventoryId);
     
-    const locations = await listEntities(ENTITY_TYPE, inventoryId);
-    
-    // Decode HTML entities for backward compatibility
-    const decodedLocations = locations.map(location => decodeLocationFields(location));
-    
-    // Log data access
-    await logDataAccess(event.user.userId, 'read', 'locations', 'list', inventoryId);
-    
-    return success(decodedLocations);
+    if (locationId) {
+      // Get single location by ID
+      if (!validateUUID(locationId)) {
+        return error('Invalid location ID format', 400);
+      }
+      
+      const location = await getEntity(ENTITY_TYPE, inventoryId, locationId);
+      
+      if (!location) {
+        return error('Location not found', 404);
+      }
+      
+      // Decode HTML entities for backward compatibility
+      const decodedLocation = decodeLocationFields(location);
+      
+      // Log data access
+      await logDataAccess(event.user.userId, 'read', 'locations', locationId, inventoryId);
+      
+      return success(decodedLocation);
+    } else {
+      // List all locations for inventory
+      const locations = await listEntities(ENTITY_TYPE, inventoryId);
+      
+      // Decode HTML entities for backward compatibility
+      const decodedLocations = locations.map(location => decodeLocationFields(location));
+      
+      // Log data access
+      await logDataAccess(event.user.userId, 'read', 'locations', 'list', inventoryId);
+      
+      return success(decodedLocations);
+    }
   } catch (err) {
-    console.error('Error listing locations:', err);
+    console.error('Error handling GET request:', err);
     
     if (err.statusCode === 403) {
       return error(err.message || 'Access denied', 403);
     }
     
-    throw new Error('Failed to retrieve locations');
+    throw new Error('Failed to retrieve location(s)');
   }
 }
 

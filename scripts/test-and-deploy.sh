@@ -48,4 +48,4 @@ esac
 
 echo "🎉 Deployment complete!"
 echo "🌐 Application URL: https://d2m4d2elac4ekv.cloudfront.net"
-echo "🔗 API URL: https://f5jrvv9716.execute-api.us-east-1.amazonaws.com/dev"
+echo "🔗 API URL: https://f5jrvv9716.execute-api.eu-west-1.amazonaws.com/dev"

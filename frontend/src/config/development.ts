@@ -3,7 +3,7 @@
 
 export const isDevelopmentMode = import.meta.env.MODE === 'development' && !import.meta.env.VITE_API_URL;
 
-import type { Thing, Location, Room, Category, Person, Inventory } from '../types';
+import type { Thing, Location, Room, Category, Person, Inventory, Container } from '../types';
 
 // Mock data for development
 export const mockData: {
@@ -13,6 +13,7 @@ export const mockData: {
   rooms: Room[];
   categories: Category[];
   people: Person[];
+  containers: Container[];
 } = {
   inventories: [
     {
@@ -44,7 +45,8 @@ export const mockData: {
       purchasePrice: 2499.99,
       dateAdded: new Date().toISOString(),
       photos: [],
-      notes: 'Primary work laptop'
+      notes: 'Primary work laptop',
+      containerId: 'container-2'
     },
     {
       id: 'thing-2',
@@ -57,7 +59,22 @@ export const mockData: {
       purchasePrice: 699.95,
       dateAdded: new Date().toISOString(),
       photos: [],
-      notes: 'Daily use coffee machine'
+      notes: 'Daily use coffee machine',
+      containerId: 'container-1'
+    },
+    {
+      id: 'thing-3',
+      name: 'Kitchen Knife Set',
+      description: 'Professional chef knives',
+      inventoryId: 'inv-1',
+      categoryId: 'cat-2',
+      locationId: 'loc-1',
+      roomId: 'room-2',
+      purchasePrice: 199.99,
+      dateAdded: new Date().toISOString(),
+      photos: [],
+      notes: 'Sharp kitchen knives',
+      containerId: 'container-1'
     }
   ],
   locations: [
@@ -118,6 +135,50 @@ export const mockData: {
       inventoryId: 'inv-1',
       dateAdded: new Date().toISOString(),
       photos: []
+    }
+  ],
+  containers: [
+    {
+      id: 'container-1',
+      inventoryId: 'inv-1',
+      name: 'Kitchen Box',
+      type: 'box',
+      size: 'medium',
+      color: 'Brown',
+      description: 'Kitchen utensils and small appliances',
+      qrCode: 'CONT_container-1_1234567890_abc123',
+      qrCodeUrl: 'https://example.com/qr/kitchen-001.png',
+      locationId: 'loc-1',
+      handlingFlags: ['fragile'],
+      itemCount: 3,
+      estimatedValue: 150.00,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-1',
+      updatedBy: 'user-1',
+      status: 'packed',
+      metadata: {}
+    },
+    {
+      id: 'container-2',
+      inventoryId: 'inv-1',
+      name: 'Bedroom Box',
+      type: 'box',
+      size: 'large',
+      color: 'Blue',
+      description: 'Clothes and personal items',
+      qrCode: 'CONT_container-2_1234567891_def456',
+      qrCodeUrl: 'https://example.com/qr/bedroom-001.png',
+      locationId: 'loc-1',
+      handlingFlags: [],
+      itemCount: 8,
+      estimatedValue: 300.00,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: 'user-1',
+      updatedBy: 'user-1',
+      status: 'packed',
+      metadata: {}
     }
   ]
 };

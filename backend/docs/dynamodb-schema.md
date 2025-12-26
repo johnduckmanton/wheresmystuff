@@ -149,6 +149,110 @@ Attributes:
 }
 ```
 
+### 6. Containers (Moving & Storage System)
+
+**Access Pattern**: Get containers by inventory, get specific container, query by location/project
+
+```
+pk: INVENTORY#<inventoryId>#CONTAINERS
+sk: <containerId>
+gsi1pk: INVENTORY#<inventoryId>
+gsi1sk: CONTAINER#<containerId>
+
+Attributes:
+{
+  id: "<containerId>",
+  inventoryId: "<inventoryId>",
+  projectId: "<projectId>",
+  name: "Kitchen Box 1",
+  type: "box|bag|crate|bin|suitcase|trunk|custom",
+  size: "medium",
+  color: "#FF5733",
+  description: "Kitchen items from main house",
+  qrCode: "CONTAINER_ABC123",
+  qrCodeUrl: "https://s3.../qr-codes/container-abc123.png",
+  locationId: "<locationId>",
+  handlingFlags: ["fragile", "heavy"],
+  itemCount: 15,
+  estimatedValue: 500.00,
+  status: "packed",
+  storageStartDate: "2024-01-01T00:00:00.000Z",
+  storageRate: 50.00,
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+  createdBy: "<userId>",
+  updatedBy: "<userId>",
+  metadata: {}
+}
+```
+
+### 7. Moving Projects
+
+**Access Pattern**: Get projects by inventory, get specific project
+
+```
+pk: INVENTORY#<inventoryId>#PROJECTS
+sk: <projectId>
+gsi1pk: INVENTORY#<inventoryId>
+gsi1sk: PROJECT#<projectId>
+
+Attributes:
+{
+  id: "<projectId>",
+  inventoryId: "<inventoryId>",
+  name: "Move to New House",
+  description: "Moving from old house to new house",
+  startDate: "2024-01-01T00:00:00.000Z",
+  targetDate: "2024-02-01T00:00:00.000Z",
+  completionDate: "2024-01-28T00:00:00.000Z",
+  status: "planning|active|paused|completed|archived",
+  sourceLocation: "<locationId>",
+  destinationLocation: "<locationId>",
+  containerCount: 25,
+  itemCount: 150,
+  completionPercentage: 75,
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+  createdBy: "<userId>",
+  metadata: {}
+}
+```
+
+### 8. Container-Item Relationships
+
+**Access Pattern**: Get items in a container, get container for an item
+
+```
+pk: CONTAINER#<containerId>
+sk: ITEM#<itemId>
+
+Attributes:
+{
+  containerId: "<containerId>",
+  itemId: "<itemId>",
+  addedAt: "2024-01-01T00:00:00.000Z",
+  addedBy: "<userId>",
+  position: 1
+}
+```
+
+### 9. QR Code Mappings
+
+**Access Pattern**: Fast QR code lookup to container
+
+```
+pk: QR#<qrCode>
+sk: CONTAINER#<containerId>
+
+Attributes:
+{
+  qrCode: "CONTAINER_ABC123",
+  containerId: "<containerId>",
+  inventoryId: "<inventoryId>",
+  createdAt: "2024-01-01T00:00:00.000Z"
+}
+```
+
 ## Query Patterns
 
 ### User Operations
@@ -189,6 +293,57 @@ Attributes:
    ```
    Primary: pk = INVENTORY#<inventoryId>#<ENTITY_TYPE> AND sk = <entityId>
    ```
+
+### Container Operations
+
+8. **Get containers in inventory**:
+   ```
+   Primary: pk = INVENTORY#<inventoryId>#CONTAINERS
+   ```
+
+9. **Get specific container**:
+   ```
+   Primary: pk = INVENTORY#<inventoryId>#CONTAINERS AND sk = <containerId>
+   ```
+
+10. **Get containers by location** (requires ContainerLocationIndex):
+    ```
+    ContainerLocationIndex: pk = LOC#<locationId>
+    ```
+
+11. **Get containers by project** (requires ProjectContainerIndex):
+    ```
+    ProjectContainerIndex: pk = PROJECT#<projectId>
+    ```
+
+12. **Lookup container by QR code** (requires QRCodeIndex):
+    ```
+    QRCodeIndex: pk = QR#<qrCode>
+    ```
+
+### Project Operations
+
+13. **Get projects in inventory**:
+    ```
+    Primary: pk = INVENTORY#<inventoryId>#PROJECTS
+    ```
+
+14. **Get specific project**:
+    ```
+    Primary: pk = INVENTORY#<inventoryId>#PROJECTS AND sk = <projectId>
+    ```
+
+### Container-Item Operations
+
+15. **Get items in container**:
+    ```
+    Primary: pk = CONTAINER#<containerId> AND begins_with(sk, "ITEM#")
+    ```
+
+16. **Check if item is in container**:
+    ```
+    Primary: pk = CONTAINER#<containerId> AND sk = ITEM#<itemId>
+    ```
 
 ### Security Operations
 
