@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 import CssBaseline from '@mui/material/CssBaseline';
+import { ThemeProvider } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Fab from '@mui/material/Fab';
 import Tooltip from '@mui/material/Tooltip';
@@ -35,9 +36,11 @@ import Containers from './pages/Containers';
 import Projects from './pages/Projects';
 import SharedContainerView from './components/SharedContainerView';
 import apiClient from './services/api';
+import { theme } from './theme';
 
 // Import accessibility styles
 import './styles/accessibility.css';
+import './styles/no-focus.css';
 
 // Context for mobile sidebar state
 const MobileSidebarContext = createContext<{
@@ -65,19 +68,24 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <MobileSidebarContext.Provider value={{ toggleMobileSidebar: handleMobileToggle }}>
       <SkipLink />
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        minHeight: '100vh',
+        backgroundColor: 'background.default' // Fix black areas
+      }}>
         <Header onMenuClick={handleMobileToggle} />
-        <Sidebar />
+        <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
         <Box
           component="main"
           id="main-content"
           tabIndex={-1}
           sx={{
             flexGrow: 1,
-            p: { xs: 2, sm: 3 },
+            p: { xs: 1, sm: 2, md: 3 }, // Reduced padding for mobile
             mt: 8,
             width: { xs: '100%', md: 'calc(100% - 240px)' },
             minWidth: 0, // Prevent overflow
+            backgroundColor: 'background.default', // Ensure proper background
           }}
           role="main"
           aria-label="Main content"
@@ -132,16 +140,52 @@ function AuthErrorHandler() {
 }
 
 function App() {
+  // Inject focus removal CSS only (no JavaScript interference)
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.id = 'no-focus-override';
+    style.textContent = `
+      * { outline: none !important; }
+      *:focus, *:focus-visible, *:focus-within { 
+        outline: none !important; 
+        box-shadow: none !important; 
+      }
+      .MuiMenuItem-root, .MuiMenuItem-root:focus, .MuiMenuItem-root:hover, .MuiMenuItem-root.Mui-focused { 
+        outline: none !important; 
+        box-shadow: none !important; 
+      }
+      .MuiTouchRipple-root { display: none !important; }
+      .MuiButtonBase-root:focus { outline: none !important; box-shadow: none !important; }
+      [class*="Mui"]:focus, [class*="Mui"].Mui-focused { 
+        outline: none !important; 
+        box-shadow: none !important; 
+      }
+      .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+        border-width: 1px !important;
+        border-color: rgba(0, 0, 0, 0.23) !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      const existingStyle = document.getElementById('no-focus-override');
+      if (existingStyle) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
-      <AccessibilityProvider>
-        <CssBaseline />
-        <NotificationProvider>
-          <LoadingProvider>
-            <InventoryProvider>
-              <BrowserRouter>
-              <AuthErrorHandler />
-              <Routes>
+      <ThemeProvider theme={theme}>
+        <AccessibilityProvider>
+          <CssBaseline />
+          <NotificationProvider>
+            <LoadingProvider>
+              <InventoryProvider>
+                <BrowserRouter>
+                <AuthErrorHandler />
+                <Routes>
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/shared/container/:shareId" element={<SharedContainerView />} />
@@ -291,6 +335,7 @@ function App() {
           </LoadingProvider>
         </NotificationProvider>
       </AccessibilityProvider>
+    </ThemeProvider>
     </ErrorBoundary>
   );
 }

@@ -233,6 +233,64 @@ body.tritanopia {
   outline-offset: 2px;
 }
 
+/* Remove all focus outlines by default (unless in keyboard navigation mode) */
+body:not(.keyboard-navigation) *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove MUI focus ripple effects */
+body:not(.keyboard-navigation) .MuiTouchRipple-root {
+  display: none !important;
+}
+
+/* Remove browser default focus styles */
+body:not(.keyboard-navigation) input:focus,
+body:not(.keyboard-navigation) textarea:focus,
+body:not(.keyboard-navigation) select:focus,
+body:not(.keyboard-navigation) button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Aggressive removal of all focus styles */
+* {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: rgba(0, 0, 0, 0.23) !important;
+}
+
+*:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove MUI specific focus styles */
+.MuiAccordion-root:focus,
+.MuiAccordionSummary-root:focus,
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.MuiSelect-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.MuiTextField-root .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  outline: none !important;
+  box-shadow: none !important;
+  border-width: 1px !important;
+  border-color: rgba(0, 0, 0, 0.23) !important;
+}
+
+/* Remove accordion focus styles specifically */
+.MuiAccordion-root.Mui-expanded,
+.MuiAccordion-root.Mui-focused,
+.MuiAccordionSummary-root.Mui-focused,
+.MuiAccordionSummary-root.Mui-focusVisible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
 /* Keyboard-only focus styles */
 .js-focus-visible :focus:not(.focus-visible) {
   outline: none;

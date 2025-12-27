@@ -287,7 +287,6 @@ export default function Locations() {
       <LocationFormDialog
         open={formDialogOpen}
         location={editingLocation}
-        locations={locations}
         onSubmit={handleFormSubmit}
         onClose={handleFormClose}
       />

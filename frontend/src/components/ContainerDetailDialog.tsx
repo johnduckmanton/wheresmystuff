@@ -134,16 +134,45 @@ export default function ContainerDetailDialog({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
+      fullScreen={false} // Don't use fullScreen on mobile for better UX
+      scroll="paper"
       aria-labelledby="container-detail-dialog-title"
+      sx={{
+        '& .MuiDialog-paper': {
+          margin: { xs: 1, sm: 2 }, // Reduce margins on mobile
+          maxHeight: { xs: 'calc(100vh - 16px)', sm: 'calc(100vh - 64px)' }, // Better height management
+          height: { xs: 'auto', sm: 'auto' },
+        },
+      }}
     >
       <DialogTitle 
         id="container-detail-dialog-title"
-        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: { xs: 'wrap', sm: 'nowrap' }, // Allow wrapping on very small screens
+          gap: 1,
+          pb: 1, // Reduce bottom padding
+        }}
       >
-        <Typography variant="h6" component="div">
+        <Typography 
+          variant="h6" 
+          component="div"
+          sx={{ 
+            fontSize: { xs: '1.1rem', sm: '1.25rem' }, // Smaller font on mobile
+            minWidth: 0, // Allow text to shrink
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
           {updatedContainer.name}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 0.5, // Smaller gap between buttons
+          flexShrink: 0, // Don't shrink the buttons
+        }}>
           <Tooltip title="Generate QR Code">
             <IconButton onClick={() => setQrCodeDialogOpen(true)} size="small" color="secondary">
               <QrCodeIcon />
@@ -186,13 +215,20 @@ export default function ContainerDetailDialog({
         </Tabs>
       </Box>
       
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent sx={{ 
+        p: 0,
+        '&:first-of-type': { pt: 0 }, // Remove default top padding
+      }}>
         {/* Details Tab */}
         {currentTab === 0 && (
-          <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ p: { xs: 2, sm: 3 } }}> {/* Responsive padding */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 } }}>
               {/* Top Row - Container Info and Statistics */}
-              <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: { xs: 2, sm: 3 }, 
+                flexDirection: { xs: 'column', md: 'row' } 
+              }}>
                 {/* Container Information */}
                 <Box sx={{ flex: 1 }}>
                   <Card>

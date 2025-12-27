@@ -8,19 +8,10 @@ import {
   TextField,
   Box,
   Autocomplete,
-  Typography,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  DialogContentText,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import type { Location, Room } from '../types';
-import RoomFormDialog from './RoomFormDialog';
+import type { Location, Room } from '../types/entities';
+import InlineRoomEditor from './InlineRoomEditor';
 import InventoryFormSelector from './InventoryFormSelector';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
@@ -224,7 +215,6 @@ const COUNTRIES = [
 export interface LocationFormDialogProps {
   open: boolean;
   location?: Location;
-  locations: Location[];
   onSubmit: (data: Partial<Location>) => void;
   onClose: () => void;
 }
@@ -232,17 +222,12 @@ export interface LocationFormDialogProps {
 export default function LocationFormDialog({
   open,
   location,
-  locations,
   onSubmit,
   onClose,
 }: LocationFormDialogProps) {
   const [formData, setFormData] = useState<Partial<Location>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomDialogOpen, setRoomDialogOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined);
-  const [deleteRoomDialogOpen, setDeleteRoomDialogOpen] = useState(false);
-  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
   const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or location changes
@@ -335,73 +320,51 @@ export default function LocationFormDialog({
     return COUNTRIES.find(c => c.code === code) || null;
   };
 
-  // Room management handlers
-  const handleAddRoom = () => {
-    setEditingRoom(undefined);
-    setRoomDialogOpen(true);
-  };
-
-  const handleEditRoom = (room: Room) => {
-    setEditingRoom(room);
-    setRoomDialogOpen(true);
-  };
-
-  const handleDeleteRoom = (room: Room) => {
-    setRoomToDelete(room);
-    setDeleteRoomDialogOpen(true);
-  };
-
-  const handleRoomSubmit = async (data: Partial<Room>) => {
+  // Room management handlers for InlineRoomEditor
+  const handleAddRoom = async (roomData: { name: string }) => {
+    if (!location?.id || !currentInventory) return;
+    
     try {
-      if (editingRoom) {
-        await apiClient.updateRoom(editingRoom.id, data);
-      } else {
-        // Auto-associate with current location
-        await apiClient.createRoom({
-          ...data,
-          locationId: location?.id || '',
-        } as Omit<Room, 'id' | 'dateAdded'>);
-      }
+      await apiClient.createRoom({
+        ...roomData,
+        locationId: location.id,
+        inventoryId: currentInventory.id,
+      } as Omit<Room, 'id' | 'dateAdded'>);
       
-      setRoomDialogOpen(false);
-      setEditingRoom(undefined);
-      
-      // Reload rooms if we're editing an existing location
-      if (location?.id) {
-        await loadRooms(location.id);
-      }
+      // Reload rooms
+      await loadRooms(location.id);
     } catch (error) {
-      console.error('Error saving room:', error);
-      alert('Failed to save room. Please try again.');
+      console.error('Error adding room:', error);
+      throw error; // Let InlineRoomEditor handle the error display
     }
   };
 
-  const handleRoomClose = () => {
-    setRoomDialogOpen(false);
-    setEditingRoom(undefined);
+  const handleUpdateRoom = async (roomId: string, roomData: { name: string }) => {
+    if (!location?.id) return;
+    
+    try {
+      await apiClient.updateRoom(roomId, roomData);
+      
+      // Reload rooms
+      await loadRooms(location.id);
+    } catch (error) {
+      console.error('Error updating room:', error);
+      throw error; // Let InlineRoomEditor handle the error display
+    }
   };
 
-  const handleConfirmDeleteRoom = async () => {
-    if (!roomToDelete || !currentInventory) return;
-
+  const handleDeleteRoom = async (roomId: string) => {
+    if (!location?.id || !currentInventory) return;
+    
     try {
-      await apiClient.deleteRoom(roomToDelete.id, currentInventory.id);
-      setDeleteRoomDialogOpen(false);
-      setRoomToDelete(null);
+      await apiClient.deleteRoom(roomId, currentInventory.id);
       
-      // Reload rooms if we're editing an existing location
-      if (location?.id) {
-        await loadRooms(location.id);
-      }
+      // Reload rooms
+      await loadRooms(location.id);
     } catch (error) {
       console.error('Error deleting room:', error);
-      alert('Failed to delete room. Please try again.');
+      throw error; // Let InlineRoomEditor handle the error display
     }
-  };
-
-  const handleCancelDeleteRoom = () => {
-    setDeleteRoomDialogOpen(false);
-    setRoomToDelete(null);
   };
 
   return (
@@ -420,7 +383,7 @@ export default function LocationFormDialog({
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
+            gap: 1.5, // Reduced from 2 to 1.5
             pt: 1,
           }}
         >
@@ -521,58 +484,13 @@ export default function LocationFormDialog({
               <Divider sx={{ mt: 2 }} />
               
               <Box sx={{ mt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Rooms ({rooms.length})
-                  </Typography>
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={handleAddRoom}
-                    variant="outlined"
-                  >
-                    Add Room
-                  </Button>
-                </Box>
-
-                {rooms.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                    No rooms yet. Click "Add Room" to create one.
-                  </Typography>
-                ) : (
-                  <List dense sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                    {rooms.map((room) => (
-                      <ListItem
-                        key={room.id}
-                        secondaryAction={
-                          <Box>
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={() => handleEditRoom(room)}
-                              sx={{ mr: 0.5 }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              edge="end"
-                              size="small"
-                              onClick={() => handleDeleteRoom(room)}
-                              color="error"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        }
-                      >
-                        <ListItemText
-                          primary={room.name}
-                          secondary={room.floor || 'No floor specified'}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
+                <InlineRoomEditor
+                  rooms={rooms}
+                  onAddRoom={handleAddRoom}
+                  onUpdateRoom={handleUpdateRoom}
+                  onDeleteRoom={handleDeleteRoom}
+                  disabled={false}
+                />
               </Box>
             </>
           )}
@@ -586,40 +504,6 @@ export default function LocationFormDialog({
           {location ? 'Update' : 'Create'}
         </Button>
       </DialogActions>
-
-      {/* Room Form Dialog */}
-      <RoomFormDialog
-        open={roomDialogOpen}
-        room={editingRoom}
-        locations={locations}
-        preselectedLocationId={location?.id}
-        onSubmit={handleRoomSubmit}
-        onClose={handleRoomClose}
-      />
-
-      {/* Delete Room Confirmation Dialog */}
-      <Dialog
-        open={deleteRoomDialogOpen}
-        onClose={handleCancelDeleteRoom}
-        aria-labelledby="delete-room-dialog-title"
-      >
-        <DialogTitle id="delete-room-dialog-title">
-          Confirm Delete Room
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the room "{roomToDelete?.name}"? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDeleteRoom} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDeleteRoom} color="error" variant="contained" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Dialog>
   );
 }

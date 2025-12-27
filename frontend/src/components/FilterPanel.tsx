@@ -59,94 +59,108 @@ export default function FilterPanel({
 
   return (
     <Box sx={{ mb: 2 }}>
-      {/* Always visible search box */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <TextField
-          fullWidth
-          label="Search all columns"
-          variant="outlined"
-          value={globalSearch}
-          onChange={(e) => onGlobalSearchChange(e.target.value)}
-          size="small"
-          inputProps={{
-            'aria-label': 'Search all columns',
-          }}
-          InputProps={{
-            endAdornment: globalSearch && (
+      {/* Compact search and filter header */}
+      <Paper sx={{ overflow: 'hidden' }}>
+        {/* Combined search and filter header */}
+        <Box sx={{ p: 1.5, display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          {/* Search field */}
+          <TextField
+            fullWidth
+            label="Search all columns"
+            variant="outlined"
+            value={globalSearch}
+            onChange={(e) => onGlobalSearchChange(e.target.value)}
+            size="small"
+            inputProps={{
+              'aria-label': 'Search all columns',
+            }}
+            InputProps={{
+              endAdornment: globalSearch && (
+                <IconButton
+                  size="small"
+                  onClick={() => onGlobalSearchChange('')}
+                  aria-label="Clear search"
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ),
+            }}
+          />
+
+          {/* Filter toggle section */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              minWidth: 'fit-content',
+              px: 1,
+              py: 0.5,
+              borderRadius: 1,
+              '&:hover': {
+                bgcolor: 'action.hover',
+              },
+            }}
+            onClick={() => setExpanded(!expanded)}
+          >
+            <FilterListIcon 
+              sx={{ 
+                mr: 0.5, 
+                color: hasActiveFilters ? 'primary.main' : 'text.secondary',
+                fontSize: '1.1rem'
+              }} 
+            />
+            <Typography variant="body2" sx={{ mr: 1 }}>
+              Filters
+              {Object.values(columnFilters).filter(v => v).length > 0 && (
+                <Typography component="span" variant="caption" color="primary" sx={{ ml: 0.5 }}>
+                  ({Object.values(columnFilters).filter(v => v).length})
+                </Typography>
+              )}
+            </Typography>
+            
+            {/* Results count */}
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+              {filteredCount}/{totalCount}
+            </Typography>
+
+            {/* Clear all button */}
+            {hasActiveFilters && (
               <IconButton
                 size="small"
-                onClick={() => onGlobalSearchChange('')}
-                aria-label="Clear search"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearAllFilters();
+                }}
+                sx={{ mr: 0.5, p: 0.25 }}
+                aria-label="Clear all filters"
               >
                 <ClearIcon fontSize="small" />
               </IconButton>
-            ),
-          }}
-        />
-      </Paper>
-
-      {/* Collapsible advanced filters */}
-      <Paper sx={{ overflow: 'hidden' }}>
-        {/* Header with expand/collapse button */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            p: 2,
-            cursor: 'pointer',
-            '&:hover': {
-              bgcolor: 'action.hover',
-            },
-          }}
-          onClick={() => setExpanded(!expanded)}
-        >
-          <FilterListIcon sx={{ mr: 1, color: hasActiveFilters ? 'primary.main' : 'text.secondary' }} />
-          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-            Advanced Filters
-            {Object.values(columnFilters).filter(v => v).length > 0 && (
-              <Typography component="span" variant="body2" color="primary" sx={{ ml: 1 }}>
-                ({Object.values(columnFilters).filter(v => v).length} active)
-              </Typography>
             )}
-          </Typography>
-          
-          {/* Results count */}
-          <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-            {filteredCount} of {totalCount} items
-          </Typography>
 
-          {/* Clear all button */}
-          {hasActiveFilters && (
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                clearAllFilters();
-              }}
-              sx={{ mr: 1 }}
-              aria-label="Clear all filters"
+            {/* Expand/collapse icon */}
+            <IconButton 
+              size="small" 
+              sx={{ p: 0.25 }}
+              aria-label={expanded ? 'Collapse filters' : 'Expand filters'}
             >
-              <ClearIcon fontSize="small" />
+              {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
             </IconButton>
-          )}
-
-          {/* Expand/collapse icon */}
-          <IconButton size="small" aria-label={expanded ? 'Collapse filters' : 'Expand filters'}>
-            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
+          </Box>
         </Box>
 
         {/* Collapsible filter content */}
         <Collapse in={expanded}>
           <Divider />
-          <Box sx={{ p: 2, pt: 3 }}>
+          <Box sx={{ p: 1.5, pt: 2 }}>
             {/* Column Filters */}
             {filterableColumns.length > 0 && (
               <>
-                <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
                   Filter by Column
                 </Typography>
-                <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' } }}>
+                <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' } }}>
                   {filterableColumns.map((col) => {
                     const hasDropdownOptions = dropdownFilters[col.field];
                     
@@ -216,7 +230,7 @@ export default function FilterPanel({
 
             {/* Clear column filters button */}
             {Object.values(columnFilters).some(v => v) && (
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                 <IconButton
                   onClick={() => {
                     filterableColumns.forEach(col => {

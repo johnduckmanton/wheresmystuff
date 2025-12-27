@@ -31,6 +31,11 @@ import InventorySelector from './InventorySelector';
 const DRAWER_WIDTH = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
 
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
 interface NavigationItem {
   label: string;
   path: string;
@@ -97,24 +102,23 @@ const movingItems: NavigationItem[] = [
  * - Tablet/Mobile (< 900px): Temporary overlay drawer
  * Validates: Requirements 20.2, 20.3, 20.4
  */
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
   const [open, setOpen] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   // Close mobile drawer when switching to desktop
   useEffect(() => {
-    if (!isMobile) {
-      setMobileOpen(false);
+    if (!isMobile && onMobileClose) {
+      onMobileClose();
     }
-  }, [isMobile]);
+  }, [isMobile, onMobileClose]);
 
   const handleToggle = () => {
-    if (isMobile) {
-      setMobileOpen(!mobileOpen);
+    if (isMobile && onMobileClose) {
+      onMobileClose();
     } else {
       setOpen(!open);
     }
@@ -123,8 +127,8 @@ export default function Sidebar() {
   const handleNavigate = (path: string) => {
     navigate(path);
     // Close mobile drawer after navigation
-    if (isMobile) {
-      setMobileOpen(false);
+    if (isMobile && onMobileClose) {
+      onMobileClose();
     }
   };
 
@@ -236,7 +240,7 @@ export default function Sidebar() {
       <Drawer
         variant="temporary"
         open={mobileOpen}
-        onClose={handleToggle}
+        onClose={onMobileClose}
         ModalProps={{
           keepMounted: true, // Better mobile performance
         }}

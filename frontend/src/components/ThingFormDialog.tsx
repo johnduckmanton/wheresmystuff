@@ -14,11 +14,28 @@ import {
   FormHelperText,
   Typography,
   Divider,
+  Grid,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
+import {
+  ExpandMore as ExpandMoreIcon,
+  Info as InfoIcon,
+  LocationOn as LocationIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Photo as PhotoIcon,
+  Image as ImageIcon,
+} from '@mui/icons-material';
 import type { Thing, Location, Room, Category, Person } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
+import S3Image from './S3Image';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
@@ -50,7 +67,11 @@ export default function ThingFormDialog({
   const [formData, setFormData] = useState<ThingFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [currentTab, setCurrentTab] = useState(0);
   const { currentInventory } = useInventory();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   // Initialize form data when dialog opens or thing changes
   useEffect(() => {
@@ -208,300 +229,617 @@ export default function ThingFormDialog({
     ? rooms.filter(room => room.locationId === formData.locationId)
     : rooms;
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
+  };
+
+  // Get primary image URL for display
+  const getPrimaryImageUrl = async (photoKey: string): Promise<string> => {
+    if (!currentInventory) return '';
+    try {
+      const response = await apiClient.generateDownloadUrl(photoKey);
+      return response.downloadUrl;
+    } catch (error) {
+      console.error('Error generating download URL:', error);
+      return '';
+    }
+  };
+
+  // Primary image component
+  const PrimaryImageDisplay = () => {
+    const [primaryImageUrl, setPrimaryImageUrl] = useState<string>('');
+    const [loading, setLoading] = useState(false);
+    
+    const primaryPhotoKey = formData.photos && formData.photos.length > 0 ? formData.photos[0] : null;
+
+    useEffect(() => {
+      if (primaryPhotoKey && currentInventory) {
+        setLoading(true);
+        getPrimaryImageUrl(primaryPhotoKey)
+          .then(url => {
+            setPrimaryImageUrl(url);
+            setLoading(false);
+          })
+          .catch(() => {
+            setLoading(false);
+          });
+      } else {
+        setPrimaryImageUrl('');
+        setLoading(false);
+      }
+    }, [primaryPhotoKey, currentInventory]);
+
+    const imageSize = isMobile ? 80 : 120;
+
+    if (loading) {
+      return (
+        <Box
+          sx={{
+            width: imageSize,
+            height: imageSize,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px dashed',
+            borderColor: 'grey.300',
+            borderRadius: 2,
+            bgcolor: 'grey.50',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Loading...
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (primaryImageUrl) {
+      return (
+        <S3Image
+          src={primaryImageUrl}
+          alt={formData.name || 'Thing image'}
+          maxWidth={imageSize}
+          maxHeight={imageSize}
+          style={{
+            borderRadius: '8px',
+            objectFit: 'cover',
+            width: `${imageSize}px`,
+            height: `${imageSize}px`,
+          }}
+        />
+      );
+    }
+
+    // Placeholder when no image
+    return (
+      <Box
+        sx={{
+          width: imageSize,
+          height: imageSize,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px dashed',
+          borderColor: 'grey.300',
+          borderRadius: 2,
+          bgcolor: 'grey.50',
+        }}
+      >
+        <ImageIcon sx={{ fontSize: isMobile ? 24 : 32, color: 'grey.400', mb: 0.5 }} />
+        <Typography variant="caption" color="text.secondary" align="center">
+          No Image
+        </Typography>
+      </Box>
+    );
+  };
+
+  // Render basic information fields
+  const renderBasicFields = () => (
+    <Grid container spacing={1.5}>
+      <Grid size={{ xs: 12 }}>
+        <TextField
+          fullWidth
+          label="Name"
+          value={formData.name || ''}
+          onChange={(e) => handleFieldChange('name', e.target.value)}
+          error={!!errors.name}
+          helperText={errors.name}
+          required
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              'aria-label': 'Thing name',
+              'aria-required': 'true',
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <TextField
+          fullWidth
+          label="Description"
+          value={formData.description || ''}
+          onChange={(e) => handleFieldChange('description', e.target.value)}
+          multiline
+          rows={2}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              'aria-label': 'Thing description',
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <InventoryFormSelector
+          value={formData.inventoryId || ''}
+          onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
+          error={errors.inventoryId}
+          required
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Serial Number"
+          value={formData.serialNumber || ''}
+          onChange={(e) => handleFieldChange('serialNumber', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              'aria-label': 'Serial number',
+            },
+          }}
+        />
+      </Grid>
+    </Grid>
+  );
+
+  // Render location fields
+  const renderLocationFields = () => (
+    <Grid container spacing={1.5}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+          <InputLabel id="location-select-label">Location</InputLabel>
+          <Select
+            labelId="location-select-label"
+            value={formData.locationId || ''}
+            label="Location"
+            onChange={(e) => {
+              handleFieldChange('locationId', e.target.value);
+              if (formData.roomId) {
+                handleFieldChange('roomId', '');
+              }
+            }}
+            slotProps={{
+              input: {
+                'aria-label': 'Select location',
+              },
+            }}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {locations.map((location) => (
+              <MenuItem key={location.id} value={location.id}>
+                {location.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth disabled={!formData.locationId} size={isMobile ? 'medium' : 'small'}>
+          <InputLabel id="room-select-label">Room</InputLabel>
+          <Select
+            labelId="room-select-label"
+            value={formData.roomId || ''}
+            label="Room"
+            onChange={(e) => handleFieldChange('roomId', e.target.value)}
+            slotProps={{
+              input: {
+                'aria-label': 'Select room',
+              },
+            }}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {filteredRooms.map((room) => (
+              <MenuItem key={room.id} value={room.id}>
+                {room.name}
+              </MenuItem>
+            ))}
+          </Select>
+          {!formData.locationId && (
+            <FormHelperText>Select a location first</FormHelperText>
+          )}
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+          <InputLabel id="owner-select-label">Owner</InputLabel>
+          <Select
+            labelId="owner-select-label"
+            value={formData.ownerId || ''}
+            label="Owner"
+            onChange={(e) => handleFieldChange('ownerId', e.target.value)}
+            slotProps={{
+              input: {
+                'aria-label': 'Select owner',
+              },
+            }}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {people.map((person) => (
+              <MenuItem key={person.id} value={person.id}>
+                {person.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+          <InputLabel>Category</InputLabel>
+          <Select
+            value={formData.categoryId || ''}
+            label="Category"
+            onChange={(e) => handleFieldChange('categoryId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {categories.map((category) => (
+              <MenuItem key={category.id} value={category.id}>
+                {category.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Grid>
+    </Grid>
+  );
+
+  // Render purchase information fields
+  const renderPurchaseFields = () => (
+    <Grid container spacing={1.5}>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Date Purchased"
+          type="date"
+          value={formData.datePurchased || ''}
+          onChange={(e) => handleFieldChange('datePurchased', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Purchase Price"
+          type="number"
+          value={formData.purchasePrice || ''}
+          onChange={(e) => handleFieldChange('purchasePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              startAdornment: <span style={{ marginRight: '8px', color: '#666' }}>£</span>,
+              inputProps: {
+                min: 0,
+                step: 0.01,
+                'aria-label': 'Purchase price',
+              },
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <TextField
+          fullWidth
+          label="Purchased From"
+          value={formData.purchasedFrom || ''}
+          onChange={(e) => handleFieldChange('purchasedFrom', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+        />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <TextField
+          fullWidth
+          label="Warranty Details"
+          value={formData.warrantyDetails || ''}
+          onChange={(e) => handleFieldChange('warrantyDetails', e.target.value)}
+          multiline
+          rows={2}
+          size={isMobile ? 'medium' : 'small'}
+        />
+      </Grid>
+    </Grid>
+  );
+
+  // Render additional fields
+  const renderAdditionalFields = () => (
+    <Grid container spacing={1.5}>
+      <Grid size={{ xs: 12 }}>
+        <TextField
+          fullWidth
+          label="Notes"
+          value={formData.notes || ''}
+          onChange={(e) => handleFieldChange('notes', e.target.value)}
+          multiline
+          rows={3}
+          size={isMobile ? 'medium' : 'small'}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Disposal Date"
+          type="date"
+          value={formData.disposalDate || ''}
+          onChange={(e) => handleFieldChange('disposalDate', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Next Review Date"
+          type="date"
+          value={formData.nextReviewDate || ''}
+          onChange={(e) => handleFieldChange('nextReviewDate', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}
+        />
+      </Grid>
+    </Grid>
+  );
+
+  // Render photo section
+  const renderPhotoSection = () => (
+    <Box>
+      {/* Photo Preview Grid - Show existing photos */}
+      {formData.photos && formData.photos.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <PhotoPreviewGrid
+            photoKeys={formData.photos}
+            onRemove={handlePhotoRemove}
+            disabled={isUploadingPhotos}
+          />
+        </Box>
+      )}
+
+      {/* Photo Upload Zone */}
+      <PhotoUploadZone
+        onUpload={handlePhotoUpload}
+        disabled={isUploadingPhotos}
+      />
+    </Box>
+  );
+
   return (
     <Dialog
       open={open}
       onClose={handleCancel}
       maxWidth="md"
       fullWidth
+      fullScreen={isMobile}
+      scroll="paper"
       aria-labelledby="thing-form-dialog-title"
+      sx={{
+        '& .MuiDialog-paper': {
+          margin: { xs: 0, sm: 2 },
+          maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' },
+          height: { xs: '100vh', sm: 'auto' },
+        },
+      }}
     >
-      <DialogTitle id="thing-form-dialog-title">
-        {thing ? 'Edit Thing' : 'Add Thing'}
-      </DialogTitle>
-      <DialogContent>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            pt: 1,
-          }}
-        >
-          {/* Basic Information */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Basic Information
-          </Typography>
-
-          <TextField
-            fullWidth
-            label="Name"
-            value={formData.name || ''}
-            onChange={(e) => handleFieldChange('name', e.target.value)}
-            error={!!errors.name}
-            helperText={errors.name}
-            required
-            inputProps={{
-              'aria-label': 'Thing name',
-              'aria-required': 'true',
-            }}
-          />
-
-          <TextField
-            fullWidth
-            label="Description"
-            value={formData.description || ''}
-            onChange={(e) => handleFieldChange('description', e.target.value)}
-            multiline
-            rows={3}
-            inputProps={{
-              'aria-label': 'Thing description',
-            }}
-          />
-
-          <InventoryFormSelector
-            value={formData.inventoryId || ''}
-            onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
-            error={errors.inventoryId}
-            required
-          />
-
-          <TextField
-            fullWidth
-            label="Serial Number"
-            value={formData.serialNumber || ''}
-            onChange={(e) => handleFieldChange('serialNumber', e.target.value)}
-            inputProps={{
-              'aria-label': 'Serial number',
-            }}
-          />
-
-          <Divider />
-
-          {/* Location Information */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Location
-          </Typography>
-
-          <FormControl fullWidth>
-            <InputLabel id="location-select-label">Location</InputLabel>
-            <Select
-              labelId="location-select-label"
-              value={formData.locationId || ''}
-              label="Location"
-              onChange={(e) => {
-                handleFieldChange('locationId', e.target.value);
-                // Clear room if location changes
-                if (formData.roomId) {
-                  handleFieldChange('roomId', '');
-                }
-              }}
-              inputProps={{
-                'aria-label': 'Select location',
-              }}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {locations.map((location) => (
-                <MenuItem key={location.id} value={location.id}>
-                  {location.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth disabled={!formData.locationId}>
-            <InputLabel id="room-select-label">Room</InputLabel>
-            <Select
-              labelId="room-select-label"
-              value={formData.roomId || ''}
-              label="Room"
-              onChange={(e) => handleFieldChange('roomId', e.target.value)}
-              inputProps={{
-                'aria-label': 'Select room',
-              }}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {filteredRooms.map((room) => (
-                <MenuItem key={room.id} value={room.id}>
-                  {room.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {!formData.locationId && (
-              <FormHelperText>Select a location first</FormHelperText>
+      <DialogTitle 
+        id="thing-form-dialog-title"
+        sx={{ 
+          pb: 1,
+          fontSize: { xs: '1.1rem', sm: '1.25rem' },
+        }}
+      >
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start',
+          gap: 2 
+        }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" component="div" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+              {thing ? 'Edit Thing' : 'Add Thing'}
+            </Typography>
+            {formData.name && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {formData.name}
+              </Typography>
             )}
-          </FormControl>
-
-          <Divider />
-
-          {/* Ownership and Classification */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Ownership & Classification
-          </Typography>
-
-          <FormControl fullWidth>
-            <InputLabel id="owner-select-label">Owner</InputLabel>
-            <Select
-              labelId="owner-select-label"
-              value={formData.ownerId || ''}
-              label="Owner"
-              onChange={(e) => handleFieldChange('ownerId', e.target.value)}
-              inputProps={{
-                'aria-label': 'Select owner',
-              }}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {people.map((person) => (
-                <MenuItem key={person.id} value={person.id}>
-                  {person.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <FormControl fullWidth>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={formData.categoryId || ''}
-              label="Category"
-              onChange={(e) => handleFieldChange('categoryId', e.target.value)}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <Divider />
-
-          {/* Purchase Information */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Purchase Information
-          </Typography>
-
-          <TextField
-            fullWidth
-            label="Date Purchased"
-            type="date"
-            value={formData.datePurchased || ''}
-            onChange={(e) => handleFieldChange('datePurchased', e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-
-          <TextField
-            fullWidth
-            label="Purchased From"
-            value={formData.purchasedFrom || ''}
-            onChange={(e) => handleFieldChange('purchasedFrom', e.target.value)}
-          />
-
-          <TextField
-            fullWidth
-            label="Purchase Price"
-            type="number"
-            value={formData.purchasePrice || ''}
-            onChange={(e) => handleFieldChange('purchasePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
-            InputProps={{
-              startAdornment: <span style={{ marginRight: '8px', color: '#666' }}>£</span>,
-            }}
-            inputProps={{
-              min: 0,
-              step: 0.01,
-              'aria-label': 'Purchase price',
-            }}
-            helperText="Enter the original purchase price"
-          />
-
-          <TextField
-            fullWidth
-            label="Warranty Details"
-            value={formData.warrantyDetails || ''}
-            onChange={(e) => handleFieldChange('warrantyDetails', e.target.value)}
-            multiline
-            rows={2}
-          />
-
-          <Divider />
-
-          {/* Additional Information */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Additional Information
-          </Typography>
-
-          <TextField
-            fullWidth
-            label="Notes"
-            value={formData.notes || ''}
-            onChange={(e) => handleFieldChange('notes', e.target.value)}
-            multiline
-            rows={3}
-          />
-
-          <TextField
-            fullWidth
-            label="Disposal Date"
-            type="date"
-            value={formData.disposalDate || ''}
-            onChange={(e) => handleFieldChange('disposalDate', e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-
-          <TextField
-            fullWidth
-            label="Next Review Date"
-            type="date"
-            value={formData.nextReviewDate || ''}
-            onChange={(e) => handleFieldChange('nextReviewDate', e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-          />
-
-          <Divider />
-
-          {/* Photo Upload Section */}
-          <Typography variant="subtitle2" color="text.secondary">
-            Photos
-          </Typography>
-
-          {/* Photo Preview Grid - Show existing photos */}
-          {formData.photos && formData.photos.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <PhotoPreviewGrid
-                photoKeys={formData.photos}
-                onRemove={handlePhotoRemove}
-                disabled={isUploadingPhotos}
-              />
-            </Box>
-          )}
-
-          {/* Photo Upload Zone */}
-          <PhotoUploadZone
-            onUpload={handlePhotoUpload}
-            disabled={isUploadingPhotos}
-          />
+          </Box>
+          <Box sx={{ flexShrink: 0 }}>
+            <PrimaryImageDisplay />
+          </Box>
         </Box>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={handleCancel} color="inherit">
+      </DialogTitle>
+
+      {/* Use tabs on mobile/tablet, accordion on desktop for better space usage */}
+      {isTablet ? (
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs 
+              value={currentTab} 
+              onChange={handleTabChange} 
+              variant="scrollable"
+              scrollButtons="auto"
+              aria-label="thing form sections"
+            >
+              <Tab 
+                icon={<InfoIcon />} 
+                label="Basic" 
+                iconPosition="start"
+                sx={{ minHeight: 48 }}
+              />
+              <Tab 
+                icon={<LocationIcon />} 
+                label="Location" 
+                iconPosition="start"
+                sx={{ minHeight: 48 }}
+              />
+              <Tab 
+                icon={<ShoppingCartIcon />} 
+                label="Purchase" 
+                iconPosition="start"
+                sx={{ minHeight: 48 }}
+              />
+              <Tab 
+                icon={<PhotoIcon />} 
+                label="Photos" 
+                iconPosition="start"
+                sx={{ minHeight: 48 }}
+              />
+            </Tabs>
+          </Box>
+          
+          <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+            {currentTab === 0 && (
+              <Box sx={{ pt: 1 }}>
+                {renderBasicFields()}
+              </Box>
+            )}
+            {currentTab === 1 && (
+              <Box sx={{ pt: 1 }}>
+                {renderLocationFields()}
+              </Box>
+            )}
+            {currentTab === 2 && (
+              <Box sx={{ pt: 1 }}>
+                {renderPurchaseFields()}
+              </Box>
+            )}
+            {currentTab === 3 && (
+              <Box sx={{ pt: 1 }}>
+                {renderPhotoSection()}
+                <Box sx={{ mt: 2 }}>
+                  {renderAdditionalFields()}
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+        </>
+      ) : (
+        <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Basic Information - Always visible */}
+            <Box>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
+                Basic Information
+              </Typography>
+              {renderBasicFields()}
+            </Box>
+
+            {/* Location & Classification - Collapsible */}
+            <Accordion defaultExpanded sx={{ '& .MuiAccordionSummary-root': { minHeight: 56 } }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ 
+                  '& .MuiAccordionSummary-content': { 
+                    margin: '12px 0',
+                  }
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Location & Classification
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 1.5, pb: 1.5, px: 2 }}>
+                {renderLocationFields()}
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Purchase Information - Collapsible */}
+            <Accordion sx={{ '& .MuiAccordionSummary-root': { minHeight: 56 } }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ 
+                  '& .MuiAccordionSummary-content': { 
+                    margin: '12px 0',
+                  }
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Purchase Information
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 1.5, pb: 1.5, px: 2 }}>
+                {renderPurchaseFields()}
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Photos - Collapsible */}
+            <Accordion sx={{ '& .MuiAccordionSummary-root': { minHeight: 56 } }}>
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ 
+                  '& .MuiAccordionSummary-content': { 
+                    margin: '12px 0',
+                  }
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Photos & Additional Info
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 1.5, pb: 1.5, px: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {renderPhotoSection()}
+                  <Divider sx={{ my: 1 }} />
+                  {renderAdditionalFields()}
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          </Box>
+        </DialogContent>
+      )}
+
+      <DialogActions sx={{ 
+        px: { xs: 2, sm: 3 }, 
+        pb: { xs: 2, sm: 2 },
+        gap: 1,
+        flexDirection: { xs: 'column', sm: 'row' },
+      }}>
+        <Button 
+          onClick={handleCancel} 
+          color="inherit"
+          fullWidth={isMobile}
+          sx={{ order: { xs: 2, sm: 1 } }}
+        >
           Cancel
         </Button>
-        <Button onClick={handleSubmit} variant="contained" color="primary">
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          color="primary"
+          fullWidth={isMobile}
+          sx={{ order: { xs: 1, sm: 2 } }}
+        >
           {thing ? 'Update' : 'Create'}
         </Button>
       </DialogActions>

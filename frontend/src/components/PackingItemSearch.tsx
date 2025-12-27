@@ -266,11 +266,12 @@ export default function PackingItemSearch({
   ].filter(Boolean).length;
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }}>
-      {/* Main Search Bar */}
-      <Box sx={{ mb: 2 }}>
+    <Paper sx={{ p: 1.5, mb: 2 }}>
+      {/* Compact Main Search Bar */}
+      <Box sx={{ mb: 1.5 }}>
         <TextField
           fullWidth
+          size="small"
           placeholder="Search items by name, description, serial number, or notes..."
           value={filters.searchTerm}
           onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
@@ -294,11 +295,11 @@ export default function PackingItemSearch({
           }}
         />
 
-        {/* Recent Searches */}
+        {/* Recent Searches - more compact */}
         {recentSearches.length > 0 && !filters.searchTerm && (
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ mt: 1, display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
             <HistoryIcon fontSize="small" color="action" />
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
               Recent:
             </Typography>
             {recentSearches.map((search, index) => (
@@ -308,59 +309,61 @@ export default function PackingItemSearch({
                 size="small"
                 variant="outlined"
                 onClick={() => handleFilterChange('searchTerm', search)}
-                sx={{ cursor: 'pointer' }}
+                sx={{ cursor: 'pointer', height: 20 }}
               />
             ))}
           </Box>
         )}
       </Box>
 
-      {/* Filter Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <FilterIcon color={hasActiveFilters ? 'primary' : 'action'} />
-          <Typography variant="subtitle2">
-            Advanced Filters
+      {/* Compact Filter Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <FilterIcon color={hasActiveFilters ? 'primary' : 'action'} fontSize="small" />
+          <Typography variant="body2">
+            Filters
             {activeFilterCount > 0 && (
               <Chip
                 label={activeFilterCount}
                 size="small"
                 color="primary"
-                sx={{ ml: 1, minWidth: 24, height: 20 }}
+                sx={{ ml: 0.5, minWidth: 20, height: 18, fontSize: '0.7rem' }}
               />
             )}
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {filteredAndSortedItems.length} of {items.length} items
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            {filteredAndSortedItems.length}/{items.length}
           </Typography>
           
           {hasActiveFilters && (
             <Button
               size="small"
               onClick={clearAllFilters}
-              startIcon={<ClearIcon />}
+              startIcon={<ClearIcon fontSize="small" />}
+              sx={{ minWidth: 'auto', px: 1, py: 0.25, fontSize: '0.75rem' }}
             >
-              Clear All
+              Clear
             </Button>
           )}
 
           <IconButton
             size="small"
             onClick={() => setExpandedFilters(!expandedFilters)}
+            sx={{ p: 0.25 }}
           >
-            {expandedFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            {expandedFilters ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
           </IconButton>
         </Box>
       </Box>
 
       {/* Expanded Filters */}
       <Collapse in={expandedFilters}>
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 1.5 }} />
         
-        <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' } }}>
+        <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' } }}>
           {/* Category Filter */}
           <FormControl size="small">
             <InputLabel>Categories</InputLabel>
@@ -370,7 +373,7 @@ export default function PackingItemSearch({
               onChange={(e) => handleFilterChange('categoryIds', e.target.value)}
               label="Categories"
               renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.25 }}>
                   {(selected as string[]).map((value) => {
                     const category = categoryMap.get(value);
                     return (
@@ -378,7 +381,7 @@ export default function PackingItemSearch({
                         key={value}
                         label={category?.name || 'Unknown'}
                         size="small"
-                        style={{ backgroundColor: category?.color }}
+                        style={{ backgroundColor: category?.color, height: 18, fontSize: '0.7rem' }}
                       />
                     );
                   })}
@@ -415,7 +418,7 @@ export default function PackingItemSearch({
               onChange={(e) => handleFilterChange('locationIds', e.target.value)}
               label="Locations"
               renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.25 }}>
                   {(selected as string[]).map((value) => {
                     const location = locationMap.get(value);
                     return (
@@ -423,6 +426,7 @@ export default function PackingItemSearch({
                         key={value}
                         label={location?.name || 'Unknown'}
                         size="small"
+                        sx={{ height: 18, fontSize: '0.7rem' }}
                       />
                     );
                   })}
@@ -447,7 +451,7 @@ export default function PackingItemSearch({
               onChange={(e) => handleFilterChange('roomIds', e.target.value)}
               label="Rooms"
               renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.25 }}>
                   {(selected as string[]).map((value) => {
                     const room = roomMap.get(value);
                     return (
@@ -455,6 +459,7 @@ export default function PackingItemSearch({
                         key={value}
                         label={room?.name || 'Unknown'}
                         size="small"
+                        sx={{ height: 18, fontSize: '0.7rem' }}
                       />
                     );
                   })}
@@ -471,7 +476,7 @@ export default function PackingItemSearch({
           </FormControl>
 
           {/* Price Range */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
             <TextField
               size="small"
               label="Min Price"
@@ -483,7 +488,7 @@ export default function PackingItemSearch({
               })}
               InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
             />
-            <Typography variant="body2">to</Typography>
+            <Typography variant="caption">to</Typography>
             <TextField
               size="small"
               label="Max Price"
@@ -526,37 +531,39 @@ export default function PackingItemSearch({
           </FormControl>
         </Box>
 
-        {/* Additional Options */}
-        <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        {/* Additional Options - more compact */}
+        <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <FormControlLabel
             control={
               <Checkbox
+                size="small"
                 checked={filters.showOnlyUnpacked}
                 onChange={(e) => handleFilterChange('showOnlyUnpacked', e.target.checked)}
               />
             }
-            label="Show only unpacked items"
+            label={<Typography variant="body2">Only unpacked</Typography>}
           />
           <FormControlLabel
             control={
               <Checkbox
+                size="small"
                 checked={filters.showOnlyWithPhotos}
                 onChange={(e) => handleFilterChange('showOnlyWithPhotos', e.target.checked)}
               />
             }
-            label="Show only items with photos"
+            label={<Typography variant="body2">Only with photos</Typography>}
           />
         </Box>
       </Collapse>
 
-      {/* Quick Access to Favorites */}
+      {/* Quick Access to Favorites - more compact */}
       {favoriteItems.size > 0 && (
-        <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <StarIcon color="primary" />
-            Quick Access - Favorite Items ({favoriteItems.size})
+        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+          <Typography variant="body2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <StarIcon color="primary" fontSize="small" />
+            Favorites ({favoriteItems.size})
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
             {Array.from(favoriteItems).slice(0, 10).map(itemId => {
               const item = items.find(i => i.id === itemId);
               if (!item) return null;
@@ -566,11 +573,11 @@ export default function PackingItemSearch({
                   key={itemId}
                   label={item.name}
                   size="small"
-                  icon={<StarIcon />}
+                  icon={<StarIcon fontSize="small" />}
                   onClick={() => handleFilterChange('searchTerm', item.name)}
                   onDelete={() => toggleFavorite(itemId)}
-                  deleteIcon={<ClearIcon />}
-                  sx={{ cursor: 'pointer' }}
+                  deleteIcon={<ClearIcon fontSize="small" />}
+                  sx={{ cursor: 'pointer', height: 20, fontSize: '0.7rem' }}
                 />
               );
             })}
