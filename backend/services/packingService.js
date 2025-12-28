@@ -7,9 +7,44 @@ const notificationService = require('./notificationService');
 const collaborationService = require('./collaborationService');
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
-const docClient = DynamoDBDocumentClient.from(client);
+const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: {
+    removeUndefinedValues: true,
+    convertEmptyValues: false
+  },
+  unmarshallOptions: {
+    wrapNumbers: false
+  }
+});
 
 const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
+
+/**
+ * Remove undefined values from an object recursively
+ * @param {any} obj - Object to clean
+ * @returns {any} Cleaned object
+ */
+function removeUndefinedValues(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefinedValues).filter(item => item !== undefined);
+  }
+  
+  if (typeof obj === 'object') {
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedValues(value);
+      }
+    }
+    return cleaned;
+  }
+  
+  return obj;
+}
 
 /**
  * Packing Service
@@ -61,7 +96,7 @@ class PackingService {
       }
 
       items.push(item);
-      totalValue += item.value || 0;
+      totalValue += item.purchasePrice || item.value || 0;
 
       // Prepare item update
       const updatedItem = {
@@ -87,7 +122,7 @@ class PackingService {
       transactItems.push({
         Put: {
           TableName: TABLE_NAME,
-          Item: item
+          Item: removeUndefinedValues(item)
         }
       });
     });
@@ -102,19 +137,23 @@ class PackingService {
     transactItems.push({
       Put: {
         TableName: TABLE_NAME,
-        Item: container.toDynamoDBItem()
+        Item: removeUndefinedValues(container.toDynamoDBItem())
       }
     });
 
     // Execute transaction
-    await docClient.send(new TransactWriteCommand({
-      TransactItems: transactItems
-    }));
+    try {
+      await docClient.send(new TransactWriteCommand({
+        TransactItems: transactItems
+      }));
+    } catch (transactionError) {
+      throw transactionError;
+    }
 
     // Log the packing operation
     await logPackingOperation(userId, 'pack_items', containerId, inventoryId, {
-      itemIds: itemsToUpdate.map(item => item.id),
-      itemCount: itemsToUpdate.length,
+      itemIds: itemIds,
+      itemCount: items.length,
       totalValue: totalValue,
       containerName: container.name
     });
@@ -125,10 +164,10 @@ class PackingService {
         type: 'items_packed',
         userId,
         containerId,
-        itemIds: itemsToUpdate.map(item => item.id),
+        itemIds: itemIds,
         details: {
           containerName: container.name,
-          itemCount: itemsToUpdate.length,
+          itemCount: items.length,
           totalValue: totalValue
         }
       });
@@ -145,7 +184,7 @@ class PackingService {
               inventoryId,
               sessionName: session.name,
               containerName: container.name,
-              itemCount: itemsToUpdate.length,
+              itemCount: items.length,
               userName: 'A user' // Could be enhanced to get actual user name
             }
           );
@@ -211,7 +250,7 @@ class PackingService {
       }
 
       items.push(item);
-      totalValue += item.value || 0;
+      totalValue += item.purchasePrice || item.value || 0;
 
       // Prepare item update - restore previous location or use container location
       const updatedItem = {
@@ -237,7 +276,7 @@ class PackingService {
       transactItems.push({
         Put: {
           TableName: TABLE_NAME,
-          Item: item
+          Item: removeUndefinedValues(item)
         }
       });
     });
@@ -252,7 +291,7 @@ class PackingService {
     transactItems.push({
       Put: {
         TableName: TABLE_NAME,
-        Item: container.toDynamoDBItem()
+        Item: removeUndefinedValues(container.toDynamoDBItem())
       }
     });
 
@@ -263,8 +302,8 @@ class PackingService {
 
     // Log the unpacking operation
     await logPackingOperation(userId, 'unpack_items', containerId, inventoryId, {
-      itemIds: itemsToUpdate.map(item => item.id),
-      itemCount: itemsToUpdate.length,
+      itemIds: itemIds,
+      itemCount: items.length,
       containerName: container.name
     });
 
@@ -333,7 +372,7 @@ class PackingService {
       }
 
       items.push(item);
-      totalValue += item.value || 0;
+      totalValue += item.purchasePrice || item.value || 0;
 
       // Prepare item update - move to target container
       const updatedItem = {
@@ -358,7 +397,7 @@ class PackingService {
       transactItems.push({
         Put: {
           TableName: TABLE_NAME,
-          Item: item
+          Item: removeUndefinedValues(item)
         }
       });
     });
@@ -377,14 +416,14 @@ class PackingService {
     transactItems.push({
       Put: {
         TableName: TABLE_NAME,
-        Item: sourceContainer.toDynamoDBItem()
+        Item: removeUndefinedValues(sourceContainer.toDynamoDBItem())
       }
     });
 
     transactItems.push({
       Put: {
         TableName: TABLE_NAME,
-        Item: targetContainer.toDynamoDBItem()
+        Item: removeUndefinedValues(targetContainer.toDynamoDBItem())
       }
     });
 
@@ -395,8 +434,8 @@ class PackingService {
 
     // Log the transfer operation
     await logPackingOperation(userId, 'transfer_items', sourceContainerId, inventoryId, {
-      itemIds: itemsToTransfer.map(item => item.id),
-      itemCount: itemsToTransfer.length,
+      itemIds: itemIds,
+      itemCount: items.length,
       sourceContainerId,
       targetContainerId,
       sourceContainerName: sourceContainer.name,
@@ -438,7 +477,10 @@ class PackingService {
     const itemsResult = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
-      FilterExpression: 'containerId = :containerId',
+      FilterExpression: '#data.containerId = :containerId',
+      ExpressionAttributeNames: {
+        '#data': 'data'
+      },
       ExpressionAttributeValues: {
         ':pk': `INVENTORY#${inventoryId}#THINGS`,
         ':containerId': containerId
@@ -451,7 +493,7 @@ class PackingService {
     })) : [];
 
     // Calculate summary statistics
-    const totalValue = items.reduce((sum, item) => sum + (item.value || 0), 0);
+    const totalValue = items.reduce((sum, item) => sum + (item.purchasePrice || item.value || 0), 0);
     const categories = [...new Set(items.filter(item => item.categoryId).map(item => item.categoryId))];
 
     // Log the contents access
@@ -516,7 +558,7 @@ class PackingService {
     for (const itemId of itemIds) {
       const item = await this._getItem(itemId, inventoryId);
       if (item) {
-        totalNewValue += item.value || 0;
+        totalNewValue += item.purchasePrice || item.value || 0;
       }
     }
 
@@ -601,7 +643,7 @@ class PackingService {
     // Log the bulk operation
     await logBulkOperation(userId, 'bulk_pack_items', inventoryId, {
       assignmentCount: assignments.length,
-      totalItemsAssigned: results.reduce((sum, r) => sum + r.itemsAdded, 0),
+      totalItemsAssigned: results.reduce((sum, r) => sum + (r.packedCount || 0), 0),
       containerIds: assignments.map(a => a.containerId),
       success: results.every(r => r.success)
     });
@@ -640,7 +682,10 @@ class PackingService {
     const queryParams = {
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
-      FilterExpression: 'attribute_not_exists(containerId) OR containerId = :nullValue',
+      FilterExpression: 'attribute_not_exists(#data.containerId) OR #data.containerId = :nullValue',
+      ExpressionAttributeNames: {
+        '#data': 'data'
+      },
       ExpressionAttributeValues: {
         ':pk': `INVENTORY#${inventoryId}#THINGS`,
         ':nullValue': null
@@ -652,19 +697,19 @@ class PackingService {
     const additionalFilters = [];
     
     if (locationId) {
-      additionalFilters.push('locationId = :locationId');
+      additionalFilters.push('#data.locationId = :locationId');
       queryParams.ExpressionAttributeValues[':locationId'] = locationId;
     }
 
     if (categoryId) {
-      additionalFilters.push('categoryId = :categoryId');
+      additionalFilters.push('#data.categoryId = :categoryId');
       queryParams.ExpressionAttributeValues[':categoryId'] = categoryId;
     }
 
     if (search) {
-      additionalFilters.push('contains(#name, :search) OR contains(description, :search)');
+      additionalFilters.push('contains(#data.#name, :search) OR contains(#data.description, :search)');
       queryParams.ExpressionAttributeValues[':search'] = search;
-      queryParams.ExpressionAttributeNames = { '#name': 'name' };
+      queryParams.ExpressionAttributeNames['#name'] = 'name';
     }
 
     if (additionalFilters.length > 0) {
@@ -690,7 +735,7 @@ class PackingService {
       count: items.length,
       lastEvaluatedKey: result.LastEvaluatedKey,
       hasMore: !!result.LastEvaluatedKey,
-      totalValue: items.reduce((sum, item) => sum + (item.value || 0), 0)
+      totalValue: items.reduce((sum, item) => sum + (item.purchasePrice || item.value || 0), 0)
     };
   }
 

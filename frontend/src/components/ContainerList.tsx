@@ -578,6 +578,18 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     showSuccess(`Successfully packed ${itemIds.length} items`);
   };
 
+  const handleContainerUpdated = (updatedContainer: Container) => {
+    // Update the specific container in the list
+    setContainers(prev => prev.map(container => 
+      container.id === updatedContainer.id ? updatedContainer : container
+    ));
+    
+    // Also update selectedContainer if it's the same one
+    if (selectedContainer?.id === updatedContainer.id) {
+      setSelectedContainer(updatedContainer);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!selectedContainer || !currentInventory) return;
 
@@ -731,6 +743,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         container={selectedContainer}
         onClose={handlePackingClose}
         onItemsAdded={handleItemsAdded}
+        onContainerUpdated={handleContainerUpdated}
       />
 
       {/* Delete Confirmation Dialog */}

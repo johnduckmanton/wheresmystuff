@@ -78,11 +78,13 @@ export default function InlineRoomEditor({
       } else if (editingRoom.id) {
         await onUpdateRoom(editingRoom.id, roomData);
       }
+      
+      // Exit edit mode after successful save
+      setEditingRoom(null);
     } catch (error) {
       console.error('Error saving room:', error);
       // Could show a toast notification here in the future
     } finally {
-      setEditingRoom(null);
       setIsLoading(false);
     }
   };

@@ -694,7 +694,7 @@ class ApiClient {
       hasPhotos: boolean;
     };
   }> {
-    return this.get<any>(`/packing/${containerId}/contents?inventoryId=${inventoryId}`);
+    return this.get<any>(`/packing/containers/${containerId}/contents?inventoryId=${inventoryId}`);
   }
 
   async addItemsToContainer(containerId: string, inventoryId: string, itemIds: string[]): Promise<{
@@ -705,7 +705,7 @@ class ApiClient {
     newItemCount: number;
     newEstimatedValue: number;
   }> {
-    return this.post<any>(`/packing/${containerId}/add-items`, {
+    return this.post<any>(`/packing/containers/${containerId}/add-items`, {
       inventoryId,
       itemIds,
     });
@@ -719,7 +719,7 @@ class ApiClient {
     newItemCount: number;
     newEstimatedValue: number;
   }> {
-    return this.post<any>(`/packing/${containerId}/remove-items`, {
+    return this.post<any>(`/packing/containers/${containerId}/remove-items`, {
       inventoryId,
       itemIds,
     });

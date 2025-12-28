@@ -52,6 +52,7 @@ export default function PackingInterface({
   container,
   onClose,
   onItemsAdded,
+  onContainerUpdated,
 }: PackingInterfaceProps) {
   const { currentInventory } = useInventory();
   const { showSuccess, showError } = useNotification();
@@ -205,27 +206,20 @@ export default function PackingInterface({
       // Call packing API to add items to container
       const selectedItemIds = Array.from(selectedItems);
       
-      // For now, we'll simulate the API call since the packing service might not be fully implemented
-      // In a real implementation, this would call: await apiClient.addItemsToContainer(container.id, selectedItemIds);
+      // Call the real API to pack items
+      const result = await apiClient.addItemsToContainer(container.id, currentInventory.id, selectedItemIds);
       
-      // Update local state to reflect the packing
-      setPackingItems(prev => prev.map(item => {
-        if (selectedItems.has(item.id)) {
-          return {
-            ...item,
-            alreadyPacked: true,
-            currentContainer: container.id,
-            selected: false,
-          };
-        }
-        return { ...item, selected: false };
-      }));
-
+      // Reload data to get updated item states
+      await loadData();
+      
       // Clear selection
       setSelectedItems(new Set());
       
-      // Notify parent components
+      // Notify parent components with the updated container
       onItemsAdded(selectedItemIds);
+      if (onContainerUpdated && result.container) {
+        onContainerUpdated(result.container);
+      }
       
       showSuccess(`Successfully packed ${selectedItemIds.length} items into ${container.name}`);
       setConfirmDialogOpen(false);
@@ -249,25 +243,24 @@ export default function PackingInterface({
       return;
     }
 
+    if (!currentInventory) return;
+
     setLoading(true);
     try {
-      // For now, simulate the API call
-      // In a real implementation: await apiClient.removeItemsFromContainer(container.id, itemsToRemove);
+      // Call the real API to remove items from container
+      const result = await apiClient.removeItemsFromContainer(container.id, currentInventory.id, itemsToRemove);
       
-      // Update local state
-      setPackingItems(prev => prev.map(item => {
-        if (itemsToRemove.includes(item.id)) {
-          return {
-            ...item,
-            alreadyPacked: false,
-            currentContainer: undefined,
-            selected: false,
-          };
-        }
-        return { ...item, selected: false };
-      }));
-
+      // Reload data to get updated item states
+      await loadData();
+      
+      // Clear selection
       setSelectedItems(new Set());
+      
+      // Notify parent components with the updated container
+      if (onContainerUpdated && result.container) {
+        onContainerUpdated(result.container);
+      }
+      
       showSuccess(`Removed ${itemsToRemove.length} items from ${container.name}`);
     } catch (error) {
       console.error('Error removing items:', error);
@@ -280,7 +273,8 @@ export default function PackingInterface({
   // Calculate statistics
   const stats = useMemo(() => {
     const totalItems = packingFilteredItems.length;
-    const packedInContainer = packingFilteredItems.filter(item => item.currentContainer === container.id).length;
+    // Use the container's actual itemCount instead of counting local items
+    const packedInContainer = container.itemCount || 0;
     const selectedCount = selectedItems.size;
     const availableForPacking = packingFilteredItems.filter(item => 
       !item.alreadyPacked || item.currentContainer === container.id
@@ -292,7 +286,7 @@ export default function PackingInterface({
       selectedCount,
       availableForPacking,
     };
-  }, [packingFilteredItems, selectedItems, container.id]);
+  }, [packingFilteredItems, selectedItems, container.id, container.itemCount]);
 
   const getItemLocationName = (item: Thing) => {
     if (!item.locationId) return 'No location';
