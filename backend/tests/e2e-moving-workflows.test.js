@@ -38,6 +38,10 @@ jest.mock('@aws-sdk/client-s3', () => ({
   GetObjectCommand: jest.fn()
 }));
 
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn(() => ({}))
+}));
+
 // Import services after mocking
 const ContainerService = require('../services/containerService');
 const PackingService = require('../services/packingService');
@@ -59,11 +63,14 @@ describe('End-to-End Moving & Storage Workflows', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    containerService = new ContainerService();
-    packingService = new PackingService();
+    // Services exported as singletons (instances)
+    containerService = ContainerService;
+    packingService = PackingService;
+    reportService = ReportService;
+    projectService = MovingProjectService;
+    
+    // Services exported as classes
     qrCodeService = new QRCodeService();
-    reportService = new ReportService();
-    projectService = new MovingProjectService();
 
     // Setup default successful responses
     mockDocClient.send.mockResolvedValue({
@@ -75,6 +82,10 @@ describe('End-to-End Moving & Storage Workflows', () => {
     mockS3Client.send.mockResolvedValue({
       Location: 'https://s3.amazonaws.com/bucket/key'
     });
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
   });
 
   describe('Complete Packing Workflow', () => {

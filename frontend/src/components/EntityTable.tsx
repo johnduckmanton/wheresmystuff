@@ -194,6 +194,10 @@ export default function EntityTable({
             '& .MuiDataGrid-row': {
               cursor: onRowClick ? 'pointer' : 'default',
             },
+            '& .MuiDataGrid-cell': {
+              display: 'flex',
+              alignItems: 'center',
+            },
           }}
           autoHeight
           aria-label="Data table"

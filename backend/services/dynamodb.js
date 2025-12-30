@@ -388,8 +388,18 @@ async function getUserInventories(userId) {
  * @returns {Promise<boolean>} True if user has access
  */
 async function hasInventoryAccess(userId, inventoryId) {
-  const membership = await getInventoryMembership(inventoryId, userId);
-  return membership !== null;
+  if (!userId || !inventoryId) {
+    console.error('hasInventoryAccess: Missing parameters', { userId: !!userId, inventoryId: !!inventoryId });
+    return false;
+  }
+  
+  try {
+    const membership = await getInventoryMembership(inventoryId, userId);
+    return membership !== null;
+  } catch (error) {
+    console.error('hasInventoryAccess error:', error.message, { userId, inventoryId });
+    return false;
+  }
 }
 
 /**

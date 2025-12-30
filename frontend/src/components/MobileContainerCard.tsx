@@ -353,7 +353,7 @@ export default function MobileContainerCard({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <MoneyIcon fontSize="small" color="action" />
                 <Typography variant="body2" color="primary" fontWeight="medium">
-                  ${container.estimatedValue.toLocaleString()}
+                  £${container.estimatedValue.toLocaleString()}
                 </Typography>
               </Box>
             )}

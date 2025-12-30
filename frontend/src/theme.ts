@@ -1,14 +1,8 @@
 import { createTheme } from '@mui/material/styles';
 
 /**
- * Theme Configuration with Responsive Breakpoints
- * Breakpoints:
- * - xs: 0px (mobile)
- * - sm: 600px (tablet portrait)
- * - md: 900px (tablet landscape)
- * - lg: 1200px (desktop)
- * - xl: 1536px (large desktop)
- * Validates: Requirements 20.2, 20.3, 20.4
+ * Minimal Theme Configuration - Pure MUI Defaults
+ * Aggressive focus override to remove browser-specific blue boxes
  */
 export const theme = createTheme({
   palette: {
@@ -23,6 +17,10 @@ export const theme = createTheme({
       default: '#f5f5f5',
       paper: '#ffffff',
     },
+    text: {
+      primary: '#212121',
+      secondary: '#757575',
+    },
   },
   typography: {
     fontFamily: [
@@ -34,13 +32,6 @@ export const theme = createTheme({
       'Arial',
       'sans-serif',
     ].join(','),
-    // Responsive font sizes
-    h6: {
-      fontSize: '1.25rem',
-      '@media (max-width:600px)': {
-        fontSize: '1rem',
-      },
-    },
   },
   breakpoints: {
     values: {
@@ -51,375 +42,33 @@ export const theme = createTheme({
       xl: 1920,   // Large desktop: 1920x1080
     },
   },
-  // Disable focus ripple globally
   components: {
-    MuiButtonBase: {
-      defaultProps: {
-        disableRipple: true,
-        disableTouchRipple: true,
-      },
+    // Global CSS baseline to aggressively remove browser focus styles
+    MuiCssBaseline: {
       styleOverrides: {
-        root: {
+        '*': {
           '&:focus': {
             outline: 'none !important',
+            border: 'none !important',
             boxShadow: 'none !important',
           },
           '&:focus-visible': {
             outline: 'none !important',
+            border: 'none !important', 
             boxShadow: 'none !important',
           },
         },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          // Remove focus outline from buttons
-          '&.Mui-focused': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          '&:focus': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          '&:focus-visible': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          // Touch-friendly button sizes on mobile
-          '@media (max-width:600px)': {
-            minHeight: 44,
-            minWidth: 44,
-            padding: '12px 16px',
-          },
-        },
-      },
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          // Touch-friendly icon button sizes on mobile
-          '@media (max-width:600px)': {
-            minHeight: 48,
-            minWidth: 48,
-            padding: 12,
-          },
-        },
-      },
-    },
-    MuiFab: {
-      styleOverrides: {
-        root: {
-          // Larger FAB on mobile for better touch targets
-          '@media (max-width:600px)': {
-            width: 64,
-            height: 64,
-          },
-        },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          // Responsive dialog sizing
-          '@media (max-width:600px)': {
-            margin: 16,
-            maxWidth: 'calc(100% - 32px)',
-            maxHeight: 'calc(100% - 32px)',
-          },
-        },
-      },
-    },
-    MuiDialogTitle: {
-      styleOverrides: {
-        root: {
-          // Mobile-friendly dialog titles
-          '@media (max-width:600px)': {
-            fontSize: '1.25rem',
-            padding: '16px 16px 8px',
-          },
-        },
-      },
-    },
-    MuiDialogContent: {
-      styleOverrides: {
-        root: {
-          // Compact dialog content spacing
-          padding: '16px 24px',
-          '& > *': {
-            marginBottom: '12px', // Reduced spacing between elements
-          },
-          '& > *:last-child': {
-            marginBottom: 0,
-          },
-          // Mobile-friendly dialog content
-          '@media (max-width:600px)': {
-            padding: '8px 16px',
-            '& > *': {
-              marginBottom: '8px',
-            },
-          },
-        },
-      },
-    },
-    MuiDialogActions: {
-      styleOverrides: {
-        root: {
-          // Mobile-friendly dialog actions
-          '@media (max-width:600px)': {
-            padding: '8px 16px 16px',
-            gap: 8,
-            '& .MuiButton-root': {
-              flex: 1,
-              minHeight: 44,
-            },
-          },
-        },
-      },
-    },
-    MuiTextField: {
-      defaultProps: {
-        // Better mobile input experience and compact sizing
-        variant: 'outlined',
-        size: 'small', // Make all text fields small by default
-      },
-      styleOverrides: {
-        root: {
-          // Remove focus border for text fields
-          '& .MuiOutlinedInput-root': {
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderWidth: '1px',
-              borderColor: 'rgba(0, 0, 0, 0.23)',
-            },
-          },
-          // Compact spacing for all text fields
-          '& .MuiInputBase-root': {
-            fontSize: '0.875rem', // Slightly smaller font
-          },
-          '& .MuiInputLabel-root': {
-            fontSize: '0.875rem', // Smaller label font
-          },
-          '& .MuiFormHelperText-root': {
-            fontSize: '0.75rem', // Smaller helper text
-            marginTop: '4px',
-          },
-          // Mobile-friendly text fields
-          '@media (max-width:600px)': {
-            '& .MuiInputBase-root': {
-              minHeight: 40, // Reduced from 48
-            },
-            '& .MuiInputBase-input': {
-              fontSize: '16px', // Prevents zoom on iOS
-            },
-          },
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          // Mobile-friendly cards
-          '@media (max-width:600px)': {
-            borderRadius: 12,
-            '&:active': {
-              transform: 'scale(0.98)',
-              transition: 'transform 0.1s ease',
-            },
-          },
-        },
-      },
-    },
-    MuiCardContent: {
-      styleOverrides: {
-        root: {
-          // Mobile-friendly card content
-          '@media (max-width:600px)': {
-            padding: 16,
-            '&:last-child': {
-              paddingBottom: 16,
-            },
-          },
-        },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          // Touch-friendly chips on mobile
-          '@media (max-width:600px)': {
-            minHeight: 32,
-            '& .MuiChip-label': {
-              padding: '0 8px',
-            },
-          },
-        },
-      },
-    },
-    MuiBottomNavigation: {
-      styleOverrides: {
-        root: {
-          // Ensure bottom navigation is touch-friendly
-          height: 56,
-          '& .MuiBottomNavigationAction-root': {
-            minWidth: 'auto',
-            padding: '6px 12px 8px',
-          },
-        },
-      },
-    },
-    MuiListItem: {
-      styleOverrides: {
-        root: {
-          // Touch-friendly list items
-          '@media (max-width:600px)': {
-            minHeight: 48,
-            padding: '12px 16px',
-          },
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          // Mobile-friendly table cells
-          '@media (max-width:600px)': {
-            padding: '8px 4px',
-            fontSize: '0.875rem',
-          },
-        },
-      },
-    },
-    MuiSelect: {
-      styleOverrides: {
-        root: {
-          // Remove focus border entirely
-          '&.Mui-focused': {
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderWidth: '1px',
-              borderColor: 'rgba(0, 0, 0, 0.23)',
-            },
-          },
-        },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          // Remove focus border entirely for all outlined inputs
-          '&.Mui-focused': {
-            '& .MuiOutlinedInput-notchedOutline': {
-              borderWidth: '1px',
-              borderColor: 'rgba(0, 0, 0, 0.23)',
-            },
-          },
-          // Remove any additional borders
-          '& .MuiSelect-select': {
-            border: 'none',
-            outline: 'none',
-          },
-        },
-      },
-    },
-    MuiAccordion: {
-      styleOverrides: {
-        root: {
-          // Remove focus outline from accordions
-          '&.Mui-focused': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            border: '1px solid rgba(0, 0, 0, 0.12) !important',
-          },
+        // Remove any browser-specific focus rings
+        'input, textarea, select, button': {
           '&:focus': {
             outline: 'none !important',
+            border: 'none !important',
             boxShadow: 'none !important',
-            border: '1px solid rgba(0, 0, 0, 0.12) !important',
           },
           '&:focus-visible': {
             outline: 'none !important',
+            border: 'none !important',
             boxShadow: 'none !important',
-            border: '1px solid rgba(0, 0, 0, 0.12) !important',
-          },
-          '&.Mui-expanded': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            border: '1px solid rgba(0, 0, 0, 0.12) !important',
-          },
-        },
-      },
-    },
-    MuiAccordionSummary: {
-      styleOverrides: {
-        root: {
-          // Remove focus outline from accordion summaries
-          '&.Mui-focused': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            backgroundColor: 'transparent !important',
-          },
-          '&:focus': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            backgroundColor: 'transparent !important',
-          },
-          '&:focus-visible': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            backgroundColor: 'transparent !important',
-          },
-          '&.Mui-focusVisible': {
-            outline: 'none !important',
-            boxShadow: 'none !important',
-            backgroundColor: 'transparent !important',
-          },
-        },
-      },
-    },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          // Remove focus outline from menu items
-          '&.Mui-focused': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          '&:focus': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          '&:focus-visible': {
-            outline: 'none',
-            boxShadow: 'none',
-          },
-          // Touch-friendly menu items
-          '@media (max-width:600px)': {
-            minHeight: 48,
-            padding: '12px 16px',
-          },
-        },
-      },
-    },
-    MuiAutocomplete: {
-      defaultProps: {
-        size: 'small', // Make all autocomplete fields small by default
-      },
-      styleOverrides: {
-        root: {
-          // Compact autocomplete styling
-          '& .MuiInputBase-root': {
-            fontSize: '0.875rem',
-          },
-          '& .MuiInputLabel-root': {
-            fontSize: '0.875rem',
-          },
-        },
-        paper: {
-          // Compact dropdown options
-          '& .MuiAutocomplete-option': {
-            minHeight: 'auto',
-            padding: '6px 12px',
-            fontSize: '0.875rem',
           },
         },
       },

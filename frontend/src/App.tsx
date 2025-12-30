@@ -38,10 +38,6 @@ import SharedContainerView from './components/SharedContainerView';
 import apiClient from './services/api';
 import { theme } from './theme';
 
-// Import accessibility styles
-import './styles/accessibility.css';
-import './styles/no-focus.css';
-
 // Context for mobile sidebar state
 const MobileSidebarContext = createContext<{
   toggleMobileSidebar: () => void;
@@ -140,41 +136,6 @@ function AuthErrorHandler() {
 }
 
 function App() {
-  // Inject focus removal CSS only (no JavaScript interference)
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.id = 'no-focus-override';
-    style.textContent = `
-      * { outline: none !important; }
-      *:focus, *:focus-visible, *:focus-within { 
-        outline: none !important; 
-        box-shadow: none !important; 
-      }
-      .MuiMenuItem-root, .MuiMenuItem-root:focus, .MuiMenuItem-root:hover, .MuiMenuItem-root.Mui-focused { 
-        outline: none !important; 
-        box-shadow: none !important; 
-      }
-      .MuiTouchRipple-root { display: none !important; }
-      .MuiButtonBase-root:focus { outline: none !important; box-shadow: none !important; }
-      [class*="Mui"]:focus, [class*="Mui"].Mui-focused { 
-        outline: none !important; 
-        box-shadow: none !important; 
-      }
-      .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-        border-width: 1px !important;
-        border-color: rgba(0, 0, 0, 0.23) !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      const existingStyle = document.getElementById('no-focus-override');
-      if (existingStyle) {
-        document.head.removeChild(existingStyle);
-      }
-    };
-  }, []);
-
   return (
     <ErrorBoundary>
       <ThemeProvider theme={theme}>

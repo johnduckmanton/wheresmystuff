@@ -349,7 +349,7 @@ const OverviewPanel: React.FC<{
               </Typography>
             </Box>
             <Typography variant="h3" color="info.main">
-              ${packingMetrics?.metrics?.totalValue?.toFixed(0) || 0}
+              £${packingMetrics?.metrics?.totalValue?.toFixed(0) || 0}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Across all containers
@@ -400,7 +400,7 @@ const OverviewPanel: React.FC<{
             </Typography>
             <Box display="flex" alignItems="center" mb={2}>
               <Typography variant="h4" color="warning.main">
-                ${storageCosts?.costs?.totalMonthlyCost?.toFixed(2) || 0}
+                £${storageCosts?.costs?.totalMonthlyCost?.toFixed(2) || 0}
               </Typography>
               <Typography variant="body1" sx={{ ml: 1 }}>
                 /month
@@ -410,7 +410,7 @@ const OverviewPanel: React.FC<{
               {storageCosts?.costs?.totalContainers || 0} containers in storage
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Total cost to date: ${storageCosts?.costs?.totalCost?.toFixed(2) || 0}
+              Total cost to date: £${storageCosts?.costs?.totalCost?.toFixed(2) || 0}
             </Typography>
           </CardContent>
         </Card>
@@ -457,7 +457,7 @@ const PackingMetricsPanel: React.FC<{ metrics: any }> = ({ metrics }) => {
                 <Typography variant="body2" color="text.secondary">
                   Avg Value/Container
                 </Typography>
-                <Typography variant="h5">${data.avgValuePerContainer}</Typography>
+                <Typography variant="h5">£${data.avgValuePerContainer}</Typography>
               </Box>
             </Box>
           </CardContent>
@@ -547,7 +547,7 @@ const PackingMetricsPanel: React.FC<{ metrics: any }> = ({ metrics }) => {
                           {day.itemsPacked} items
                         </Typography>
                         <Typography variant="body2">
-                          ${day.totalValue}
+                          £${day.totalValue}
                         </Typography>
                       </Box>
                     </Box>

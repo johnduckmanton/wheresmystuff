@@ -313,7 +313,7 @@ const SharedContainerView: React.FC = () => {
                       Estimated Value
                     </Typography>
                     <Typography variant="body2" fontWeight="bold" color="success.main">
-                      ${container.estimatedValue.toLocaleString()}
+                      £${container.estimatedValue.toLocaleString()}
                     </Typography>
                   </Box>
                 )}
@@ -459,7 +459,7 @@ const SharedContainerView: React.FC = () => {
                                 <Stack direction="row" spacing={2} flexWrap="wrap">
                                   {item.value && (
                                     <Typography variant="body2" color="success.main" fontWeight="medium">
-                                      Value: ${item.value.toLocaleString()}
+                                      Value: £${item.value.toLocaleString()}
                                     </Typography>
                                   )}
                                   {item.brand && (

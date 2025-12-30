@@ -304,6 +304,16 @@ export default function ContainerDetailDialog({
                           </Box>
                         </Box>
 
+                        {/* Contents Summary */}
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Contents:
+                          </Typography>
+                          <Typography variant="body2">
+                            {updatedContainer.contentsSummary || 'No contents summary provided'}
+                          </Typography>
+                        </Box>
+
                         {/* Handling Flags */}
                         {updatedContainer.handlingFlags.length > 0 && (
                           <Box>
@@ -372,7 +382,7 @@ export default function ContainerDetailDialog({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <MoneyIcon color="action" />
                           <Typography variant="body2">
-                            <strong>${updatedContainer.estimatedValue.toFixed(2)}</strong> total value
+                            <strong>£${updatedContainer.estimatedValue.toFixed(2)}</strong> total value
                           </Typography>
                         </Box>
 
@@ -450,6 +460,7 @@ export default function ContainerDetailDialog({
         open={qrCodeDialogOpen}
         onClose={() => setQrCodeDialogOpen(false)}
         container={updatedContainer}
+        inventoryId={inventoryId}
         onQRCodeGenerated={() => {
           // Optionally show success message or update container
           setQrCodeDialogOpen(false);

@@ -52,6 +52,7 @@ class Container {
     this.size = data.size;
     this.color = data.color;
     this.description = data.description || '';
+    this.contentsSummary = data.contentsSummary || '';
     this.photos = data.photos || [];
     this.qrCode = data.qrCode || this._generateQRCode();
     this.qrCodeUrl = data.qrCodeUrl;
@@ -109,6 +110,15 @@ class Container {
 
     if (this.description && this.description.length > 500) {
       errors.push('Description must be 500 characters or less');
+    }
+
+    // Contents summary validation
+    if (this.contentsSummary && typeof this.contentsSummary !== 'string') {
+      errors.push('Contents summary must be a string');
+    }
+
+    if (this.contentsSummary && this.contentsSummary.length > 200) {
+      errors.push('Contents summary must be 200 characters or less');
     }
 
     // Type validation
@@ -254,6 +264,7 @@ class Container {
       name: this.name,
       type: this.type,
       description: this.description,
+      contentsSummary: this.contentsSummary,
       photos: this.photos,
       qrCode: this.qrCode,
       handlingFlags: this.handlingFlags,
@@ -294,6 +305,7 @@ class Container {
       size: item.size,
       color: item.color,
       description: item.description,
+      contentsSummary: item.contentsSummary,
       photos: item.photos || [],
       qrCode: item.qrCode,
       qrCodeUrl: item.qrCodeUrl,
@@ -319,7 +331,7 @@ class Container {
    */
   update(updates, updatedBy) {
     const allowedUpdates = [
-      'name', 'description', 'type', 'size', 'color', 'photos', 'locationId',
+      'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'photos', 'locationId',
       'handlingFlags', 'projectId', 'storageRate', 'metadata'
     ];
 

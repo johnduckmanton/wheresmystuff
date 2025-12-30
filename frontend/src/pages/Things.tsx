@@ -407,7 +407,15 @@ export default function Things() {
             variant="outlined" 
             startIcon={<AutoAwesomeIcon />} 
             onClick={() => setShowAIUpload(!showAIUpload)}
-            color={showAIUpload ? 'primary' : 'inherit'}
+            color={showAIUpload ? 'primary' : 'primary'}
+            sx={{
+              color: showAIUpload ? 'primary.main' : 'text.primary',
+              borderColor: showAIUpload ? 'primary.main' : 'text.primary',
+              '&:hover': {
+                backgroundColor: 'primary.50',
+                borderColor: 'primary.main',
+              }
+            }}
           >
             AI Photo Upload
           </Button>

@@ -705,7 +705,7 @@ class AnalyticsService {
         type: 'security',
         priority: 'high',
         title: 'High-Value Containers',
-        description: `Your containers average $${packingMetrics.metrics.avgValuePerContainer.toFixed(2)} in value. Consider special handling for valuable items.`,
+        description: `Your containers average £${packingMetrics.metrics.avgValuePerContainer.toFixed(2)} in value. Consider special handling for valuable items.`,
         action: 'Mark high-value containers with appropriate handling flags'
       });
     }

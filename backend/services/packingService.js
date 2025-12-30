@@ -564,7 +564,7 @@ class PackingService {
 
     const newTotalValue = container.estimatedValue + totalNewValue;
     if (newTotalValue > 10000) {
-      warnings.push(`Container will contain items worth $${newTotalValue.toFixed(2)}, consider special handling`);
+      warnings.push(`Container will contain items worth £${newTotalValue.toFixed(2)}, consider special handling`);
     }
 
     return {

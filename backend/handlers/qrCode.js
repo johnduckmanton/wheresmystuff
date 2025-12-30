@@ -606,18 +606,42 @@ exports.getContainerQRCode = async (event) => {
 
 /**
  * Generate printable label for a container
+ * Updated to fetch actual container data from database
  */
 exports.generateLabel = async (event) => {
   try {
-    // Validate JWT token
-    await authenticate(event);
-    const user = event.user;
+    // Handle both API Gateway JWT authorizer and manual JWT validation
+    let user;
+    
+    // Check if API Gateway already validated the JWT (claims available in requestContext)
+    if (event.requestContext?.authorizer?.jwt?.claims) {
+      const claims = event.requestContext.authorizer.jwt.claims;
+      user = {
+        userId: claims.sub,
+        email: claims.email,
+        username: claims['cognito:username'] || claims.username || claims.email
+      };
+      event.user = user;
+    } else {
+      // Fallback to manual JWT validation
+      await authenticate(event);
+      user = event.user;
+    }
+    
+    if (!user || !user.userId) {
+      console.error('Authentication failed: No user found');
+      return error('Authentication failed', 401);
+    }
     
     const { containerId } = event.pathParameters;
-    const { size = 'medium' } = event.queryStringParameters || {};
+    const { size = 'medium', inventoryId } = event.queryStringParameters || {};
 
     if (!containerId) {
       return error('Container ID is required');
+    }
+
+    if (!inventoryId) {
+      return error('Inventory ID is required');
     }
 
     // Validate size parameter
@@ -626,14 +650,39 @@ exports.generateLabel = async (event) => {
       return error(`Invalid size. Must be one of: ${validSizes.join(', ')}`);
     }
 
-    // Get container data (this would typically come from the database)
-    // For now, we'll create mock data
-    const containerData = {
-      id: containerId,
-      name: `Container ${containerId}`,
-      type: 'Box',
-      createdAt: new Date().toISOString()
-    };
+    // Get container service to fetch actual container data
+    const ContainerService = require('../services/containerService');
+    
+    let containerData;
+    try {
+      // Get the actual container data from the database
+      const container = await ContainerService.getContainer(containerId, inventoryId, user.userId);
+      
+      containerData = {
+        id: container.id,
+        name: container.name,
+        type: container.type,
+        contentsSummary: container.contentsSummary,
+        createdAt: container.createdAt
+      };
+    } catch (containerError) {
+      // Enhanced error logging for debugging access issues
+      console.error('Container access error details:', {
+        error: containerError.message,
+        containerId,
+        inventoryId,
+        userId: user.userId,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (containerError.message.includes('not found')) {
+        return error('Container not found', 404);
+      } else if (containerError.message.includes('Access denied')) {
+        return error('Access denied to container', 403);
+      } else {
+        throw containerError;
+      }
+    }
 
     // Generate label
     const labelBuffer = await labelService.generateLabel(containerData, size);
@@ -646,13 +695,15 @@ exports.generateLabel = async (event) => {
 
     // Log the label generation
     await logSecurityEvent('LABEL_GENERATED', {
-      userId: user.sub,
+      userId: user.userId,
       containerId,
+      containerName: containerData.name,
       size
     });
 
     return success({
       containerId,
+      containerName: containerData.name,
       s3Key,
       size,
       downloadUrl,
@@ -676,23 +727,46 @@ exports.generateLabel = async (event) => {
  */
 exports.generateBatchLabels = async (event) => {
   try {
-    // Validate JWT token
-    await authenticate(event);
-    const user = event.user;
+    // Handle both API Gateway JWT authorizer and manual JWT validation
+    let user;
+    
+    // Check if API Gateway already validated the JWT (claims available in requestContext)
+    if (event.requestContext?.authorizer?.jwt?.claims) {
+      const claims = event.requestContext.authorizer.jwt.claims;
+      user = {
+        userId: claims.sub,
+        email: claims.email,
+        username: claims['cognito:username'] || claims.username || claims.email
+      };
+      event.user = user;
+    } else {
+      // Fallback to manual JWT validation
+      await authenticate(event);
+      user = event.user;
+    }
+    
+    if (!user || !user.userId) {
+      console.error('Authentication failed: No user found');
+      return error('Authentication failed', 401);
+    }
     
     const body = JSON.parse(event.body || '{}');
-    const { containers, size = 'medium', sheetFormat = false } = body;
+    const { containerIds, inventoryId, size = 'medium', sheetFormat = false } = body;
 
-    if (!containers || !Array.isArray(containers)) {
-      return error('Containers array is required');
+    if (!containerIds || !Array.isArray(containerIds)) {
+      return error('Container IDs array is required');
     }
 
-    if (containers.length === 0) {
-      return error('At least one container is required');
+    if (containerIds.length === 0) {
+      return error('At least one container ID is required');
     }
 
-    if (containers.length > 50) {
+    if (containerIds.length > 50) {
       return error('Cannot process more than 50 containers at once');
+    }
+
+    if (!inventoryId) {
+      return error('Inventory ID is required');
     }
 
     // Validate size parameter
@@ -701,25 +775,53 @@ exports.generateBatchLabels = async (event) => {
       return error(`Invalid size. Must be one of: ${validSizes.join(', ')}`);
     }
 
+    // Get container service to fetch actual container data
+    const ContainerService = require('../services/containerService');
+    
+    // Fetch all container data
+    const containers = [];
+    const errors = [];
+    
+    for (const containerId of containerIds) {
+      try {
+        const container = await ContainerService.getContainer(containerId, inventoryId, user.userId);
+        containers.push({
+          id: container.id,
+          name: container.name,
+          type: container.type,
+          contentsSummary: container.contentsSummary,
+          createdAt: container.createdAt
+        });
+      } catch (containerError) {
+        errors.push({
+          containerId,
+          error: containerError.message
+        });
+      }
+    }
+
+    if (containers.length === 0) {
+      return error('No valid containers found', 404);
+    }
+
     let result;
 
     if (sheetFormat) {
       // Generate a single sheet with multiple labels
       const sheetBuffer = await labelService.generateLabelSheet(containers, size);
-      const timestamp = Date.now();
-      const sheetKey = `label-sheets/batch_${timestamp}_${size}.png`;
       
-      // Store sheet in S3
-      await labelService.storeLabelImage('batch', sheetBuffer, `sheet_${size}`);
-      const downloadUrl = await generateQRDownloadUrl(sheetKey, false);
+      // Store sheet in S3 and get the actual key
+      const s3Key = await labelService.storeLabelImage('batch', sheetBuffer, `sheet_${size}`);
+      const downloadUrl = await generateQRDownloadUrl(s3Key, false);
 
       result = {
         type: 'sheet',
-        s3Key: sheetKey,
+        s3Key,
         downloadUrl,
         containerCount: containers.length,
         size,
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        errors: errors.length > 0 ? errors : undefined
       };
     } else {
       // Generate individual labels
@@ -739,14 +841,16 @@ exports.generateBatchLabels = async (event) => {
       result = {
         type: 'individual',
         ...batchResult,
-        successful: successfulWithUrls
+        successful: successfulWithUrls,
+        containerErrors: errors.length > 0 ? errors : undefined
       };
     }
 
     // Log the batch label generation
     await logSecurityEvent('BATCH_LABEL_GENERATED', {
-      userId: user.sub,
+      userId: user.userId,
       containerCount: containers.length,
+      errorCount: errors.length,
       size,
       sheetFormat
     });
@@ -766,6 +870,7 @@ exports.generateBatchLabels = async (event) => {
 
 /**
  * Main handler function for API Gateway
+ * Updated: 2025-01-29 - Fixed label generation with real container data
  */
 exports.handler = async (event) => {
   // Debug: Log the entire event to understand the structure
@@ -786,15 +891,16 @@ exports.handler = async (event) => {
 
   try {
     // Route to appropriate handler based on path and method
-    if (path.includes('/qr-code') && method === 'POST') {
+    // Check more specific paths first to avoid conflicts
+    if (path.includes('/qr-codes/batch') && method === 'POST') {
+      console.log('✅ Routing to generateBatchQRCodes');
+      return await exports.generateBatchQRCodes(event);
+    } else if (path.includes('/qr-code') && method === 'POST') {
       console.log('✅ Routing to generateQRCode');
       return await exports.generateQRCode(event);
     } else if (path.includes('/qr-code') && method === 'GET') {
       console.log('✅ Routing to getContainerQRCode');
       return await exports.getContainerQRCode(event);
-    } else if (path.includes('/qr-codes/batch') && method === 'POST') {
-      console.log('✅ Routing to generateBatchQRCodes');
-      return await exports.generateBatchQRCodes(event);
     } else if (path.includes('/qr-codes/decode') && method === 'POST') {
       console.log('✅ Routing to decodeQRCode');
       return await exports.decodeQRCode(event);
@@ -810,12 +916,12 @@ exports.handler = async (event) => {
     } else if (path.includes('/containers/lookup') && method === 'POST') {
       console.log('✅ Routing to lookupContainer');
       return await exports.lookupContainer(event);
-    } else if (path.includes('/label') && method === 'POST') {
-      console.log('✅ Routing to generateLabel');
-      return await exports.generateLabel(event);
     } else if (path.includes('/labels/batch') && method === 'POST') {
       console.log('✅ Routing to generateBatchLabels');
       return await exports.generateBatchLabels(event);
+    } else if (path.includes('/label') && method === 'POST') {
+      console.log('✅ Routing to generateLabel');
+      return await exports.generateLabel(event);
     } else {
       console.log('❌ No matching route found');
       console.log('- Available routes: /qr-code (POST/GET), /qr-codes/batch (POST), etc.');

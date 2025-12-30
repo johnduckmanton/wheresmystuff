@@ -192,6 +192,7 @@ export interface Container {
   size?: string;                 // Small, Medium, Large, Custom
   color?: string;                // Visual identifier
   description?: string;          // Additional notes
+  contentsSummary?: string;      // Brief description of container contents (max 200 chars)
   photos?: string[];             // Array of S3 keys for container photos
   qrCode: string;                // Unique QR code identifier
   qrCodeUrl?: string;            // S3 URL for QR code image

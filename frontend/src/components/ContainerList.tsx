@@ -241,7 +241,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Name',
       flex: 1,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
           {/* Color indicator and photo */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {params.row.photos && params.row.photos.length > 0 ? (
@@ -252,6 +252,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
                   borderRadius: '50%',
                   overflow: 'hidden',
                   border: params.row.color ? `2px solid ${params.row.color}` : '1px solid #ddd',
+                  flexShrink: 0,
                 }}
               >
                 <img
@@ -272,15 +273,16 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
                   borderRadius: '50%',
                   backgroundColor: params.row.color,
                   border: '1px solid #ddd',
+                  flexShrink: 0,
                 }}
               />
             ) : null}
-            <Typography variant="body2" fontWeight="medium">
+            <Typography variant="body2" fontWeight="medium" sx={{ lineHeight: 1.2 }}>
               {params.value}
             </Typography>
           </Box>
           {params.row.handlingFlags?.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {params.row.handlingFlags.slice(0, 3).map((flag: HandlingFlag) => (
                 <HandlingFlagChip
                   key={flag}
@@ -308,11 +310,13 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Type',
       width: 100,
       renderCell: (params) => (
-        <Chip
-          label={params.value.charAt(0).toUpperCase() + params.value.slice(1)}
-          size="small"
-          variant="outlined"
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip
+            label={params.value.charAt(0).toUpperCase() + params.value.slice(1)}
+            size="small"
+            variant="outlined"
+          />
+        </Box>
       ),
     },
     {
@@ -334,11 +338,13 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         };
 
         return (
-          <Chip
-            label={params.value.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-            size="small"
-            color={getStatusColor(params.value)}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Chip
+              label={params.value.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+              size="small"
+              color={getStatusColor(params.value)}
+            />
+          </Box>
         );
       },
     },
@@ -347,9 +353,9 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Items',
       width: 80,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, height: '100%' }}>
           <InventoryIcon fontSize="small" color="action" />
-          <Typography variant="body2">{params.value || 0}</Typography>
+          <Typography variant="body2" sx={{ lineHeight: 1.2 }}>{params.value || 0}</Typography>
         </Box>
       ),
     },
@@ -358,12 +364,18 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Location',
       width: 150,
       renderCell: (params) => {
-        if (!params.value) return <Typography variant="body2" color="text.secondary">-</Typography>;
+        if (!params.value) return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>-</Typography>
+          </Box>
+        );
         const location = locationMap.get(params.value);
         return (
-          <Typography variant="body2">
-            {location?.name || 'Unknown'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography variant="body2" sx={{ lineHeight: 1.2 }}>
+              {location?.name || 'Unknown'}
+            </Typography>
+          </Box>
         );
       },
     },
@@ -372,15 +384,21 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Project',
       width: 150,
       renderCell: (params) => {
-        if (!params.value) return <Typography variant="body2" color="text.secondary">No Project</Typography>;
+        if (!params.value) return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>No Project</Typography>
+          </Box>
+        );
         const project = projectMap.get(params.value);
         return (
-          <Chip
-            label={project?.name || 'Unknown Project'}
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            <Chip
+              label={project?.name || 'Unknown Project'}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          </Box>
         );
       },
     },
@@ -389,9 +407,11 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       headerName: 'Value',
       width: 100,
       renderCell: (params) => (
-        <Typography variant="body2">
-          {params.value ? `$${params.value.toFixed(2)}` : '-'}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" sx={{ lineHeight: 1.2 }}>
+            {params.value ? `£${params.value.toFixed(2)}` : '-'}
+          </Typography>
+        </Box>
       ),
     },
     {
@@ -400,7 +420,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       width: 200,
       sortable: false,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, height: '100%' }}>
           <Tooltip title="Generate QR Code">
             <IconButton
               size="small"
@@ -780,6 +800,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
           open={qrCodeDialogOpen}
           onClose={handleQRCodeClose}
           container={selectedContainer}
+          inventoryId={currentInventory?.id || ''}
           onQRCodeGenerated={handleQRCodeGenerated}
         />
       )}
@@ -789,6 +810,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         open={batchQrCodeDialogOpen}
         onClose={handleBatchQRCodeClose}
         containers={containers}
+        inventoryId={currentInventory?.id || ''}
         onBatchGenerated={handleBatchQRCodeGenerated}
       />
 

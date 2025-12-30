@@ -820,14 +820,17 @@ class ApiClient {
     return this.post<any>('/qr-codes/batch', { containerIds, size });
   }
 
-  async generateLabel(containerId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+  async generateLabel(containerId: string, size: 'small' | 'medium' | 'large' = 'medium', inventoryId?: string): Promise<{
     containerId: string;
     s3Key: string;
     size: string;
     downloadUrl: string;
     generatedAt: string;
   }> {
-    return this.post<any>(`/containers/${containerId}/label?size=${size}`, {});
+    if (!inventoryId) {
+      throw new Error('Inventory ID is required');
+    }
+    return this.post<any>(`/containers/${containerId}/label?size=${size}&inventoryId=${inventoryId}`, {});
   }
 
   async generateBatchLabels(containers: Array<{
@@ -835,7 +838,7 @@ class ApiClient {
     name: string;
     type: string;
     createdAt: string;
-  }>, size: 'small' | 'medium' | 'large' = 'medium', sheetFormat: boolean = false): Promise<{
+  }>, size: 'small' | 'medium' | 'large' = 'medium', sheetFormat: boolean = false, inventoryId?: string): Promise<{
     type: 'sheet' | 'individual';
     s3Key?: string;
     downloadUrl?: string;
@@ -857,7 +860,11 @@ class ApiClient {
     size: string;
     generatedAt: string;
   }> {
-    return this.post<any>('/labels/batch', { containers, size, sheetFormat });
+    if (!inventoryId) {
+      throw new Error('Inventory ID is required');
+    }
+    const containerIds = containers.map(c => c.id);
+    return this.post<any>('/labels/batch', { containerIds, inventoryId, size, sheetFormat });
   }
 
   // QR Code Scanning API

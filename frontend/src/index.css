@@ -1,7 +1,7 @@
+/* Minimal CSS - Let Material-UI handle everything */
+
 /* Import mobile-specific styles */
 @import './styles/mobile.css';
-/* Import accessibility styles */
-@import './styles/accessibility.css';
 
 /* Reset default Vite styles and use Material-UI theme instead */
 :root {
@@ -34,3 +34,46 @@ a {
 }
 
 /* Remove Vite's button styles - let Material-UI handle buttons */
+
+/* Aggressive focus override - remove all browser-specific focus styles */
+*, *:before, *:after {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+div:focus,
+[tabindex]:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove Chrome's blue focus ring specifically */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+div:focus-visible,
+[tabindex]:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove any webkit-specific focus styles */
+input::-webkit-focus-inner,
+button::-webkit-focus-inner {
+  border: 0 !important;
+  outline: none !important;
+}
+
+/* Remove Firefox focus styles */
+input::-moz-focus-inner,
+button::-moz-focus-inner {
+  border: 0 !important;
+  outline: none !important;
+}

@@ -41,11 +41,13 @@ import {
 } from '@mui/icons-material';
 import type { Container } from '../types';
 import apiClient from '../services/api';
+import S3Image from './S3Image';
 
 interface BatchQRCodeGeneratorProps {
   open: boolean;
   onClose: () => void;
   containers: Container[];
+  inventoryId: string;
   onBatchGenerated?: (results: any) => void;
 }
 
@@ -99,6 +101,7 @@ const BatchQRCodeGenerator: React.FC<BatchQRCodeGeneratorProps> = ({
   open,
   onClose,
   containers,
+  inventoryId,
   onBatchGenerated,
 }) => {
   const [selectedContainers, setSelectedContainers] = useState<string[]>([]);
@@ -204,7 +207,7 @@ const BatchQRCodeGenerator: React.FC<BatchQRCodeGeneratorProps> = ({
         setProgress(prev => Math.min(prev + 10, 90));
       }, 300);
 
-      const result = await apiClient.generateBatchLabels(containerData, selectedSize, sheetFormat);
+      const result = await apiClient.generateBatchLabels(containerData, selectedSize, sheetFormat, inventoryId);
       
       clearInterval(progressInterval);
       setProgress(100);
@@ -549,7 +552,7 @@ const BatchQRCodeGenerator: React.FC<BatchQRCodeGeneratorProps> = ({
 
               {labelResults.type === 'sheet' && labelResults.downloadUrl && (
                 <Box sx={{ mt: 2, textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                  <img
+                  <S3Image
                     src={labelResults.downloadUrl}
                     alt="Label Sheet Preview"
                     style={{

@@ -133,7 +133,7 @@ class StorageAlertService {
       alerts.push({
         type: 'high_cost_storage',
         priority: 'high',
-        message: `High storage cost: $${projectedYearlyCost.toFixed(2)} per year. Consider alternative storage or retrieval.`,
+        message: `High storage cost: £${projectedYearlyCost.toFixed(2)} per year. Consider alternative storage or retrieval.`,
         action: 'cost_optimization',
         costImpact: projectedYearlyCost
       });
@@ -141,7 +141,7 @@ class StorageAlertService {
       alerts.push({
         type: 'moderate_cost_storage',
         priority: 'medium',
-        message: `Moderate storage cost: $${projectedYearlyCost.toFixed(2)} per year. Monitor for cost efficiency.`,
+        message: `Moderate storage cost: £${projectedYearlyCost.toFixed(2)} per year. Monitor for cost efficiency.`,
         action: 'cost_monitoring',
         costImpact: projectedYearlyCost
       });
@@ -255,7 +255,7 @@ class StorageAlertService {
         type: 'cost_review',
         priority: 'high',
         title: 'Storage Cost Review',
-        description: `Total storage cost of $${summary.totalCurrentCost.toFixed(2)} warrants comprehensive review.`,
+        description: `Total storage cost of £${summary.totalCurrentCost.toFixed(2)} warrants comprehensive review.`,
         action: 'comprehensive_review',
         estimatedSavings: summary.totalCurrentCost * 0.2 // Assume 20% potential savings
       });

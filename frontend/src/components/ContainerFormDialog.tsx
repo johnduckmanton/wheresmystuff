@@ -80,6 +80,7 @@ interface FormData {
   size: string;
   color: string;
   description: string;
+  contentsSummary: string;
   photos: string[];
   locationId: string;
   handlingFlags: HandlingFlag[];
@@ -93,6 +94,7 @@ interface FormErrors {
   size?: string;
   color?: string;
   description?: string;
+  contentsSummary?: string;
   photos?: string;
   locationId?: string;
   handlingFlags?: string;
@@ -116,6 +118,7 @@ export default function ContainerFormDialog({
     size: '',
     color: '',
     description: '',
+    contentsSummary: '',
     photos: [],
     locationId: '',
     handlingFlags: [],
@@ -143,6 +146,7 @@ export default function ContainerFormDialog({
           size: container.size || '',
           color: container.color || '',
           description: container.description || '',
+          contentsSummary: container.contentsSummary || '',
           photos: container.photos || [],
           locationId: container.locationId || '',
           handlingFlags: container.handlingFlags || [],
@@ -156,6 +160,7 @@ export default function ContainerFormDialog({
           size: '',
           color: '',
           description: '',
+          contentsSummary: '',
           photos: [],
           locationId: '',
           handlingFlags: [],
@@ -199,6 +204,11 @@ export default function ContainerFormDialog({
     // Validate color format if provided (hex color)
     if (formData.color && !/^#[0-9A-F]{6}$/i.test(formData.color)) {
       newErrors.color = 'Color must be a valid hex color (e.g., #FF5733)';
+    }
+
+    // Validate contents summary length
+    if (formData.contentsSummary && formData.contentsSummary.length > 200) {
+      newErrors.contentsSummary = 'Contents summary must be 200 characters or less';
     }
 
     setErrors(newErrors);
@@ -245,6 +255,7 @@ export default function ContainerFormDialog({
         size: formData.size || undefined,
         color: formData.color || undefined,
         description: formData.description || undefined,
+        contentsSummary: formData.contentsSummary.trim() || undefined,
         photos: formData.photos,
         locationId: formData.locationId || undefined,
         handlingFlags: formData.handlingFlags,
@@ -286,6 +297,7 @@ export default function ContainerFormDialog({
       size: '',
       color: '',
       description: '',
+      contentsSummary: '',
       photos: [],
       locationId: '',
       handlingFlags: [],
@@ -379,6 +391,26 @@ export default function ContainerFormDialog({
               placeholder="#FF5733"
             />
           </Box>
+
+          {/* Contents Summary */}
+          <TextField
+            fullWidth
+            label="Contents Summary"
+            value={formData.contentsSummary}
+            onChange={(e) => handleFieldChange('contentsSummary', e.target.value)}
+            error={!!errors.contentsSummary}
+            helperText={
+              errors.contentsSummary || 
+              `Brief description of container contents (${formData.contentsSummary.length}/200 characters)`
+            }
+            placeholder="e.g., Kitchen utensils and small appliances"
+            inputProps={{ maxLength: 200 }}
+            FormHelperTextProps={{
+              sx: {
+                color: formData.contentsSummary.length > 180 ? 'warning.main' : undefined,
+              }
+            }}
+          />
 
           {/* Location */}
           <FormControl fullWidth error={!!errors.locationId}>

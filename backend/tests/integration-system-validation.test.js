@@ -19,6 +19,9 @@ const mockS3Client = {
 };
 
 // Mock the AWS SDK modules
+const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+const { S3Client } = require('@aws-sdk/client-s3');
+
 jest.mock('@aws-sdk/lib-dynamodb', () => ({
   DynamoDBDocumentClient: {
     from: jest.fn(() => mockDocClient)
@@ -38,31 +41,28 @@ jest.mock('@aws-sdk/client-s3', () => ({
   GetObjectCommand: jest.fn()
 }));
 
+jest.mock('@aws-sdk/client-dynamodb', () => ({
+  DynamoDBClient: jest.fn(() => ({}))
+}));
+
 // Import handlers (simulating API Gateway integration)
 const containerHandler = require('../handlers/containers');
 const packingHandler = require('../handlers/packing');
-// Skip QR code handler due to syntax issues
-// const qrCodeHandler = require('../handlers/qrCode');
+const qrCodeHandler = require('../handlers/qrCode');
 const projectHandler = require('../handlers/projects');
 const reportHandler = require('../handlers/reports');
 
 describe('System Integration Tests', () => {
-  let mockDocClient;
-  let mockS3Client;
-
   beforeEach(() => {
     jest.clearAllMocks();
     
-    mockDocClient = {
-      send: jest.fn()
-    };
-    
-    mockS3Client = {
-      send: jest.fn()
-    };
-
-    DynamoDBDocumentClient.from = jest.fn(() => mockDocClient);
+    // Setup mock implementations
+    DynamoDBDocumentClient.from.mockReturnValue(mockDocClient);
     S3Client.mockImplementation(() => mockS3Client);
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
   });
 
   describe('Complete Moving Workflow Integration', () => {
@@ -496,12 +496,19 @@ describe('System Integration Tests', () => {
           itemIds: ['item-1', 'item-2', 'item-3']
         }),
         requestContext: {
+          http: {
+            method: 'POST',
+            sourceIp: '127.0.0.1'
+          },
           authorizer: {
             claims: {
               sub: userId,
               'custom:inventory_id': inventoryId
             }
           }
+        },
+        headers: {
+          'user-agent': 'test-agent'
         }
       };
 

@@ -257,7 +257,7 @@ function ContainerStatsCard({ containers, stats }: ContainerStatsCardProps) {
               Total Estimated Value
             </Typography>
             <Typography variant="h6" color="primary">
-              ${stats.totalValue.toLocaleString()}
+              £${stats.totalValue.toLocaleString()}
             </Typography>
           </Box>
         )}
@@ -698,7 +698,7 @@ export default function MovingDashboard() {
                             </Typography>
                             {(container.estimatedValue || 0) > 0 && (
                               <Typography variant="body2" color="primary">
-                                ${(container.estimatedValue || 0).toLocaleString()}
+                                £${(container.estimatedValue || 0).toLocaleString()}
                               </Typography>
                             )}
                           </Box>

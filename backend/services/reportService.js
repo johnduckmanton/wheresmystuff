@@ -742,10 +742,10 @@ class ReportService {
           // Group by value ranges
           const value = containerReport.estimatedValue;
           if (value === 0) groupKey = 'No value';
-          else if (value < 100) groupKey = 'Under $100';
-          else if (value < 500) groupKey = '$100 - $500';
-          else if (value < 1000) groupKey = '$500 - $1000';
-          else groupKey = 'Over $1000';
+          else if (value < 100) groupKey = 'Under £100';
+          else if (value < 500) groupKey = '£100 - £500';
+          else if (value < 1000) groupKey = '£500 - £1000';
+          else groupKey = 'Over £1000';
           break;
         default:
           groupKey = 'All Containers';

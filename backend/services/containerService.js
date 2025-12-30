@@ -30,6 +30,12 @@ class ContainerService {
       throw new Error('Access denied to inventory');
     }
 
+    // Check for duplicate container name in the same inventory
+    const existingContainer = await this.findContainerByName(containerData.name, containerData.inventoryId, userId);
+    if (existingContainer) {
+      throw new Error(`A container with the name "${containerData.name}" already exists in this inventory`);
+    }
+
     // Create container instance
     const container = new Container({
       ...containerData,
@@ -146,7 +152,7 @@ class ContainerService {
 
     // Add projection expression to reduce data transfer
     // Note: Container data is stored at root level, not in nested 'data' field
-    queryParams.ProjectionExpression = 'pk, sk, id, #name, #type, #status, locationId, projectId, description, itemCount, estimatedValue, handlingFlags, photos, qrCode, size, createdAt, updatedAt, createdBy, updatedBy, inventoryId';
+    queryParams.ProjectionExpression = 'pk, sk, id, #name, #type, #status, locationId, projectId, description, contentsSummary, itemCount, estimatedValue, handlingFlags, photos, qrCode, size, createdAt, updatedAt, createdBy, updatedBy, inventoryId';
     queryParams.ExpressionAttributeNames = { 
       '#name': 'name',
       '#type': 'type', 
@@ -264,6 +270,14 @@ class ContainerService {
     const container = await this.getContainer(containerId, inventoryId, userId);
     if (!container) {
       throw new Error('Container not found');
+    }
+
+    // If updating the name, check for duplicates
+    if (updates.name && updates.name.trim() !== container.name) {
+      const existingContainer = await this.findContainerByName(updates.name, inventoryId, userId);
+      if (existingContainer && existingContainer.id !== containerId) {
+        throw new Error(`A container with the name "${updates.name}" already exists in this inventory`);
+      }
     }
 
     // Update container data
@@ -648,6 +662,40 @@ class ContainerService {
     await logDataAccess(userId, 'update', 'container_contents', containerId, inventoryId);
 
     return container;
+  }
+  /**
+   * Find a container by name within an inventory
+   * @param {string} containerName - Container name to search for
+   * @param {string} inventoryId - Inventory ID
+   * @param {string} userId - User ID making the request
+   * @returns {Promise<Container|null>} Container or null if not found
+   */
+  async findContainerByName(containerName, inventoryId, userId) {
+    // Validate inventory access
+    const hasAccess = await hasInventoryAccess(userId, inventoryId);
+    if (!hasAccess) {
+      throw new Error('Access denied to inventory');
+    }
+
+    // Query containers and filter by name (case-insensitive)
+    const result = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk',
+      FilterExpression: '#name = :name',
+      ExpressionAttributeNames: {
+        '#name': 'name'
+      },
+      ExpressionAttributeValues: {
+        ':pk': `INVENTORY#${inventoryId}#CONTAINERS`,
+        ':name': containerName.trim()
+      }
+    }));
+
+    if (!result.Items || result.Items.length === 0) {
+      return null;
+    }
+
+    return Container.fromDynamoDBItem(result.Items[0]);
   }
 }
 

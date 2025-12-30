@@ -361,6 +361,12 @@ const containerSchema = {
       pattern: /^#[0-9A-Fa-f]{6}$/
     },
     description: commonFields.description,
+    contentsSummary: {
+      type: 'string',
+      maxLength: 200,
+      sanitize: true,
+      trim: true
+    },
     qrCode: {
       type: 'string',
       maxLength: 100

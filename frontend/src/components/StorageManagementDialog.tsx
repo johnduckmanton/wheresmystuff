@@ -160,7 +160,7 @@ const StorageManagementDialog: React.FC<StorageManagementDialogProps> = ({
     try {
       const response = await api.endStorageTracking(container.id, inventoryId);
       
-      setSuccess(`Storage ended. Total cost: $${response.totalCost.toFixed(2)} for ${response.duration.days} days`);
+      setSuccess(`Storage ended. Total cost: £${response.totalCost.toFixed(2)} for ${response.duration.days} days`);
       onStorageUpdated();
       loadStorageInfo();
     } catch (err: any) {
@@ -309,17 +309,17 @@ const StorageManagementDialog: React.FC<StorageManagementDialogProps> = ({
                           <Typography variant="h6">Storage Costs</Typography>
                         </Box>
                         <Typography variant="h4" color="primary" gutterBottom>
-                          ${storageInfo.storageInfo!.currentCost.toFixed(2)}
+                          £${storageInfo.storageInfo!.currentCost.toFixed(2)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           Current total cost
                         </Typography>
                         <Divider sx={{ my: 1 }} />
                         <Typography variant="body2">
-                          Monthly rate: ${storageInfo.storageInfo!.storageRate.toFixed(2)}
+                          Monthly rate: £${storageInfo.storageInfo!.storageRate.toFixed(2)}
                         </Typography>
                         <Typography variant="body2">
-                          Projected yearly: ${storageInfo.storageInfo!.projectedYearlyCost.toFixed(2)}
+                          Projected yearly: £${storageInfo.storageInfo!.projectedYearlyCost.toFixed(2)}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -387,7 +387,7 @@ const StorageManagementDialog: React.FC<StorageManagementDialogProps> = ({
                                   Month {projection.month}
                                 </Typography>
                                 <Typography variant="body2" fontWeight="bold">
-                                  ${projection.cumulativeCost.toFixed(2)}
+                                  £${projection.cumulativeCost.toFixed(2)}
                                 </Typography>
                               </Box>
                             ))}

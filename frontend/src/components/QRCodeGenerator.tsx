@@ -37,6 +37,7 @@ interface QRCodeGeneratorProps {
   open: boolean;
   onClose: () => void;
   container: Container;
+  inventoryId: string;
   onQRCodeGenerated?: (qrCodeData: any) => void;
 }
 
@@ -58,6 +59,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   open,
   onClose,
   container,
+  inventoryId,
   onQRCodeGenerated,
 }) => {
   const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large'>('medium');
@@ -121,7 +123,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     setError(null);
 
     try {
-      const result = await apiClient.generateLabel(container.id, selectedSize);
+      const result = await apiClient.generateLabel(container.id, selectedSize, inventoryId);
       setLabelData(result);
     } catch (err) {
       console.error('Error generating label:', err);

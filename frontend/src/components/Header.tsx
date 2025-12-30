@@ -87,6 +87,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
           sx={{ 
             flexGrow: 1,
             fontSize: { xs: '1rem', sm: '1.25rem' },
+            color: 'white',
+            fontWeight: 'bold',
           }}
         >
           Where's My Stuff!

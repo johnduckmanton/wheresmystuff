@@ -19,25 +19,28 @@ class LabelService {
       small: {
         width: 288,  // 2 inches at 144 DPI
         height: 288,
-        qrSize: 120,
+        qrSize: 140,  // 50% of width for good proportion
         fontSize: 12,
-        padding: 20,
+        nameFontSize: 16,  // Proportional to label size
+        padding: 15,
         dpi: 144
       },
       medium: {
         width: 432,  // 3 inches at 144 DPI
         height: 432,
-        qrSize: 180,
+        qrSize: 210,  // 50% of width for good proportion
         fontSize: 16,
-        padding: 30,
+        nameFontSize: 24,  // Proportional to label size
+        padding: 20,
         dpi: 144
       },
       large: {
         width: 576,  // 4 inches at 144 DPI
         height: 576,
-        qrSize: 240,
+        qrSize: 280,  // 50% of width for good proportion
         fontSize: 20,
-        padding: 40,
+        nameFontSize: 32,  // Proportional to label size
+        padding: 25,
         dpi: 144
       }
     };
@@ -66,12 +69,12 @@ class LabelService {
     // Generate QR code for the container
     const qrCodeId = qrCodeService.generateQRCodeId(containerData.id);
     
-    // Generate QR code as SVG (the qrcode library supports SVG output)
+    // Generate QR code as SVG and extract the path data
     const QRCode = require('qrcode');
     const qrCodeSvg = await QRCode.toString(qrCodeId, {
       type: 'svg',
-      width: dimensions.qrSize,
-      margin: 1,
+      width: 100,  // Small base size, we'll scale it up
+      margin: 0,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
@@ -92,21 +95,32 @@ class LabelService {
    * @returns {string} Complete label SVG
    */
   createLabelSVG(containerData, qrCodeSvg, dimensions) {
-    const { width, height, qrSize, fontSize, padding } = dimensions;
+    const { width, height, qrSize, fontSize, nameFontSize, padding } = dimensions;
     
-    // Calculate positions
+    // Calculate proportional layout that scales with label size
     const centerX = width / 2;
     const qrX = centerX - qrSize / 2;
     const qrY = padding;
     
-    // Text positions
-    const nameY = qrY + qrSize + 30;
-    const typeY = nameY + fontSize + 20;
-    const dateY = typeY + fontSize + 15;
-    const idY = dateY + fontSize + 15;
+    // Calculate text positions based on proportions of the label height
+    const availableHeight = height - (padding * 2) - qrSize;
+    const textStartY = qrY + qrSize + (availableHeight * 0.15); // 15% of remaining space
+    
+    const nameY = textStartY;
+    const contentsY = nameY + nameFontSize + (availableHeight * 0.12);
+    const typeY = contentsY + fontSize + (availableHeight * 0.1);
+    const dateY = typeY + fontSize + (availableHeight * 0.08);
+    const idY = dateY + fontSize + (availableHeight * 0.06);
     
     // Format creation date
     const createdDate = new Date(containerData.createdAt).toLocaleDateString();
+    
+    // Calculate content summary length based on label width and font size
+    const maxContentsLength = Math.floor((width - padding * 2) / (fontSize * 0.6));
+    let contentsSummary = containerData.contentsSummary || '';
+    if (contentsSummary.length > maxContentsLength) {
+      contentsSummary = contentsSummary.substring(0, maxContentsLength - 3) + '...';
+    }
     
     // Escape text for SVG
     const escapeSvgText = (text) => {
@@ -117,59 +131,70 @@ class LabelService {
                  .replace(/'/g, '&#39;');
     };
     
-    // Extract the QR code content and scale it properly
-    const qrCodeContent = qrCodeSvg.replace(/<\?xml[^>]*\?>/, '')
-                                   .replace(/<svg[^>]*>/, '')
-                                   .replace(/<\/svg>/, '');
+    // Extract the QR code content and get the viewBox from the original SVG
+    const qrCodeMatch = qrCodeSvg.match(/<svg[^>]*viewBox="([^"]*)"[^>]*>(.*?)<\/svg>/s);
+    const viewBox = qrCodeMatch ? qrCodeMatch[1] : '0 0 100 100';
+    const qrCodeContent = qrCodeMatch ? qrCodeMatch[2] : qrCodeSvg.replace(/<\?xml[^>]*\?>/, '').replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
     
     const labelSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <!-- White background -->
-  <rect width="${width}" height="${height}" fill="white" stroke="black" stroke-width="2"/>
+  <!-- White background with clean border -->
+  <rect width="${width}" height="${height}" fill="white" stroke="#333" stroke-width="1"/>
   
-  <!-- QR Code -->
+  <!-- QR Code - Scaled to fill the exact bounding box -->
   <g transform="translate(${qrX}, ${qrY})">
-    <rect width="${qrSize}" height="${qrSize}" fill="white"/>
-    <g transform="scale(${qrSize/100})">
+    <rect width="${qrSize}" height="${qrSize}" fill="white" stroke="#ddd" stroke-width="1"/>
+    <svg x="2" y="2" width="${qrSize - 4}" height="${qrSize - 4}" viewBox="${viewBox}">
       ${qrCodeContent}
-    </g>
+    </svg>
   </g>
   
-  <!-- Container Name -->
+  <!-- Container Name - Scaled proportionally -->
   <text x="${centerX}" y="${nameY}" 
         font-family="Arial, sans-serif" 
-        font-size="${fontSize + 4}" 
+        font-size="${nameFontSize}" 
         font-weight="bold" 
         text-anchor="middle" 
-        fill="black">
+        fill="#000">
     ${escapeSvgText(containerData.name)}
   </text>
   
-  <!-- Container Type -->
+  <!-- Contents Summary - Only show if it fits -->
+  ${contentsSummary && contentsY + fontSize < typeY - 5 ? `
+  <text x="${centerX}" y="${contentsY}" 
+        font-family="Arial, sans-serif" 
+        font-size="${fontSize}" 
+        font-weight="600"
+        text-anchor="middle" 
+        fill="#333">
+    ${escapeSvgText(contentsSummary)}
+  </text>` : ''}
+  
+  <!-- Container Type - Scaled font -->
   <text x="${centerX}" y="${typeY}" 
         font-family="Arial, sans-serif" 
-        font-size="${fontSize}" 
+        font-size="${Math.max(8, fontSize - 2)}" 
         text-anchor="middle" 
-        fill="black">
-    Type: ${escapeSvgText(containerData.type)}
+        fill="#666">
+    ${escapeSvgText(containerData.type.charAt(0).toUpperCase() + containerData.type.slice(1))}
   </text>
   
-  <!-- Creation Date -->
+  <!-- Creation Date - Scaled font -->
   <text x="${centerX}" y="${dateY}" 
-        font-family="Arial, sans-serif" 
-        font-size="${fontSize}" 
-        text-anchor="middle" 
-        fill="black">
-    Created: ${createdDate}
-  </text>
-  
-  <!-- Container ID -->
-  <text x="${centerX}" y="${idY}" 
         font-family="Arial, sans-serif" 
         font-size="${Math.max(8, fontSize - 4)}" 
         text-anchor="middle" 
-        fill="black">
-    ID: ${escapeSvgText(containerData.id)}
+        fill="#888">
+    ${createdDate}
+  </text>
+  
+  <!-- Container ID - Scaled font with minimum size -->
+  <text x="${centerX}" y="${idY}" 
+        font-family="Arial, monospace" 
+        font-size="${Math.max(6, fontSize - 6)}" 
+        text-anchor="middle" 
+        fill="#aaa">
+    ${escapeSvgText(containerData.id)}
   </text>
 </svg>`;
 
