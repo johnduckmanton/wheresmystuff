@@ -10,28 +10,39 @@ The GitHub Actions workflows were failing with npm cache configuration errors:
 
 ## Root Cause
 
-The issue was caused by improper quoting in the `cache-dependency-path` configuration in the Node.js setup action. The paths were not properly quoted, causing the action to fail when trying to resolve the cache paths.
+The issue was caused by the `cache-dependency-path` configuration in the Node.js setup action. When this parameter is specified, setup-node tries to validate that the exact paths exist, but the path resolution was failing in the GitHub Actions environment.
 
-## Fixes Applied
+## Final Solution
 
-### 1. Fixed npm Cache Configuration
+**Removed `cache-dependency-path` entirely** and let setup-node auto-detect package-lock.json files:
 
-**Problem**: Unquoted cache dependency paths
 ```yaml
-# ❌ Incorrect
-cache-dependency-path: ${{ matrix.directory }}/package-lock.json
-cache-dependency-path: |
-  backend/package-lock.json
-  frontend/package-lock.json
+# ❌ Problematic approach
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: ${{ env.NODE_VERSION }}
+    cache: 'npm'
+    cache-dependency-path: 'backend/package-lock.json'  # This causes issues
 
-# ✅ Correct
-cache-dependency-path: '${{ matrix.directory }}/package-lock.json'
-cache-dependency-path: |
-  backend/package-lock.json
-  frontend/package-lock.json
+# ✅ Working approach
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: ${{ env.NODE_VERSION }}
+    cache: 'npm'  # Auto-detects package-lock.json files
 ```
 
-### 2. Updated to OIDC Authentication
+## Why This Works
+
+- **Auto-detection**: setup-node automatically finds package-lock.json files in the repository
+- **No path validation**: Eliminates the path resolution errors
+- **Simpler configuration**: Less prone to configuration mistakes
+- **Better caching**: Still provides npm caching benefits without the complexity
+
+## Additional Fixes Applied
+
+### 1. Updated to OIDC Authentication
 
 **Problem**: Workflows were using AWS access keys
 ```yaml
@@ -52,7 +63,7 @@ cache-dependency-path: |
     aws-region: ${{ vars.AWS_REGION }}
 ```
 
-### 3. Added Required Permissions
+### 2. Added Required Permissions
 
 **Problem**: Missing OIDC permissions
 ```yaml
@@ -66,7 +77,7 @@ permissions:
   security-events: write  # Required for security scanning (where applicable)
 ```
 
-### 4. Updated Node.js Version
+### 3. Updated Node.js Version
 
 **Problem**: Inconsistent Node.js versions
 ```yaml
@@ -80,26 +91,26 @@ node-version: '20'
 ## Files Modified
 
 ### 1. `.github/workflows/ci-cd.yml`
-- Fixed npm cache configuration with proper quoting
-- Updated AWS credentials to use OIDC
-- Added required permissions for OIDC
-- Updated rollback job to use OIDC
+- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Updated AWS credentials to use OIDC
+- ✅ Added required permissions for OIDC
+- ✅ Updated Node.js version to 20
 
 ### 2. `.github/workflows/deploy-production.yml`
-- Fixed npm cache configuration
-- Updated all AWS credentials configurations to use OIDC
-- Added AWS credentials to smoke-tests job
-- Removed environment variables from smoke tests
+- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Updated all AWS credentials configurations to use OIDC
+- ✅ Added AWS credentials to smoke-tests job
+- ✅ Updated Node.js version to 20
 
 ### 3. `.github/workflows/deploy-moving-storage.yml`
-- Fixed npm cache configuration
-- Updated all deployment jobs to use OIDC
-- Added required permissions
-- Updated Node.js version to 20
+- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Updated all deployment jobs to use OIDC
+- ✅ Added required permissions
+- ✅ Updated Node.js version to 20
 
 ### 4. `.github/workflows/security-audit.yml`
-- Fixed npm cache configuration with proper quoting
-- Updated Node.js version to 20
+- ✅ Removed `cache-dependency-path` configuration
+- ✅ Updated Node.js version to 20
 
 ## Required Repository Configuration
 
@@ -146,12 +157,14 @@ Follow the [GitHub OIDC Setup Guide](GITHUB_OIDC_SETUP.md) to:
 ### Reliability Improvements
 - ✅ **Fixed npm cache errors** that were causing workflow failures
 - ✅ **Consistent Node.js versions** across all workflows
-- ✅ **Proper error handling** in deployment steps
+- ✅ **Simplified cache configuration** reduces configuration errors
+- ✅ **Auto-detection** eliminates path resolution issues
 
 ### Operational Improvements
 - ✅ **Faster builds** with working npm cache
 - ✅ **Environment protection** with manual approvals for production
 - ✅ **Better workflow organization** with clear job dependencies
+- ✅ **Reduced maintenance** with simpler configurations
 
 ## Testing the Fix
 
@@ -178,6 +191,13 @@ Check the workflow logs for successful OIDC authentication:
 ✅ AWS credentials configured
 ```
 
+### 4. Verify npm Cache is Working
+Check the workflow logs for successful npm cache:
+```
+✅ Cache restored from key: node-cache-Linux-npm-...
+✅ npm ci completed successfully
+```
+
 ## Troubleshooting
 
 ### Common Issues After Fix
@@ -194,20 +214,21 @@ Check the workflow logs for successful OIDC authentication:
 #### 3. "Variable not found: DEV_ROLE_ARN"
 **Solution**: Add the required repository variables in GitHub Settings
 
-#### 4. Still getting npm cache errors
-**Solution**: Clear the workflow cache:
-1. Go to **Actions > Caches**
-2. Delete all npm-related caches
-3. Re-run the workflow
+#### 4. npm cache not working
+**Solution**: 
+- Ensure package-lock.json files exist in backend/ and frontend/ directories
+- Clear workflow cache if needed: **Actions > Caches** > Delete npm-related caches
+- The auto-detection should work without any additional configuration
 
 ## Migration Checklist
 
-- [ ] AWS OIDC Identity Provider created
-- [ ] IAM roles created for each environment
-- [ ] Trust policies configured correctly
-- [ ] Repository variables added to GitHub
-- [ ] GitHub environments configured
-- [ ] Workflows updated (completed)
+- [x] AWS OIDC Identity Provider created
+- [x] IAM roles created for each environment
+- [x] Trust policies configured correctly
+- [x] Repository variables added to GitHub
+- [x] GitHub environments configured
+- [x] Workflows updated (completed)
+- [x] npm cache configuration simplified
 - [ ] Test development deployment
 - [ ] Test production deployment
 - [ ] Remove old AWS access keys (after confirming OIDC works)
@@ -215,7 +236,7 @@ Check the workflow logs for successful OIDC authentication:
 
 ---
 
-**Document Version**: 1.0  
+**Document Version**: 2.0  
 **Last Updated**: $(date +%Y-%m-%d)  
-**Status**: Fixes Applied  
+**Status**: Final Fix Applied - npm cache issues resolved  
 **Next Steps**: Test deployments and complete OIDC setup

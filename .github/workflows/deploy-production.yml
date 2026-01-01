@@ -95,7 +95,6 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: '${{ matrix.directory }}/package-lock.json'
     
     - name: Install dependencies
       working-directory: ${{ matrix.directory }}
@@ -131,7 +130,6 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: 'backend/package-lock.json'
     
     - name: Install backend dependencies
       working-directory: backend
@@ -164,9 +162,6 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: |
-          backend/package-lock.json
-          frontend/package-lock.json
     
     - name: Install AWS SAM CLI
       uses: aws-actions/setup-sam@v2
