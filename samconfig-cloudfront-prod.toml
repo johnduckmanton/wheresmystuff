@@ -1,0 +1,49 @@
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "home-inventory-cloudfront-prod"
+s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
+s3_prefix = "home-inventory-cloudfront-prod"
+confirm_changeset = true  # Always require confirmation for production
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"prod\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"true\""
+image_repositories = []
+tags = "Environment=prod Project=home-inventory CostCenter=production Component=cloudfront DataProtection=enabled"
+template_file = "cloudfront-template.yaml"
+disable_rollback = false  # Enable rollback for production safety
+
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.global.parameters]
+region = "us-east-1"  # CloudFront must be deployed in us-east-1
+
+# Production-specific CloudFront configurations
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "home-inventory-cloudfront-prod"
+s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
+s3_prefix = "home-inventory-cloudfront-prod"
+confirm_changeset = true  # Always require confirmation for production
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"prod\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"true\""
+image_repositories = []
+tags = "Environment=prod Project=home-inventory CostCenter=production Component=cloudfront DataProtection=enabled BackupEnabled=true"
+template_file = "cloudfront-template.yaml"
+disable_rollback = false  # Enable rollback for production safety
+# Production protection settings
+on_failure = "ROLLBACK"  # Rollback on failure
+termination_protection = true  # Prevent accidental stack deletion
+
+[prod.build]
+[prod.build.parameters]
+cached = true
+parallel = true
+
+[prod.global.parameters]
+region = "us-east-1"

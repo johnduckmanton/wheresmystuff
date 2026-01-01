@@ -7,6 +7,7 @@ Globals:
     Timeout: 30
     Runtime: nodejs20.x
     MemorySize: 512
+    ReservedConcurrentExecutions: !If [IsProduction, 100, !Ref AWS::NoValue]
     Environment:
       Variables:
         TABLE_NAME: !Ref InventoryTable
@@ -17,12 +18,30 @@ Globals:
         AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
         ALLOWED_ORIGINS: 'https://d24t9lc3ds7gry.cloudfront.net,http://localhost:5173,http://localhost:3000'
         NODE_ENV: !Ref Environment
+        SECURITY_LEVEL: !If [IsProduction, HIGH, STANDARD]
+    Tracing: !If [IsProduction, Active, PassThrough]
+    Tags:
+      Environment: !Ref Environment
+      SecurityLevel: !If [IsProduction, High, Standard]
 
 Parameters:
   Environment:
     Type: String
     Default: dev
-    Description: Environment name
+    AllowedValues: [dev, prod]
+    Description: Environment name (dev or prod)
+  
+  EnableDeletionProtection:
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+    Description: Enable deletion protection for production resources
+  
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+    Description: CloudWatch log retention period in days for cost optimization
   
   OpenAIAPIKey:
     Type: String
@@ -30,7 +49,49 @@ Parameters:
     Description: OpenAI API Key for AI analysis features
     NoEcho: true
   
+  EnableMFARequirement:
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+    Description: Enable MFA requirement for administrative access in production
+  
+  SecurityNotificationEmail:
+    Type: String
+    Default: admin@example.com
+    Description: Email address for security notifications
+    AllowedPattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+    ConstraintDescription: Must be a valid email address
+  
+Conditions:
+  IsProduction: !Equals [!Ref Environment, prod]
+  EnableProtection: !Equals [!Ref EnableDeletionProtection, true]
+  EnableMFA: !And [!Equals [!Ref EnableMFARequirement, true], !Condition IsProduction]
+  
 Resources:
+
+  # IAM Role for Cognito SMS MFA (Production only)
+  CognitoSMSRole:
+    Type: AWS::IAM::Role
+    Condition: EnableMFA
+    Properties:
+      RoleName: !Sub home-inventory-cognito-sms-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Sub home-inventory-${Environment}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonCognitoIdpSMSRole
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: CognitoMFA
 
   # Secrets Manager Secret for Audit Log HMAC
   AuditLogHMACSecret:
@@ -50,8 +111,8 @@ Resources:
   # S3 Bucket for Frontend Website Hosting
   WebsiteBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
       BucketName: !Sub home-inv-frontend-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
@@ -60,17 +121,103 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       VersioningConfiguration:
-        Status: Enabled
+        Status: !If [IsProduction, Enabled, Suspended]
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+            BucketKeyEnabled: true
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred
+      NotificationConfiguration: !If
+        - IsProduction
+        - CloudWatchConfigurations:
+            - Event: s3:ObjectCreated:*
+              CloudWatchConfiguration:
+                LogGroupName: !Ref S3SecurityLogGroup
+        - !Ref AWS::NoValue
+      LoggingConfiguration: !If
+        - IsProduction
+        - DestinationBucketName: !Ref S3AccessLogsBucket
+          LogFilePrefix: website-access-logs/
+        - !Ref AWS::NoValue
+      LifecycleConfiguration:
+        Rules:
+          - Id: CostOptimization
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: DeleteOldLogs
+            Status: Enabled
+            Prefix: logs/
+            ExpirationInDays: !Ref LogRetentionDays
+          - Id: DeleteOldReports
+            Status: Enabled
+            Prefix: reports/
+            ExpirationInDays: !If [IsProduction, 90, 30]
       Tags:
         - Key: Environment
           Value: !Ref Environment
+        - Key: SecurityLevel
+          Value: !If [IsProduction, High, Standard]
+
+  # S3 Access Logs Bucket (Production only)
+  S3AccessLogsBucket:
+    Type: AWS::S3::Bucket
+    Condition: IsProduction
+    Properties:
+      BucketName: !Sub home-inv-access-logs-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldAccessLogs
+            Status: Enabled
+            ExpirationInDays: !Ref LogRetentionDays
+          - Id: TransitionAccessLogs
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AccessLogs
+
+  # CloudWatch Log Group for S3 Security Events (Production only)
+  S3SecurityLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProduction
+    Properties:
+      LogGroupName: !Sub /aws/s3/security-events-${Environment}
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: SecurityMonitoring
 
   # Cognito User Pool
   UserPool:
@@ -88,15 +235,45 @@ Resources:
           Mutable: false
       Policies:
         PasswordPolicy:
-          MinimumLength: 8
+          MinimumLength: !If [IsProduction, 12, 8]
           RequireUppercase: true
           RequireLowercase: true
           RequireNumbers: true
-          RequireSymbols: false
+          RequireSymbols: !If [IsProduction, true, false]
+          TemporaryPasswordValidityDays: !If [IsProduction, 1, 7]
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_email
             Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: !If [IsProduction, true, false]
+        InviteMessageAction: !If [IsProduction, SUPPRESS, RESEND]
+        TemporaryPasswordValidityDays: !If [IsProduction, 1, 7]
+      DeviceConfiguration:
+        ChallengeRequiredOnNewDevice: !If [IsProduction, true, false]
+        DeviceOnlyRememberedOnUserPrompt: !If [IsProduction, true, false]
+      MfaConfiguration: !If [EnableMFA, ON, 'OFF']
+      EnabledMfas: !If 
+        - EnableMFA
+        - - SOFTWARE_TOKEN_MFA
+          - SMS_MFA
+        - !Ref AWS::NoValue
+      SmsConfiguration: !If
+        - EnableMFA
+        - SnsCallerArn: !GetAtt CognitoSMSRole.Arn
+        - !Ref AWS::NoValue
+      UserPoolAddOns:
+        AdvancedSecurityMode: !If [IsProduction, ENFORCED, 'OFF']
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: 'Your verification code is {####}. This code expires in 24 hours.'
+        EmailSubject: 'Home Inventory System - Email Verification'
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+      Tags:
+        Environment: !Ref Environment
+        SecurityLevel: !If [IsProduction, High, Standard]
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -113,9 +290,12 @@ Resources:
   # DynamoDB Table - Single Table Design
   InventoryTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
       TableName: !Sub home-inv-${Environment}
       BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: !If [EnableProtection, true, false]
       AttributeDefinitions:
         - AttributeName: pk
           AttributeType: S
@@ -160,25 +340,73 @@ Resources:
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
       PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: true
+        PointInTimeRecoveryEnabled: !If [IsProduction, true, false]
       TimeToLiveSpecification:
         AttributeName: expiresAt
         Enabled: true
       SSESpecification:
         SSEEnabled: true
+        KMSMasterKeyId: !If [IsProduction, !Ref DynamoDBKMSKey, !Ref AWS::NoValue]
+      ContributorInsightsSpecification: !If
+        - IsProduction
+        - Enabled: true
+        - !Ref AWS::NoValue
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Purpose
           Value: HomeInventorySystem
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+        - Key: SecurityLevel
+          Value: !If [IsProduction, High, Standard]
+
+  # KMS Key for DynamoDB Encryption (Production only)
+  DynamoDBKMSKey:
+    Type: AWS::KMS::Key
+    Condition: IsProduction
+    Properties:
+      Description: !Sub KMS key for DynamoDB encryption - ${Environment}
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow DynamoDB Service
+            Effect: Allow
+            Principal:
+              Service: dynamodb.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+              - kms:CreateGrant
+              - kms:DescribeKey
+            Resource: '*'
+            Condition:
+              StringEquals:
+                kms:ViaService: !Sub dynamodb.${AWS::Region}.amazonaws.com
+      KeyRotationStatus: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: DynamoDBEncryption
+
+  # KMS Key Alias
+  DynamoDBKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: IsProduction
+    Properties:
+      AliasName: !Sub alias/home-inventory-dynamodb-${Environment}
+      TargetKeyId: !Ref DynamoDBKMSKey
 
   # S3 Bucket for Photos
   PhotoBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
       BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
@@ -187,17 +415,35 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       VersioningConfiguration:
-        Status: Enabled
+        Status: !If [IsProduction, Enabled, Suspended]
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
       LifecycleConfiguration:
         Rules:
+          - Id: CostOptimization
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 365, 90]
           - Id: DeleteIncompleteMultipartUploads
             Status: Enabled
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
+          - Id: DeleteOldThumbnails
+            Status: Enabled
+            Prefix: thumbnails/
+            ExpirationInDays: !If [IsProduction, 180, 60]
+          - Id: DeleteTempFiles
+            Status: Enabled
+            Prefix: temp/
+            ExpirationInDays: 7
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -219,8 +465,8 @@ Resources:
   # S3 Bucket for QR Codes and Reports
   QRCodeReportBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
       BucketName: !Sub home-inv-qr-reports-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
@@ -229,20 +475,34 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       VersioningConfiguration:
-        Status: Enabled
+        Status: !If [IsProduction, Enabled, Suspended]
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
       LifecycleConfiguration:
         Rules:
+          - Id: CostOptimization
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 90
+                StorageClass: GLACIER
           - Id: DeleteOldQRCodes
             Status: Enabled
-            ExpirationInDays: 365
+            ExpirationInDays: !If [IsProduction, 365, 180]
           - Id: DeleteOldReports
             Status: Enabled
             Prefix: reports/
-            ExpirationInDays: 90
+            ExpirationInDays: !If [IsProduction, 90, 30]
+          - Id: DeleteOldLogs
+            Status: Enabled
+            Prefix: logs/
+            ExpirationInDays: !Ref LogRetentionDays
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
           - Id: DeleteIncompleteMultipartUploads
             Status: Enabled
             AbortIncompleteMultipartUpload:
@@ -302,6 +562,61 @@ Resources:
               Audience:
                 - !Ref UserPoolClient
               Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+        DefaultAuthorizer: CognitoAuthorizer
+      AccessLogSettings: !If
+        - IsProduction
+        - DestinationArn: !GetAtt APIGatewayLogGroup.Arn
+          Format: >
+            {
+              "requestId": "$context.requestId",
+              "ip": "$context.identity.sourceIp",
+              "caller": "$context.identity.caller",
+              "user": "$context.identity.user",
+              "requestTime": "$context.requestTime",
+              "httpMethod": "$context.httpMethod",
+              "resourcePath": "$context.resourcePath",
+              "status": "$context.status",
+              "protocol": "$context.protocol",
+              "responseLength": "$context.responseLength",
+              "userAgent": "$context.identity.userAgent",
+              "error.message": "$context.error.message",
+              "error.messageString": "$context.error.messageString",
+              "integration.error": "$context.integration.error",
+              "integration.status": "$context.integration.status",
+              "integration.latency": "$context.integration.latency",
+              "responseLatency": "$context.responseLatency"
+            }
+        - !Ref AWS::NoValue
+      Tags:
+        Environment: !Ref Environment
+        SecurityLevel: !If [IsProduction, High, Standard]
+
+  # API Gateway Log Group (Production only)
+  APIGatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProduction
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/home-inventory-${Environment}
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: APIAccessLogs
+
+  # Lambda Dead Letter Queue (Production only)
+  LambdaDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Condition: IsProduction
+    Properties:
+      QueueName: !Sub home-inventory-dlq-${Environment}
+      MessageRetentionPeriod: 1209600  # 14 days
+      KmsMasterKeyId: alias/aws/sqs
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: LambdaDeadLetterQueue
 
   # Lambda Functions will be added in subsequent tasks
   # Placeholder for Things Lambda
@@ -1670,7 +1985,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # CloudWatch Dashboard
+  # Enhanced CloudWatch Dashboard for Production Monitoring
   MonitoringDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1689,13 +2004,21 @@ Resources:
                   [ "AWS/Lambda", "Duration", "FunctionName", "${ContainerFunction}" ],
                   [ ".", ".", ".", "${PackingFunction}" ],
                   [ ".", ".", ".", "${QRCodeFunction}" ],
-                  [ ".", ".", ".", "${ProjectFunction}" ]
+                  [ ".", ".", ".", "${ProjectFunction}" ],
+                  [ ".", ".", ".", "${UserManagementFunction}" ],
+                  [ ".", ".", ".", "${InventoryFunction}" ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
                 "region": "${AWS::Region}",
                 "title": "Lambda Function Duration",
-                "period": 300
+                "period": 300,
+                "yAxis": {
+                  "left": {
+                    "min": 0,
+                    "max": 30000
+                  }
+                }
               }
             },
             {
@@ -1709,7 +2032,9 @@ Resources:
                   [ "AWS/Lambda", "Errors", "FunctionName", "${ContainerFunction}" ],
                   [ ".", ".", ".", "${PackingFunction}" ],
                   [ ".", ".", ".", "${QRCodeFunction}" ],
-                  [ ".", ".", ".", "${ProjectFunction}" ]
+                  [ ".", ".", ".", "${ProjectFunction}" ],
+                  [ ".", ".", ".", "${UserManagementFunction}" ],
+                  [ ".", ".", ".", "${InventoryFunction}" ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -1727,12 +2052,13 @@ Resources:
               "properties": {
                 "metrics": [
                   [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${InventoryTable}" ],
-                  [ ".", "ConsumedWriteCapacityUnits", ".", "." ]
+                  [ ".", "ConsumedWriteCapacityUnits", ".", "." ],
+                  [ ".", "ThrottledRequests", ".", "." ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
                 "region": "${AWS::Region}",
-                "title": "DynamoDB Capacity Usage",
+                "title": "DynamoDB Capacity Usage & Throttling",
                 "period": 300
               }
             },
@@ -1746,13 +2072,115 @@ Resources:
                 "metrics": [
                   [ "AWS/ApiGateway", "Count", "ApiName", "${HttpApi}" ],
                   [ ".", "4XXError", ".", "." ],
-                  [ ".", "5XXError", ".", "." ]
+                  [ ".", "5XXError", ".", "." ],
+                  [ ".", "Latency", ".", "." ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
                 "region": "${AWS::Region}",
-                "title": "API Gateway Requests and Errors",
+                "title": "API Gateway Requests, Errors & Latency",
                 "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${ContainerFunction}" ],
+                  [ ".", ".", ".", "${PackingFunction}" ],
+                  [ ".", ".", ".", "${QRCodeFunction}" ],
+                  [ ".", ".", ".", "${ProjectFunction}" ],
+                  [ ".", ".", ".", "${UserManagementFunction}" ],
+                  [ ".", ".", ".", "${InventoryFunction}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Lambda Invocations (Free Tier: 1M/month)",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/S3", "BucketSizeBytes", "BucketName", "${PhotoBucket}", "StorageType", "StandardStorage" ],
+                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ],
+                  [ ".", ".", ".", "${WebsiteBucket}", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "S3 Storage Usage (Free Tier: 5GB)",
+                "period": 86400
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/S3", "NumberOfObjects", "BucketName", "${PhotoBucket}", "StorageType", "AllStorageTypes" ],
+                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ],
+                  [ ".", ".", ".", "${WebsiteBucket}", ".", "." ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "S3 Object Count",
+                "period": 86400
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Logs", "IncomingBytes", "LogGroupName", "/aws/lambda/${ContainerFunction}" ],
+                  [ ".", ".", ".", "/aws/lambda/${PackingFunction}" ],
+                  [ ".", ".", ".", "/aws/lambda/${QRCodeFunction}" ],
+                  [ ".", ".", ".", "/aws/lambda/${ProjectFunction}" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "CloudWatch Logs Ingestion (Free Tier: 5GB/month)",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Billing", "EstimatedCharges", "Currency", "USD", "ServiceName", "AmazonDynamoDB" ],
+                  [ ".", ".", ".", ".", ".", "AWSLambda" ],
+                  [ ".", ".", ".", ".", ".", "AmazonS3" ],
+                  [ ".", ".", ".", ".", ".", "AmazonApiGateway" ],
+                  [ ".", ".", ".", ".", ".", "AmazonCloudWatch" ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Estimated Charges by Service",
+                "period": 86400
               }
             }
           ]
@@ -1846,40 +2274,764 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Cost Budget Alert
+  # Free Tier Usage Monitoring Alarms
+
+  # Lambda Invocations Free Tier Alarm (1M requests/month)
+  LambdaFreeTierAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-lambda-free-tier-${Environment}
+      AlarmDescription: Lambda invocations approaching free tier limit (1M/month)
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: 800000  # 80% of 1M monthly limit
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # API Gateway Free Tier Alarm (1M requests/month)
+  APIGatewayFreeTierAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-api-free-tier-${Environment}
+      AlarmDescription: API Gateway requests approaching free tier limit (1M/month)
+      MetricName: Count
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: 800000  # 80% of 1M monthly limit
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HttpApi
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Logs Free Tier Alarm (5GB ingestion/month)
+  CloudWatchLogsFreeTierAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-logs-free-tier-${Environment}
+      AlarmDescription: CloudWatch Logs ingestion approaching free tier limit (5GB/month)
+      MetricName: IncomingBytes
+      Namespace: AWS/Logs
+      Statistic: Sum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: 4294967296  # 80% of 5GB (4GB in bytes)
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Cost Tracking Alarms
+
+  # Daily Cost Alarm
+  DailyCostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-daily-cost-${Environment}
+      AlarmDescription: Daily costs exceeding expected threshold
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Statistic: Maximum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: !If [IsProduction, 2.0, 1.5]  # $2/day prod, $1.5/day dev
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Currency
+          Value: USD
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # DynamoDB Cost Alarm
+  DynamoDBCostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-dynamodb-cost-${Environment}
+      AlarmDescription: DynamoDB costs exceeding expected threshold
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Statistic: Maximum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: !If [IsProduction, 10.0, 5.0]  # $10 prod, $5 dev
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Currency
+          Value: USD
+        - Name: ServiceName
+          Value: AmazonDynamoDB
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Cost Alarm
+  S3CostAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-s3-cost-${Environment}
+      AlarmDescription: S3 costs exceeding expected threshold
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Statistic: Maximum
+      Period: 86400  # Daily
+      EvaluationPeriods: 1
+      Threshold: !If [IsProduction, 5.0, 2.0]  # $5 prod, $2 dev
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Currency
+          Value: USD
+        - Name: ServiceName
+          Value: AmazonS3
+      AlarmActions:
+        - !Ref AlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Security Monitoring Components
+
+  # WAF Web ACL for API Gateway Protection
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: IsProduction  # Only enable WAF in production for cost savings
+    Properties:
+      Name: !Sub home-inventory-waf-${Environment}
+      Description: WAF protection for Home Inventory API Gateway
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      Rules:
+        # AWS Managed Rule - Core Rule Set
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CommonRuleSetMetric
+        # AWS Managed Rule - Known Bad Inputs
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputsMetric
+        # Rate limiting rule
+        - Name: RateLimitRule
+          Priority: 3
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: 2000  # 2000 requests per 5 minutes per IP
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitMetric
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub home-inventory-waf-${Environment}
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # WAF Association with API Gateway (Production only)
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: IsProduction
+    Properties:
+      ResourceArn: !Sub arn:aws:apigateway:${AWS::Region}::/restapis/${HttpApi}/stages/${Environment}
+      WebACLArn: !GetAtt WebACL.Arn
+
+  # CloudWatch Log Group for WAF
+  WAFLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProduction
+    Properties:
+      LogGroupName: !Sub /aws/wafv2/home-inventory-${Environment}
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # WAF Logging Configuration
+  WAFLoggingConfiguration:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Condition: IsProduction
+    Properties:
+      ResourceArn: !GetAtt WebACL.Arn
+      LogDestinationConfigs:
+        - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/wafv2/home-inventory-${Environment}
+      RedactedFields:
+        - SingleHeader:
+            Name: authorization
+        - SingleHeader:
+            Name: cookie
+
+  # Security Monitoring Alarms
+
+  # WAF Blocked Requests Alarm
+  WAFBlockedRequestsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub home-inventory-waf-blocked-requests-${Environment}
+      AlarmDescription: High number of blocked requests detected by WAF
+      MetricName: BlockedRequests
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 100  # More than 100 blocked requests in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: WebACL
+          Value: !Sub home-inventory-waf-${Environment}
+        - Name: Region
+          Value: !Ref AWS::Region
+        - Name: Rule
+          Value: ALL
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Authentication Failure Alarm (based on 4XX errors)
+  AuthenticationFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-auth-failures-${Environment}
+      AlarmDescription: High number of authentication failures (4XX errors)
+      MetricName: 4XXError
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 50  # More than 50 auth failures in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HttpApi
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Unusual Lambda Error Pattern Alarm
+  UnusualErrorPatternAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-unusual-errors-${Environment}
+      AlarmDescription: Unusual error pattern detected across Lambda functions
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 900  # 15 minutes
+      EvaluationPeriods: 1
+      Threshold: 25  # More than 25 errors in 15 minutes across all functions
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # DynamoDB Security Alarm (Unusual Read/Write Patterns)
+  DynamoDBSecurityAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-dynamodb-security-${Environment}
+      AlarmDescription: Unusual DynamoDB access pattern detected
+      MetricName: ConsumedReadCapacityUnits
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1000  # More than 1000 read units in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InventoryTable
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Additional Security Monitoring Alarms
+
+  # Suspicious Login Pattern Alarm
+  SuspiciousLoginAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-suspicious-logins-${Environment}
+      AlarmDescription: Suspicious login pattern detected (multiple failed attempts)
+      MetricName: 4XXError
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 3
+      Threshold: 20  # More than 20 failed auth attempts in 15 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HttpApi
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: SecurityThreat
+
+  # Data Exfiltration Detection Alarm
+  DataExfiltrationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-data-exfiltration-${Environment}
+      AlarmDescription: Potential data exfiltration detected (high S3 download volume)
+      MetricName: NumberOfObjects
+      Namespace: AWS/S3
+      Statistic: Sum
+      Period: 3600  # 1 hour
+      EvaluationPeriods: 1
+      Threshold: 1000  # More than 1000 objects accessed in 1 hour
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: BucketName
+          Value: !Ref PhotoBucket
+        - Name: StorageType
+          Value: AllStorageTypes
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: DataSecurity
+
+  # Privilege Escalation Detection Alarm
+  PrivilegeEscalationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-privilege-escalation-${Environment}
+      AlarmDescription: Potential privilege escalation detected (unusual admin operations)
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 900  # 15 minutes
+      EvaluationPeriods: 1
+      Threshold: 50  # More than 50 admin operations in 15 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref UserManagementFunction
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: PrivilegeEscalation
+
+  # Database Injection Attack Detection
+  DatabaseInjectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-db-injection-${Environment}
+      AlarmDescription: Potential database injection attack detected
+      MetricName: Errors
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 10  # More than 10 database errors in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InventoryTable
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: InjectionAttack
+
+  # Unusual API Usage Pattern Alarm
+  UnusualAPIUsageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub home-inventory-unusual-api-usage-${Environment}
+      AlarmDescription: Unusual API usage pattern detected (traffic spike)
+      MetricName: Count
+      Namespace: AWS/ApiGateway
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 500  # More than 500 requests in 10 minutes
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HttpApi
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: TrafficAnomaly
+
+  # CloudTrail for Audit Logging (Production only for cost savings)
+  AuditTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: IsProduction
+    Properties:
+      TrailName: !Sub home-inventory-audit-trail-${Environment}
+      S3BucketName: !Ref AuditTrailBucket
+      S3KeyPrefix: cloudtrail-logs/
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: false  # Single region to minimize costs
+      EnableLogFileValidation: true
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+          DataResources:
+            - Type: AWS::DynamoDB::Table
+              Values: 
+                - !Sub "${InventoryTable}/*"
+            - Type: AWS::S3::Object
+              Values:
+                - !Sub "${PhotoBucket}/*"
+                - !Sub "${QRCodeReportBucket}/*"
+            - Type: AWS::S3::Bucket
+              Values:
+                - !Ref PhotoBucket
+                - !Ref QRCodeReportBucket
+      CloudWatchLogsLogGroupArn: !Sub "${AuditTrailLogGroup}:*"
+      CloudWatchLogsRoleArn: !GetAtt CloudTrailLogsRole.Arn
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AuditLogging
+
+  # S3 Bucket for CloudTrail Logs (Production only)
+  AuditTrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: IsProduction
+    Properties:
+      BucketName: !Sub home-inv-audit-trail-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldAuditLogs
+            Status: Enabled
+            ExpirationInDays: 90  # 90-day retention as per requirements
+          - Id: TransitionAuditLogs
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 60
+                StorageClass: GLACIER
+      NotificationConfiguration:
+        CloudWatchConfigurations:
+          - Event: s3:ObjectCreated:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref AuditTrailLogGroup
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AuditTrail
+
+  # CloudTrail Bucket Policy
+  AuditTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: IsProduction
+    Properties:
+      Bucket: !Ref AuditTrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !Sub "${AuditTrailBucket}"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/home-inventory-audit-trail-${Environment}"
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub "${AuditTrailBucket}/cloudtrail-logs/*"
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+                AWS:SourceArn: !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/home-inventory-audit-trail-${Environment}"
+
+  # CloudWatch Log Group for CloudTrail (Production only)
+  AuditTrailLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProduction
+    Properties:
+      LogGroupName: !Sub /aws/cloudtrail/home-inventory-${Environment}
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AuditTrail
+
+  # IAM Role for CloudTrail to write to CloudWatch Logs
+  CloudTrailLogsRole:
+    Type: AWS::IAM::Role
+    Condition: IsProduction
+    Properties:
+      RoleName: !Sub home-inventory-cloudtrail-logs-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudTrailLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: !Sub "${AuditTrailLogGroup}:*"
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AuditTrail
+
+  # CloudWatch Alarms for Audit Trail Monitoring
+  AuditTrailErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub home-inventory-audit-trail-errors-${Environment}
+      AlarmDescription: CloudTrail logging errors detected
+      MetricName: ErrorCount
+      Namespace: CloudTrailMetrics
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: AuditCompliance
+
+  # Compliance Monitoring Alarms
+  UnauthorizedAPICallsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub home-inventory-unauthorized-api-calls-${Environment}
+      AlarmDescription: Unauthorized API calls detected in CloudTrail
+      MetricName: UnauthorizedAPICalls
+      Namespace: CloudTrailMetrics
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: ComplianceViolation
+
+  # Root Account Usage Alarm
+  RootAccountUsageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProduction
+    Properties:
+      AlarmName: !Sub home-inventory-root-account-usage-${Environment}
+      AlarmDescription: Root account usage detected
+      MetricName: RootAccountUsage
+      Namespace: CloudTrailMetrics
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref SecurityAlertTopic
+      TreatMissingData: notBreaching
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: AlertType
+          Value: ComplianceViolation
+
+  # SNS Topic for Security Alerts (separate from general alerts)
+  SecurityAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub home-inventory-security-alerts-${Environment}
+      DisplayName: !Sub Home Inventory Security Alerts - ${Environment}
+      KmsMasterKeyId: !If [IsProduction, alias/aws/sns, !Ref AWS::NoValue]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: SecurityMonitoring
+
+  # Security Alert Email Subscription
+  SecurityAlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref SecurityAlertTopic
+      Endpoint: !Ref SecurityNotificationEmail
+
+  # SNS Topic for Budget Notifications
+  BudgetAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub home-inventory-budget-alerts-${Environment}
+      DisplayName: !Sub Home Inventory Budget Alerts - ${Environment}
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: CostManagement
+
+  # Cost Budget with Environment-Specific Limits
   CostBudget:
     Type: AWS::Budgets::Budget
     Properties:
       Budget:
         BudgetName: !Sub home-inventory-budget-${Environment}
         BudgetLimit:
-          Amount: 50  # $50 monthly budget
+          Amount: !If [IsProduction, 30, 20]  # $30 prod, $20 dev
           Unit: USD
         TimeUnit: MONTHLY
         BudgetType: COST
         CostFilters:
-          Service:
-            - Amazon Simple Storage Service
-            - AWS Lambda
-            - Amazon DynamoDB
-            - Amazon API Gateway
-            - Amazon CloudFront
+          TagKey:
+            - Environment
+          TagValue:
+            - !Ref Environment
       NotificationsWithSubscribers:
+        # 50% threshold alert
         - Notification:
-            NotificationType: ACTUAL
+            NotificationType: FORECASTED
             ComparisonOperator: GREATER_THAN
-            Threshold: 80  # Alert at 80% of budget
+            Threshold: 50
             ThresholdType: PERCENTAGE
           Subscribers:
             - SubscriptionType: SNS
-              Address: !Ref AlertTopic
+              Address: !Ref BudgetAlertTopic
+        # 80% threshold alert
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+        # 100% threshold alert
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
 
   # Log Groups for Lambda Functions
   ContainerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ContainerFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1888,7 +3040,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${PackingFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1897,7 +3049,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${QRCodeFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1906,7 +3058,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ProjectFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1915,7 +3067,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ReportsFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1924,7 +3076,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${AnalyticsFunction}
-      RetentionInDays: 14
+      RetentionInDays: !Ref LogRetentionDays
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1966,11 +3118,30 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-AlertTopicArn
 
+  BudgetAlertTopicArn:
+    Description: SNS Topic ARN for Budget Alerts
+    Value: !Ref BudgetAlertTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-BudgetAlertTopicArn
+
   DashboardUrl:
     Description: CloudWatch Dashboard URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${MonitoringDashboard}
     Export:
       Name: !Sub ${AWS::StackName}-DashboardUrl
+
+  SecurityAlertTopicArn:
+    Description: SNS Topic ARN for Security Alerts
+    Value: !Ref SecurityAlertTopic
+    Export:
+      Name: !Sub ${AWS::StackName}-SecurityAlertTopicArn
+
+  WAFWebACLArn:
+    Condition: IsProduction
+    Description: WAF Web ACL ARN
+    Value: !GetAtt WebACL.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-WAFWebACLArn
 
   WebsiteBucket:
     Description: S3 Bucket Name for Frontend Website

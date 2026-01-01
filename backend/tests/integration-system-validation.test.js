@@ -18,6 +18,35 @@ const mockS3Client = {
   send: jest.fn()
 };
 
+// Mock rate limiting service to allow all requests in tests
+jest.mock('../services/rateLimitService', () => ({
+  checkRateLimit: jest.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 100,
+    resetTime: Date.now() + 60000
+  }),
+  recordRequest: jest.fn().mockResolvedValue(true),
+  getRateLimitStatus: jest.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 100,
+    resetTime: Date.now() + 60000
+  })
+}));
+
+// Mock authentication middleware
+jest.mock('../middleware/auth', () => ({
+  authenticate: jest.fn().mockImplementation((event) => {
+    // Set user from the test event
+    if (event.requestContext?.authorizer?.claims) {
+      event.user = {
+        userId: event.requestContext.authorizer.claims.sub,
+        inventoryId: event.requestContext.authorizer.claims['custom:inventory_id']
+      };
+    }
+    return Promise.resolve();
+  })
+}));
+
 // Mock the AWS SDK modules
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client } = require('@aws-sdk/client-s3');
@@ -63,7 +92,46 @@ describe('System Integration Tests', () => {
 
   afterEach(() => {
     jest.clearAllTimers();
+    jest.clearAllMocks();
+    // Clear any pending promises
+    return new Promise(resolve => setImmediate(resolve));
   });
+
+  afterAll(() => {
+    // Force cleanup of any remaining handles
+    jest.clearAllTimers();
+    jest.clearAllMocks();
+  });
+
+  // Helper function to create proper HTTP API v2 events
+  const createTestEvent = (method, path, body = null, pathParameters = null, queryStringParameters = null, userId = 'user-123', inventoryId = 'inventory-456') => {
+    return {
+      requestContext: {
+        http: {
+          method: method,
+          path: path,
+          sourceIp: '127.0.0.1'
+        },
+        authorizer: {
+          claims: {
+            sub: userId,
+            'custom:inventory_id': inventoryId
+          }
+        }
+      },
+      headers: {
+        'user-agent': 'test-agent',
+        'content-type': 'application/json'
+      },
+      pathParameters: pathParameters,
+      queryStringParameters: queryStringParameters,
+      body: body ? JSON.stringify(body) : null,
+      user: {
+        userId: userId,
+        inventoryId: inventoryId
+      }
+    };
+  };
 
   describe('Complete Moving Workflow Integration', () => {
     test('should handle complete workflow: create project -> create containers -> pack items -> generate reports', async () => {
@@ -71,26 +139,14 @@ describe('System Integration Tests', () => {
       const inventoryId = 'inventory-456';
       
       // Step 1: Create moving project
-      const projectEvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        body: JSON.stringify({
-          name: 'Office Move',
-          description: 'Moving office to new location',
-          startDate: '2024-01-01T00:00:00Z',
-          targetDate: '2024-01-15T00:00:00Z',
-          sourceLocation: 'old-office',
-          destinationLocation: 'new-office'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const projectEvent = createTestEvent('POST', '/projects', {
+        name: 'Office Move',
+        description: 'Moving office to new location',
+        startDate: '2024-01-01T00:00:00Z',
+        targetDate: '2024-01-15T00:00:00Z',
+        sourceLocation: 'old-office',
+        destinationLocation: 'new-office'
+      }, null, null, userId, inventoryId);
 
       const mockProject = {
         id: 'project-123',
@@ -107,51 +163,32 @@ describe('System Integration Tests', () => {
 
       const projectResponse = await projectHandler.handler(projectEvent);
       
+      // Debug: Log the response if it's not 201
+      if (projectResponse.statusCode !== 201) {
+        console.log('Project creation failed:', projectResponse);
+      }
+      
       expect(projectResponse.statusCode).toBe(201);
       const createdProject = JSON.parse(projectResponse.body);
       expect(createdProject.name).toBe('Office Move');
 
       // Step 2: Create containers for the project
       const containerEvents = [
-        {
-          httpMethod: 'POST',
-          pathParameters: null,
-          body: JSON.stringify({
-            name: 'Office Supplies Box',
-            type: 'box',
-            size: 'large',
-            projectId: 'project-123',
-            locationId: 'old-office'
-          }),
-          requestContext: {
-            authorizer: {
-              claims: {
-                sub: userId,
-                'custom:inventory_id': inventoryId
-              }
-            }
-          }
-        },
-        {
-          httpMethod: 'POST',
-          pathParameters: null,
-          body: JSON.stringify({
-            name: 'Electronics Box',
-            type: 'box',
-            size: 'medium',
-            projectId: 'project-123',
-            locationId: 'old-office',
-            handlingFlags: ['fragile', 'valuable']
-          }),
-          requestContext: {
-            authorizer: {
-              claims: {
-                sub: userId,
-                'custom:inventory_id': inventoryId
-              }
-            }
-          }
-        }
+        createTestEvent('POST', '/containers', {
+          name: 'Office Supplies Box',
+          type: 'box',
+          size: 'large',
+          projectId: 'project-123',
+          locationId: 'old-office'
+        }, null, null, userId, inventoryId),
+        createTestEvent('POST', '/containers', {
+          name: 'Electronics Box',
+          type: 'box',
+          size: 'medium',
+          projectId: 'project-123',
+          locationId: 'old-office',
+          handlingFlags: ['fragile', 'valuable']
+        }, null, null, userId, inventoryId)
       ];
 
       const mockContainers = [

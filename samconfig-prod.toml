@@ -1,0 +1,47 @@
+version = 0.1
+
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "home-inventory-system-prod"
+s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
+s3_prefix = "home-inventory-system-prod"
+confirm_changeset = true  # Always require confirmation for production
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"prod\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\""
+image_repositories = []
+tags = "Environment=prod Project=home-inventory CostCenter=production DataProtection=enabled"
+disable_rollback = false  # Enable rollback for production safety
+
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.global.parameters]
+region = "eu-west-1"
+
+# Production-specific configurations
+[prod]
+[prod.deploy]
+[prod.deploy.parameters]
+stack_name = "home-inventory-system-prod"
+s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
+s3_prefix = "home-inventory-system-prod"
+confirm_changeset = true  # Always require confirmation for production
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"prod\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\""
+image_repositories = []
+tags = "Environment=prod Project=home-inventory CostCenter=production DataProtection=enabled BackupEnabled=true"
+disable_rollback = false  # Enable rollback for production safety
+# Production protection settings
+on_failure = "ROLLBACK"  # Rollback on failure
+termination_protection = true  # Prevent accidental stack deletion
+
+[prod.build]
+[prod.build.parameters]
+cached = true
+parallel = true
+
+[prod.global.parameters]
+region = "eu-west-1"

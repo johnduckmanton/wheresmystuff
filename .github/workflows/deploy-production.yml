@@ -1,0 +1,462 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (git tag or commit SHA)'
+        required: true
+        default: 'main'
+      skip_tests:
+        description: 'Skip tests (emergency deployment only)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required to checkout code
+
+env:
+  NODE_VERSION: '20'
+  AWS_REGION: 'eu-west-1'
+  CLOUDFRONT_REGION: 'us-east-1'
+
+jobs:
+  validate-deployment:
+    name: Validate Deployment Request
+    runs-on: ubuntu-latest
+    environment: production-validation
+    
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      commit_sha: ${{ steps.validate.outputs.commit_sha }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.version }}
+        fetch-depth: 0
+    
+    - name: Validate deployment version
+      id: validate
+      run: |
+        VERSION="${{ github.event.inputs.version }}"
+        
+        # Get the actual commit SHA
+        COMMIT_SHA=$(git rev-parse HEAD)
+        echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Validate that this is a valid commit
+        if ! git cat-file -e $COMMIT_SHA; then
+          echo "❌ Invalid commit SHA: $COMMIT_SHA"
+          exit 1
+        fi
+        
+        # Check if this is a tagged release
+        if git describe --exact-match --tags $COMMIT_SHA 2>/dev/null; then
+          echo "✅ Deploying tagged release: $(git describe --exact-match --tags $COMMIT_SHA)"
+        else
+          echo "⚠️ Deploying from commit: $COMMIT_SHA"
+        fi
+        
+        # Show recent commits for context
+        echo "Recent commits:"
+        git log --oneline -5
+    
+    - name: Check for breaking changes
+      run: |
+        # Check if there are any database schema changes
+        if git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"; then
+          echo "⚠️ Infrastructure changes detected - ensure compatibility"
+          git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"
+        fi
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: validate-deployment
+    if: ${{ !github.event.inputs.skip_tests }}
+    
+    strategy:
+      matrix:
+        directory: [backend, frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ${{ matrix.directory }}
+      run: npm ci
+    
+    - name: Run security audit
+      working-directory: ${{ matrix.directory }}
+      run: npm run security:check
+    
+    - name: Fail on high/critical vulnerabilities
+      working-directory: ${{ matrix.directory }}
+      run: |
+        if ! npm audit --audit-level=high --omit=dev; then
+          echo "❌ High or critical vulnerabilities found in production dependencies!"
+          echo "Production deployment blocked due to security vulnerabilities."
+          exit 1
+        fi
+
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    needs: validate-deployment
+    if: ${{ !github.event.inputs.skip_tests }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+    
+    - name: Install backend dependencies
+      working-directory: backend
+      run: npm ci
+    
+    - name: Run backend tests
+      working-directory: backend
+      run: npm test
+      env:
+        NODE_ENV: test
+
+  build-and-package:
+    name: Build and Package
+    runs-on: ubuntu-latest
+    needs: [validate-deployment, security-audit, test-backend]
+    if: always() && (needs.validate-deployment.result == 'success' && (needs.security-audit.result == 'success' || needs.security-audit.result == 'skipped') && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped'))
+    
+    outputs:
+      backend_artifact: ${{ steps.package.outputs.backend_artifact }}
+      frontend_artifact: ${{ steps.package.outputs.frontend_artifact }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+    
+    - name: Install AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        use-installer: true
+    
+    - name: Build backend with SAM
+      run: |
+        cd backend && npm ci --production
+        sam build --region ${{ env.AWS_REGION }}
+    
+    - name: Build frontend
+      working-directory: frontend
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Package artifacts
+      id: package
+      run: |
+        # Create deployment package
+        mkdir -p dist/production-deployment
+        
+        # Package SAM build
+        cp -r .aws-sam/build dist/production-deployment/
+        cp template.yaml dist/production-deployment/
+        cp samconfig-prod.toml dist/production-deployment/samconfig.toml
+        cp cloudfront-template.yaml dist/production-deployment/
+        
+        # Package frontend build
+        cp -r frontend/dist dist/production-deployment/frontend-build
+        
+        # Create deployment metadata
+        cat > dist/production-deployment/deployment-info.json << EOF
+        {
+          "version": "${{ needs.validate-deployment.outputs.version }}",
+          "commit_sha": "${{ needs.validate-deployment.outputs.commit_sha }}",
+          "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "build_number": "${{ github.run_number }}",
+          "workflow_run_id": "${{ github.run_id }}"
+        }
+        EOF
+        
+        echo "backend_artifact=production-deployment-${{ github.run_number }}" >> $GITHUB_OUTPUT
+        echo "frontend_artifact=production-frontend-${{ github.run_number }}" >> $GITHUB_OUTPUT
+    
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: production-deployment-${{ github.run_number }}
+        path: dist/production-deployment/
+        retention-days: 90
+
+  deploy-backend:
+    name: Deploy Backend to Production
+    runs-on: ubuntu-latest
+    needs: [validate-deployment, build-and-package]
+    environment: production
+    
+    steps:
+    - name: Download deployment artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build-and-package.outputs.backend_artifact }}
+        path: ./deployment
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+        role-session-name: GitHubActions-Prod-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+    
+    - name: Install AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        use-installer: true
+    
+    - name: Deploy backend infrastructure
+      working-directory: ./deployment
+      run: |
+        # Deploy main backend stack
+        sam deploy \
+          --config-file samconfig.toml \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            Environment=prod \
+            EnableDeletionProtection=true \
+            LogRetentionDays=7
+    
+    - name: Get backend outputs
+      id: backend_outputs
+      run: |
+        # Get stack outputs
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+          --output text)
+        
+        FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-prod \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' \
+          --output text)
+        
+        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+        echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+        
+        echo "✅ Backend deployed successfully"
+        echo "API URL: $API_URL"
+        echo "Frontend Bucket: $FRONTEND_BUCKET"
+
+  deploy-frontend:
+    name: Deploy Frontend to Production
+    runs-on: ubuntu-latest
+    needs: [validate-deployment, build-and-package, deploy-backend]
+    environment: production
+    
+    steps:
+    - name: Download deployment artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build-and-package.outputs.backend_artifact }}
+        path: ./deployment
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Deploy frontend to S3
+      run: |
+        # Sync frontend build to S3
+        aws s3 sync ./deployment/frontend-build/ \
+          s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
+          --delete \
+          --cache-control "public, max-age=31536000" \
+          --exclude "*.html" \
+          --exclude "*.json"
+        
+        # Deploy HTML files with shorter cache
+        aws s3 sync ./deployment/frontend-build/ \
+          s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
+          --cache-control "public, max-age=300" \
+          --include "*.html" \
+          --include "*.json"
+    
+    - name: Deploy CloudFront distribution
+      run: |
+        # Deploy CloudFront stack
+        aws cloudformation deploy \
+          --template-file ./deployment/cloudfront-template.yaml \
+          --stack-name home-inventory-cloudfront-prod \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --parameter-overrides \
+            Environment=prod \
+            FrontendBucket=${{ needs.deploy-backend.outputs.frontend_bucket }} \
+            ApiUrl=${{ needs.deploy-backend.outputs.api_url }}
+    
+    - name: Invalidate CloudFront cache
+      run: |
+        # Get CloudFront distribution ID
+        DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-cloudfront-prod \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
+          --output text)
+        
+        # Create invalidation
+        aws cloudfront create-invalidation \
+          --distribution-id $DISTRIBUTION_ID \
+          --paths "/*"
+        
+        echo "✅ Frontend deployed and cache invalidated"
+        echo "Distribution ID: $DISTRIBUTION_ID"
+
+  smoke-tests:
+    name: Production Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Run smoke tests
+      run: |
+        # Basic API health check
+        API_URL="${{ needs.deploy-backend.outputs.api_url }}"
+        
+        echo "Testing API health endpoint..."
+        if curl -f -s "$API_URL/health" > /dev/null; then
+          echo "✅ API health check passed"
+        else
+          echo "❌ API health check failed"
+          exit 1
+        fi
+        
+        # Test CORS headers
+        echo "Testing CORS configuration..."
+        CORS_RESPONSE=$(curl -s -I -X OPTIONS "$API_URL/health" \
+          -H "Origin: https://app.yourdomain.com" \
+          -H "Access-Control-Request-Method: GET")
+        
+        if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin"; then
+          echo "✅ CORS configuration working"
+        else
+          echo "❌ CORS configuration issue"
+          exit 1
+        fi
+        
+        # Test CloudFront distribution
+        echo "Testing CloudFront distribution..."
+        CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-cloudfront-prod \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`DistributionUrl`].OutputValue' \
+          --output text)
+        
+        if curl -f -s "$CLOUDFRONT_URL" > /dev/null; then
+          echo "✅ CloudFront distribution accessible"
+        else
+          echo "❌ CloudFront distribution not accessible"
+          exit 1
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+        AWS_DEFAULT_REGION: ${{ env.CLOUDFRONT_REGION }}
+
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [validate-deployment, deploy-backend, deploy-frontend, smoke-tests]
+    if: always()
+    
+    steps:
+    - name: Generate deployment summary
+      run: |
+        echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** ${{ needs.validate-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ needs.validate-deployment.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Build:** #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployment time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.smoke-tests.result }}" == "success" ]]; then
+          echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **API:** ${{ needs.deploy-backend.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Frontend:** CloudFront distribution deployed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Smoke tests:** All tests passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Status:** Deployment failed or incomplete" >> $GITHUB_STEP_SUMMARY
+          echo "Please check the logs and consider rollback if necessary." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- Monitor application metrics and logs" >> $GITHUB_STEP_SUMMARY
+        echo "- Verify user functionality in production" >> $GITHUB_STEP_SUMMARY
+        echo "- Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+
+  notify-deployment:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: [validate-deployment, deployment-summary]
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      run: |
+        if [[ "${{ needs.deployment-summary.result }}" == "success" ]]; then
+          echo "✅ Production deployment completed successfully"
+          echo "Version: ${{ needs.validate-deployment.outputs.version }}"
+          echo "Commit: ${{ needs.validate-deployment.outputs.commit_sha }}"
+        else
+          echo "❌ Production deployment failed or was cancelled"
+          echo "Please check the workflow logs for details"
+        fi

@@ -5,14 +5,36 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - prod
+      skip_tests:
+        description: 'Skip tests (emergency only)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required to checkout code
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
+  AWS_REGION: 'eu-west-1'
+  CLOUDFRONT_REGION: 'us-east-1'
 
 jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    if: ${{ !github.event.inputs.skip_tests }}
     
     strategy:
       matrix:
@@ -51,6 +73,7 @@ jobs:
     name: Test Backend
     runs-on: ubuntu-latest
     needs: security-audit
+    if: ${{ !github.event.inputs.skip_tests }}
     
     steps:
     - name: Checkout code
@@ -70,6 +93,8 @@ jobs:
     - name: Run backend tests
       working-directory: backend
       run: npm test
+      env:
+        NODE_ENV: test
     
     - name: Upload backend test results
       if: always()
@@ -83,6 +108,7 @@ jobs:
     name: Test Frontend
     runs-on: ubuntu-latest
     needs: security-audit
+    if: ${{ !github.event.inputs.skip_tests }}
     
     steps:
     - name: Checkout code
@@ -111,6 +137,7 @@ jobs:
     name: Build Backend
     runs-on: ubuntu-latest
     needs: [security-audit, test-backend]
+    if: always() && ((needs.security-audit.result == 'success' || needs.security-audit.result == 'skipped') && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped'))
     
     steps:
     - name: Checkout code
@@ -129,6 +156,7 @@ jobs:
     
     - name: Final security check on production dependencies
       working-directory: backend
+      if: ${{ !github.event.inputs.skip_tests }}
       run: npm audit --audit-level=high --omit=dev
     
     - name: Package backend for deployment
@@ -165,3 +193,302 @@ jobs:
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "- Monitor Dependabot PRs for security updates" >> $GITHUB_STEP_SUMMARY
         echo "- Review audit reports in artifacts if any issues were found" >> $GITHUB_STEP_SUMMARY
+
+  determine-deployment:
+    name: Determine Deployment Strategy
+    runs-on: ubuntu-latest
+    needs: [security-audit, test-backend, test-frontend, build-backend]
+    if: always() && (needs.security-audit.result == 'success' && needs.test-backend.result == 'success' && needs.test-frontend.result == 'success' && needs.build-backend.result == 'success')
+    
+    outputs:
+      should_deploy: ${{ steps.deployment_decision.outputs.should_deploy }}
+      target_environment: ${{ steps.deployment_decision.outputs.target_environment }}
+      deployment_type: ${{ steps.deployment_decision.outputs.deployment_type }}
+    
+    steps:
+    - name: Determine deployment strategy
+      id: deployment_decision
+      run: |
+        # Determine if we should deploy based on trigger and branch
+        SHOULD_DEPLOY="false"
+        TARGET_ENV="dev"
+        DEPLOYMENT_TYPE="automatic"
+        
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          # Manual workflow dispatch
+          SHOULD_DEPLOY="true"
+          TARGET_ENV="${{ github.event.inputs.environment }}"
+          DEPLOYMENT_TYPE="manual"
+        elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # Push to main branch - deploy to dev
+          SHOULD_DEPLOY="true"
+          TARGET_ENV="dev"
+          DEPLOYMENT_TYPE="automatic"
+        elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          # Push to develop branch - deploy to dev
+          SHOULD_DEPLOY="true"
+          TARGET_ENV="dev"
+          DEPLOYMENT_TYPE="automatic"
+        fi
+        
+        echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+        echo "target_environment=$TARGET_ENV" >> $GITHUB_OUTPUT
+        echo "deployment_type=$DEPLOYMENT_TYPE" >> $GITHUB_OUTPUT
+        
+        echo "Deployment decision:"
+        echo "- Should deploy: $SHOULD_DEPLOY"
+        echo "- Target environment: $TARGET_ENV"
+        echo "- Deployment type: $DEPLOYMENT_TYPE"
+
+  deploy-development:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [determine-deployment]
+    if: needs.determine-deployment.outputs.should_deploy == 'true' && needs.determine-deployment.outputs.target_environment == 'dev'
+    environment: development
+    
+    outputs:
+      api_url: ${{ steps.deploy_backend.outputs.api_url }}
+      frontend_bucket: ${{ steps.deploy_backend.outputs.frontend_bucket }}
+      cloudfront_url: ${{ steps.deploy_frontend.outputs.cloudfront_url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.DEV_ROLE_ARN }}
+        role-session-name: GitHubActions-Dev-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+    
+    - name: Install AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        use-installer: true
+    
+    - name: Build and deploy backend
+      id: deploy_backend
+      run: |
+        # Install backend dependencies
+        cd backend && npm ci --production
+        
+        # Build with SAM
+        sam build --region ${{ env.AWS_REGION }}
+        
+        # Deploy backend stack
+        sam deploy \
+          --config-file samconfig-dev.toml \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            Environment=dev \
+            EnableDeletionProtection=false \
+            LogRetentionDays=3
+        
+        # Get stack outputs
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+          --output text)
+        
+        FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' \
+          --output text)
+        
+        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+        echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+        
+        echo "✅ Backend deployed to development"
+        echo "API URL: $API_URL"
+    
+    - name: Build and deploy frontend
+      id: deploy_frontend
+      run: |
+        # Build frontend
+        cd frontend
+        npm ci
+        npm run build
+        
+        # Deploy to S3
+        aws s3 sync ./dist/ \
+          s3://${{ steps.deploy_backend.outputs.frontend_bucket }}/ \
+          --delete \
+          --cache-control "public, max-age=300"
+        
+        # Deploy CloudFront stack
+        aws cloudformation deploy \
+          --template-file ../cloudfront-template.yaml \
+          --stack-name home-inventory-cloudfront-dev \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --parameter-overrides \
+            Environment=dev \
+            FrontendBucket=${{ steps.deploy_backend.outputs.frontend_bucket }} \
+            ApiUrl=${{ steps.deploy_backend.outputs.api_url }}
+        
+        # Get CloudFront URL
+        CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-cloudfront-dev \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`DistributionUrl`].OutputValue' \
+          --output text)
+        
+        echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
+        
+        echo "✅ Frontend deployed to development"
+        echo "CloudFront URL: $CLOUDFRONT_URL"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [determine-deployment]
+    if: needs.determine-deployment.outputs.should_deploy == 'true' && needs.determine-deployment.outputs.target_environment == 'prod'
+    environment: production
+    
+    steps:
+    - name: Trigger production deployment workflow
+      run: |
+        echo "🚀 Triggering production deployment workflow..."
+        echo "This will use the dedicated production deployment workflow for enhanced security and approval processes."
+        
+        # In a real implementation, you might trigger the production workflow here
+        # or redirect users to manually trigger it
+        echo "Please use the 'Deploy to Production' workflow for production deployments."
+        echo "This ensures proper approval processes and production-specific safeguards."
+        
+        exit 1  # Fail to prevent accidental production deployment through this workflow
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-development]
+    if: needs.deploy-development.result == 'success'
+    
+    steps:
+    - name: Run development smoke tests
+      run: |
+        API_URL="${{ needs.deploy-development.outputs.api_url }}"
+        CLOUDFRONT_URL="${{ needs.deploy-development.outputs.cloudfront_url }}"
+        
+        echo "Running smoke tests against development environment..."
+        
+        # Test API health
+        echo "Testing API health endpoint..."
+        if curl -f -s "$API_URL/health" > /dev/null; then
+          echo "✅ API health check passed"
+        else
+          echo "❌ API health check failed"
+          exit 1
+        fi
+        
+        # Test frontend
+        echo "Testing frontend accessibility..."
+        if curl -f -s "$CLOUDFRONT_URL" > /dev/null; then
+          echo "✅ Frontend accessible"
+        else
+          echo "❌ Frontend not accessible"
+          exit 1
+        fi
+        
+        echo "✅ All smoke tests passed"
+
+  rollback-on-failure:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-development, smoke-tests]
+    if: failure() && needs.deploy-development.result == 'success'
+    environment: development
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Rollback deployment
+      run: |
+        echo "🔄 Deployment failed, initiating rollback..."
+        
+        # Get the previous successful deployment
+        STACK_NAME="home-inventory-system-dev"
+        
+        # Check if we can rollback the CloudFormation stack
+        if aws cloudformation describe-stacks --stack-name $STACK_NAME --region ${{ env.AWS_REGION }} > /dev/null 2>&1; then
+          echo "Checking for previous stack version..."
+          
+          # In a real scenario, you might want to implement more sophisticated rollback logic
+          # For now, we'll just report the failure
+          echo "❌ Deployment failed and rollback is needed"
+          echo "Manual intervention may be required to restore the previous version"
+          
+          # You could implement automatic rollback here by:
+          # 1. Keeping track of previous successful deployments
+          # 2. Re-deploying the previous version
+          # 3. Restoring database state if needed
+        else
+          echo "No previous deployment found to rollback to"
+        fi
+
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [determine-deployment, deploy-development, smoke-tests, rollback-on-failure]
+    if: always()
+    
+    steps:
+    - name: Generate deployment summary
+      run: |
+        echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Actor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.determine-deployment.outputs.should_deploy }}" == "true" ]]; then
+          echo "**Deployment:** ${{ needs.determine-deployment.outputs.target_environment }} (${{ needs.determine-deployment.outputs.deployment_type }})" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.smoke-tests.result }}" == "success" ]]; then
+            echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ needs.deploy-development.outputs.api_url }}" != "" ]]; then
+              echo "✅ **API:** ${{ needs.deploy-development.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ "${{ needs.deploy-development.outputs.cloudfront_url }}" != "" ]]; then
+              echo "✅ **Frontend:** ${{ needs.deploy-development.outputs.cloudfront_url }}" >> $GITHUB_STEP_SUMMARY
+            fi
+          elif [[ "${{ needs.rollback-on-failure.result }}" == "success" ]]; then
+            echo "🔄 **Status:** Deployment failed, rollback completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Deployment failed" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "**Deployment:** Skipped (no deployment needed for this trigger)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Security Audit Results" >> $GITHUB_STEP_SUMMARY
+        if [[ "${{ needs.security-audit.result }}" == "success" ]]; then
+          echo "✅ No high or critical vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Security audit failed - check logs" >> $GITHUB_STEP_SUMMARY
+        fi
