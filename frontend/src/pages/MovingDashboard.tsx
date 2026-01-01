@@ -30,6 +30,7 @@ import type { Container, MovingProject, ContainerStatus, ProjectStatus, ThingWit
 import QRCodeScanner from '../components/QRCodeScanner';
 import QRScanResults from '../components/QRScanResults';
 import ContainerDetailDialog from '../components/ContainerDetailDialog';
+import ContainerFormDialog from '../components/ContainerFormDialog';
 import ThingFormDialog from '../components/ThingFormDialog';
 import MobileNavigation from '../components/MobileNavigation';
 
@@ -387,6 +388,7 @@ export default function MovingDashboard() {
   // New state for container and item detail dialogs
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [containerDetailOpen, setContainerDetailOpen] = useState(false);
+  const [containerFormOpen, setContainerFormOpen] = useState(false);
   const [selectedThing, setSelectedThing] = useState<ThingWithContainer | null>(null);
   const [thingDetailOpen, setThingDetailOpen] = useState(false);
   
@@ -472,8 +474,8 @@ export default function MovingDashboard() {
 
   // Quick action handlers
   const handleCreateContainer = () => {
-    // TODO: Open container creation dialog
-    showSuccess('Container creation will be implemented in the next task');
+    setSelectedContainer(null); // Clear any selected container for new creation
+    setContainerFormOpen(true);
   };
 
   const handleCreateProject = () => {
@@ -543,6 +545,26 @@ export default function MovingDashboard() {
 
   const handleRefresh = () => {
     loadDashboardData();
+  };
+
+  const handleContainerFormSuccess = (container: Container) => {
+    // Update the containers list with the new container
+    setContainers(prevContainers => [container, ...prevContainers]);
+    
+    // Update stats
+    setStats(prevStats => ({
+      ...prevStats,
+      totalContainers: prevStats.totalContainers + 1,
+    }));
+    
+    setContainerFormOpen(false);
+    setSelectedContainer(null);
+    showSuccess(`Container "${container.name}" created successfully!`);
+  };
+
+  const handleContainerFormClose = () => {
+    setContainerFormOpen(false);
+    setSelectedContainer(null);
   };
 
   if (!currentInventory) {
@@ -814,6 +836,14 @@ export default function MovingDashboard() {
         onNavigateToContainer={handleNavigateToContainer}
         onNavigateToItem={handleNavigateToItem}
         inventoryId={scanResult?.inventoryId || currentInventory.id}
+      />
+
+      {/* Container Form Dialog */}
+      <ContainerFormDialog
+        open={containerFormOpen}
+        container={selectedContainer}
+        onClose={handleContainerFormClose}
+        onSuccess={handleContainerFormSuccess}
       />
 
       {/* Container Detail Dialog */}
