@@ -26,9 +26,11 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
-import type { Container, MovingProject, ContainerStatus, ProjectStatus, ThingWithContainer } from '../types';
+import type { Container, MovingProject, ContainerStatus, ProjectStatus, ThingWithContainer, Location, Room, Category, Person } from '../types';
 import QRCodeScanner from '../components/QRCodeScanner';
 import QRScanResults from '../components/QRScanResults';
+import ContainerDetailDialog from '../components/ContainerDetailDialog';
+import ThingFormDialog from '../components/ThingFormDialog';
 import MobileNavigation from '../components/MobileNavigation';
 
 interface DashboardStats {
@@ -378,8 +380,21 @@ export default function MovingDashboard() {
     container: Container;
     items: ThingWithContainer[];
     itemCount: number;
+    inventoryId: string; // The actual inventory ID where the container was found
     scannedAt: string;
   } | null>(null);
+
+  // New state for container and item detail dialogs
+  const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
+  const [containerDetailOpen, setContainerDetailOpen] = useState(false);
+  const [selectedThing, setSelectedThing] = useState<ThingWithContainer | null>(null);
+  const [thingDetailOpen, setThingDetailOpen] = useState(false);
+  
+  // Data for form dialogs
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
 
   // Load dashboard data
   const loadDashboardData = async () => {
@@ -388,10 +403,14 @@ export default function MovingDashboard() {
     try {
       setLoading(true);
       
-      // Load projects and containers in parallel
-      const [projectsData, containersResponse] = await Promise.all([
+      // Load projects, containers, and supporting data in parallel
+      const [projectsData, containersResponse, locationsData, roomsData, categoriesData, peopleData] = await Promise.all([
         apiClient.getProjects(currentInventory.id),
         apiClient.getContainers(currentInventory.id),
+        apiClient.getLocations(currentInventory.id),
+        apiClient.getRooms(undefined, currentInventory.id),
+        apiClient.getCategories(currentInventory.id),
+        apiClient.getPeople(currentInventory.id),
       ]);
       
       // Ensure we have arrays, fallback to empty arrays if not
@@ -408,9 +427,17 @@ export default function MovingDashboard() {
       }
       
       const safeContainersData = Array.isArray(containersData) ? containersData : [];
+      const safeLocationsData = Array.isArray(locationsData) ? locationsData : [];
+      const safeRoomsData = Array.isArray(roomsData) ? roomsData : [];
+      const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
+      const safePeopleData = Array.isArray(peopleData) ? peopleData : [];
       
       setProjects(safeProjectsData);
       setContainers(safeContainersData);
+      setLocations(safeLocationsData);
+      setRooms(safeRoomsData);
+      setCategories(safeCategoriesData);
+      setPeople(safePeopleData);
       
       // Calculate statistics
       const totalContainers = safeContainersData.length;
@@ -465,13 +492,43 @@ export default function MovingDashboard() {
   };
 
   const handleNavigateToContainer = (containerId: string) => {
-    // TODO: Navigate to container details page
-    showSuccess(`Navigating to container ${containerId}`);
+    // If we have scan result data and the container ID matches, use that data
+    if (scanResult && scanResult.scanResult.containerId === containerId) {
+      setSelectedContainer(scanResult.container);
+      setContainerDetailOpen(true);
+      return;
+    }
+    
+    // Find the container in our current dashboard data and open the detail dialog
+    const container = containers.find(c => c.id === containerId);
+    if (container) {
+      setSelectedContainer(container);
+      setContainerDetailOpen(true);
+    } else {
+      showError('Container not found');
+    }
   };
 
-  const handleNavigateToItem = (itemId: string) => {
-    // TODO: Navigate to item details page
-    showSuccess(`Navigating to item ${itemId}`);
+  const handleNavigateToItem = async (itemId: string) => {
+    // If we have scan result data, check if the item is in the scanned items
+    if (scanResult && scanResult.items) {
+      const scannedItem = scanResult.items.find(item => item.id === itemId);
+      if (scannedItem) {
+        setSelectedThing(scannedItem);
+        setThingDetailOpen(true);
+        return;
+      }
+    }
+    
+    // Otherwise, fetch the item details from the API
+    try {
+      const item = await apiClient.getThing(itemId);
+      setSelectedThing(item);
+      setThingDetailOpen(true);
+    } catch (error) {
+      console.error('Error fetching item details:', error);
+      showError('Item not found or could not be loaded');
+    }
   };
 
   const handleViewReports = () => {
@@ -673,9 +730,13 @@ export default function MovingDashboard() {
                       <Card 
                         sx={{ 
                           cursor: 'pointer',
-                          transition: 'transform 0.2s ease-in-out',
-                          '&:hover': { transform: 'translateY(-2px)' },
+                          transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                          '&:hover': { 
+                            transform: 'translateY(-2px)',
+                            boxShadow: 4,
+                          },
                         }}
+                        onClick={() => handleNavigateToContainer(container.id)}
                       >
                         <CardContent>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
@@ -752,8 +813,50 @@ export default function MovingDashboard() {
         scanResult={scanResult}
         onNavigateToContainer={handleNavigateToContainer}
         onNavigateToItem={handleNavigateToItem}
-        inventoryId={currentInventory.id}
+        inventoryId={scanResult?.inventoryId || currentInventory.id}
       />
+
+      {/* Container Detail Dialog */}
+      {selectedContainer && (
+        <ContainerDetailDialog
+          open={containerDetailOpen}
+          container={selectedContainer}
+          inventoryId={currentInventory.id}
+          onClose={() => {
+            setContainerDetailOpen(false);
+            setSelectedContainer(null);
+          }}
+          onEdit={() => {
+            // TODO: Implement container editing
+            showSuccess('Container editing will be implemented in a future update');
+          }}
+          onDelete={() => {
+            // TODO: Implement container deletion
+            showSuccess('Container deletion will be implemented in a future update');
+          }}
+        />
+      )}
+
+      {/* Thing Detail Dialog (View Mode) */}
+      {selectedThing && (
+        <ThingFormDialog
+          open={thingDetailOpen}
+          thing={selectedThing}
+          locations={locations}
+          rooms={rooms}
+          categories={categories}
+          people={people}
+          onSubmit={() => {
+            // This is view-only mode, so we close without saving
+            setThingDetailOpen(false);
+            setSelectedThing(null);
+          }}
+          onClose={() => {
+            setThingDetailOpen(false);
+            setSelectedThing(null);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -193,6 +193,26 @@ async function authenticate(event) {
   let validationFailureReason = 'unknown';
   
   try {
+    // Check if API Gateway already validated the JWT (claims available in requestContext)
+    if (event.requestContext?.authorizer?.jwt?.claims) {
+      const claims = event.requestContext.authorizer.jwt.claims;
+      const user = {
+        userId: claims.sub,
+        email: claims.email,
+        username: claims['cognito:username'] || claims.username || claims.email
+      };
+      userId = user.userId;
+      
+      // Attach user info to event for use in handlers
+      event.user = user;
+      
+      // Log successful authentication
+      await auditLogService.logAuth(userId, true, ipAddress, userAgent);
+      
+      return event;
+    }
+    
+    // Fallback to manual JWT validation
     const authHeader = event.headers?.Authorization || event.headers?.authorization;
     
     if (!authHeader) {

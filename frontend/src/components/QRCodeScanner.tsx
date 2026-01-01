@@ -47,6 +47,7 @@ interface ScanResult {
   container: Container;
   items: ThingWithContainer[];
   itemCount: number;
+  inventoryId: string; // The actual inventory ID where the container was found
   scannedAt: string;
 }
 
@@ -88,7 +89,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [, setManualCode] = useState('');
-  const [, setManualError] = useState<string | null>(null);
+  const [manualError, setManualError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasCamera, setHasCamera] = useState(true);
   const [flashEnabled, setFlashEnabled] = useState(false);
@@ -248,17 +249,28 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     if (isProcessing) return;
 
     setIsProcessing(true);
+    setScanError(null);
+    setManualError(null);
     stopCamera();
 
     try {
       // Call API to scan QR code and get container contents
-      const result = await apiClient.scanQRCode(qrCodeData, inventoryId);
+      // Pass inventoryId as optional - backend will find container across all user inventories
+      const result = await apiClient.scanQRCode(qrCodeData, inventoryId) as ScanResult;
       onScanSuccess(result);
       onClose();
 
     } catch (error) {
       console.error('Error processing QR scan:', error);
-      setScanError(error instanceof Error ? error.message : 'Failed to process QR code');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process QR code';
+      
+      // Set error based on which tab is active
+      if (tabValue === 0) {
+        setScanError(errorMessage);
+      } else {
+        setManualError(errorMessage);
+      }
+      
       setIsProcessing(false);
     }
   };
@@ -312,6 +324,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     } else {
       // Switching to manual tab
       stopCamera();
+      setManualError(null);
     }
   };
 
@@ -560,6 +573,11 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
         <TabPanel value={tabValue} index={1}>
           {/* Manual Entry Tab */}
+          {manualError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {manualError}
+            </Alert>
+          )}
           <AlternativeQRInput
             onQRCodeEntered={handleScanResult}
             onError={(error) => setManualError(error)}

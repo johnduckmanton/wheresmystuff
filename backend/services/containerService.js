@@ -1,7 +1,7 @@
 const { Container, ContainerStatus } = require('../models/container');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
-const { hasInventoryAccess } = require('./dynamodb');
+const { hasInventoryAccess, getUserInventories } = require('./dynamodb');
 const { logDataAccess, logContainerOperation, logBulkOperation } = require('./auditLogService');
 const cacheService = require('./cacheService');
 const dbOptimizationService = require('./databaseOptimizationService');
@@ -98,6 +98,65 @@ class ContainerService {
     await logDataAccess(userId, 'read', 'containers', containerId, inventoryId);
 
     return Container.fromDynamoDBItem(result.Item);
+  }
+
+  /**
+   * Find a container by ID across all inventories the user has access to
+   * This is used for QR code scanning where we don't know which inventory the container belongs to
+   * @param {string} containerId - Container ID
+   * @param {string} userId - User ID requesting the container
+   * @returns {Promise<{container: Container, inventoryId: string}|null>} Container with its inventory ID or null if not found
+   */
+  async findContainerAcrossInventories(containerId, userId) {
+    console.log('🔍 findContainerAcrossInventories called:', { containerId, userId });
+    
+    // Get all inventories the user has access to
+    const userInventories = await getUserInventories(userId);
+    console.log('📋 User inventories found:', userInventories?.length || 0);
+    
+    if (!userInventories || userInventories.length === 0) {
+      console.log('❌ No inventories found for user');
+      return null;
+    }
+
+    // Search for the container in each inventory
+    for (const inventory of userInventories) {
+      try {
+        console.log('🔍 Searching in inventory:', inventory.id);
+        
+        const result = await docClient.send(new GetCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            pk: `INVENTORY#${inventory.id}#CONTAINERS`,
+            sk: containerId
+          }
+        }));
+
+        if (result.Item) {
+          console.log('✅ Container found in inventory:', inventory.id);
+          // Found the container
+          const container = Container.fromDynamoDBItem(result.Item);
+          
+          // Log the access
+          await logDataAccess(userId, 'read', 'containers', containerId, inventory.id);
+          
+          return {
+            container,
+            inventoryId: inventory.id
+          };
+        } else {
+          console.log('❌ Container not found in inventory:', inventory.id);
+        }
+      } catch (error) {
+        // Continue searching in other inventories if this one fails
+        console.error(`❌ Error searching for container ${containerId} in inventory ${inventory.id}:`, error);
+        continue;
+      }
+    }
+
+    // Container not found in any accessible inventory
+    console.log('❌ Container not found in any accessible inventory');
+    return null;
   }
 
   /**
@@ -601,7 +660,10 @@ class ContainerService {
     const itemsResult = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'pk = :pk',
-      FilterExpression: 'containerId = :containerId',
+      FilterExpression: '#data.containerId = :containerId',
+      ExpressionAttributeNames: {
+        '#data': 'data'
+      },
       ExpressionAttributeValues: {
         ':pk': `INVENTORY#${inventoryId}#THINGS`,
         ':containerId': containerId

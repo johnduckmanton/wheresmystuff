@@ -67,7 +67,7 @@ exports.generateQRCode = async (event) => {
 
     // Log the QR code generation
     await logSecurityEvent('QR_CODE_GENERATED', {
-      userId: user.sub,
+      userId: user.userId,
       containerId,
       size,
       qrCodeId: qrCodeData.qrCodeId
@@ -136,7 +136,7 @@ exports.generateBatchQRCodes = async (event) => {
 
     // Log the batch QR code generation
     await logSecurityEvent('BATCH_QR_CODE_GENERATED', {
-      userId: user.sub,
+      userId: user.userId,
       containerCount: containerIds.length,
       successCount: batchResult.successCount,
       failureCount: batchResult.failureCount,
@@ -178,7 +178,7 @@ exports.decodeQRCode = async (event) => {
     // Validate QR code format
     if (!qrCodeService.validateQRCode(qrCodeId)) {
       await logSecurityEvent('INVALID_QR_CODE_SCAN', {
-        userId: user.sub,
+        userId: user.userId,
         qrCodeId
       });
       
@@ -190,7 +190,7 @@ exports.decodeQRCode = async (event) => {
 
     // Log the QR code scan
     await logSecurityEvent('QR_CODE_SCANNED', {
-      userId: user.sub,
+      userId: user.userId,
       qrCodeId,
       containerId: decodedData.containerId
     });
@@ -213,36 +213,42 @@ exports.decodeQRCode = async (event) => {
  */
 exports.scanQRCode = async (event) => {
   try {
+    console.log('🔍 QR Code scan started');
+    
     // Validate JWT token
     await authenticate(event);
     const user = event.user;
+    console.log('✅ User authenticated:', user.userId);
     
     const body = JSON.parse(event.body || '{}');
     const { qrCodeData, inventoryId } = body;
+    console.log('📋 Scan request:', { qrCodeData, inventoryId });
 
     if (!qrCodeData) {
       return error('QR code data is required');
     }
 
-    if (!inventoryId) {
-      return error('Inventory ID is required');
-    }
+    // Note: inventoryId is optional for QR scanning - we'll find the container across all user inventories
 
     // Scan and validate QR code
     const scanResult = qrCodeService.scanQRCode(qrCodeData);
+    console.log('🔍 QR code validation result:', scanResult);
     
     if (!scanResult.success) {
-      // Record failed scan in history
-      await ScanHistoryService.recordScan(user.sub, inventoryId, {
-        type: 'qr_scan',
-        success: false,
-        qrCodeId: qrCodeData,
-        method: 'camera',
-        error: scanResult.error
-      });
+      console.log('❌ QR code validation failed:', scanResult.error);
+      // Record failed scan in history (use provided inventoryId if available)
+      if (inventoryId) {
+        await ScanHistoryService.recordScan(user.userId, inventoryId, {
+          type: 'qr_scan',
+          success: false,
+          qrCodeId: qrCodeData,
+          method: 'camera',
+          error: scanResult.error
+        });
+      }
 
       await logSecurityEvent('QR_CODE_SCAN_FAILED', {
-        userId: user.sub,
+        userId: user.userId,
         error: scanResult.error,
         inventoryId
       });
@@ -250,19 +256,57 @@ exports.scanQRCode = async (event) => {
       return error(scanResult.message);
     }
 
-    // Get container service to lookup container and contents
+    console.log('✅ QR code validated, container ID:', scanResult.containerId);
+
+    // Get container service to lookup container across all user inventories
     const ContainerService = require('../services/containerService');
     
     try {
-      // Get container contents
-      const containerContents = await ContainerService.getContainerContents(
+      // Find the container across all inventories the user has access to
+      console.log('🔍 Searching for container across inventories...');
+      const containerResult = await ContainerService.findContainerAcrossInventories(
         scanResult.containerId, 
-        inventoryId, 
-        user.sub
+        user.userId
       );
 
+      if (!containerResult) {
+        console.log('❌ Container not found in any accessible inventory');
+        // Container not found in any accessible inventory
+        if (inventoryId) {
+          await ScanHistoryService.recordScan(user.userId, inventoryId, {
+            type: 'qr_scan',
+            success: false,
+            containerId: scanResult.containerId,
+            qrCodeId: qrCodeData,
+            method: 'camera',
+            error: 'Container not found or access denied'
+          });
+        }
+
+        await logSecurityEvent('QR_CODE_CONTAINER_NOT_FOUND', {
+          userId: user.userId,
+          containerId: scanResult.containerId,
+          inventoryId
+        });
+
+        return error('Container not found or you do not have access to it', 404);
+      }
+
+      console.log('✅ Container found in inventory:', containerResult.inventoryId);
+      const { container, inventoryId: actualInventoryId } = containerResult;
+
+      // Get container contents using the actual inventory ID
+      console.log('📋 Getting container contents...');
+      const containerContents = await ContainerService.getContainerContents(
+        scanResult.containerId, 
+        actualInventoryId, 
+        user.userId
+      );
+
+      console.log('✅ Container contents retrieved, item count:', containerContents.itemCount);
+
       // Record successful scan in history
-      await ScanHistoryService.recordScan(user.sub, inventoryId, {
+      await ScanHistoryService.recordScan(user.userId, actualInventoryId, {
         type: 'qr_scan',
         success: true,
         containerId: scanResult.containerId,
@@ -274,9 +318,9 @@ exports.scanQRCode = async (event) => {
 
       // Log successful scan
       await logSecurityEvent('QR_CODE_SCAN_SUCCESS', {
-        userId: user.sub,
+        userId: user.userId,
         containerId: scanResult.containerId,
-        inventoryId,
+        inventoryId: actualInventoryId,
         itemCount: containerContents.itemCount
       });
 
@@ -285,23 +329,27 @@ exports.scanQRCode = async (event) => {
         container: containerContents.container,
         items: containerContents.items,
         itemCount: containerContents.itemCount,
+        inventoryId: actualInventoryId, // Include the actual inventory ID
         scannedAt: new Date().toISOString()
       });
 
     } catch (containerError) {
+      console.error('❌ Container access error:', containerError);
       // Record failed container access in history
-      await ScanHistoryService.recordScan(user.sub, inventoryId, {
-        type: 'qr_scan',
-        success: false,
-        containerId: scanResult.containerId,
-        qrCodeId: qrCodeData,
-        method: 'camera',
-        error: containerError.message
-      });
+      if (inventoryId) {
+        await ScanHistoryService.recordScan(user.userId, inventoryId, {
+          type: 'qr_scan',
+          success: false,
+          containerId: scanResult.containerId,
+          qrCodeId: qrCodeData,
+          method: 'camera',
+          error: containerError.message
+        });
+      }
 
       // Handle container not found or access denied
       await logSecurityEvent('QR_CODE_CONTAINER_ACCESS_ERROR', {
-        userId: user.sub,
+        userId: user.userId,
         containerId: scanResult.containerId,
         inventoryId,
         error: containerError.message
@@ -317,7 +365,7 @@ exports.scanQRCode = async (event) => {
     }
 
   } catch (err) {
-    console.error('Error scanning QR code:', err);
+    console.error('❌ Error scanning QR code:', err);
     
     await logSecurityEvent('QR_CODE_SCAN_ERROR', {
       error: err.message
@@ -357,11 +405,11 @@ exports.lookupContainer = async (event) => {
         containerContents = await ContainerService.getContainerContents(
           containerId, 
           inventoryId, 
-          user.sub
+          user.userId
         );
       } catch (err) {
         // Record failed lookup in history
-        await ScanHistoryService.recordScan(user.sub, inventoryId, {
+        await ScanHistoryService.recordScan(user.userId, inventoryId, {
           type: 'manual_lookup',
           success: false,
           containerId: containerId,
@@ -379,7 +427,7 @@ exports.lookupContainer = async (event) => {
       }
     } else {
       // Search by container name
-      const containersList = await ContainerService.listContainers(inventoryId, user.sub, {
+      const containersList = await ContainerService.listContainers(inventoryId, user.userId, {
         search: containerName,
         limit: 10
       });
@@ -397,11 +445,11 @@ exports.lookupContainer = async (event) => {
         containerContents = await ContainerService.getContainerContents(
           exactMatch.id, 
           inventoryId, 
-          user.sub
+          user.userId
         );
 
         // Record successful lookup in history
-        await ScanHistoryService.recordScan(user.sub, inventoryId, {
+        await ScanHistoryService.recordScan(user.userId, inventoryId, {
           type: 'manual_lookup',
           success: true,
           containerId: exactMatch.id,
@@ -411,7 +459,7 @@ exports.lookupContainer = async (event) => {
         });
       } else {
         // Record search attempt in history
-        await ScanHistoryService.recordScan(user.sub, inventoryId, {
+        await ScanHistoryService.recordScan(user.userId, inventoryId, {
           type: 'container_search',
           success: false,
           containerName: containerName,
@@ -421,7 +469,7 @@ exports.lookupContainer = async (event) => {
 
         // Return multiple matches for user to choose from
         await logSecurityEvent('CONTAINER_MANUAL_SEARCH', {
-          userId: user.sub,
+          userId: user.userId,
           searchTerm: containerName,
           inventoryId,
           resultsCount: containersList.containers.length
@@ -444,7 +492,7 @@ exports.lookupContainer = async (event) => {
     // Record successful lookup in history
     if (containerId) {
       // Record successful ID lookup in history
-      await ScanHistoryService.recordScan(user.sub, inventoryId, {
+      await ScanHistoryService.recordScan(user.userId, inventoryId, {
         type: 'manual_lookup',
         success: true,
         containerId: containerContents.container.id,
@@ -456,7 +504,7 @@ exports.lookupContainer = async (event) => {
 
     // Log successful manual lookup
     await logSecurityEvent('CONTAINER_MANUAL_LOOKUP_SUCCESS', {
-      userId: user.sub,
+      userId: user.userId,
       containerId: containerContents.container.id,
       inventoryId,
       itemCount: containerContents.itemCount,
@@ -516,11 +564,11 @@ exports.getScanHistory = async (event) => {
       options.inventoryId = inventoryId;
     }
 
-    const history = await ScanHistoryService.getScanHistory(user.sub, options);
+    const history = await ScanHistoryService.getScanHistory(user.userId, options);
 
     // Log the history access
     await logSecurityEvent('SCAN_HISTORY_ACCESSED', {
-      userId: user.sub,
+      userId: user.userId,
       inventoryId,
       limit: options.limit,
       successOnly: options.successOnly
@@ -560,7 +608,7 @@ exports.getRecentScans = async (event) => {
     }
 
     const recentScans = await ScanHistoryService.getRecentSuccessfulScans(
-      user.sub, 
+      user.userId, 
       inventoryId, 
       parseInt(limit)
     );
@@ -892,27 +940,27 @@ exports.handler = async (event) => {
   try {
     // Route to appropriate handler based on path and method
     // Check more specific paths first to avoid conflicts
-    if (path.includes('/qr-codes/batch') && method === 'POST') {
-      console.log('✅ Routing to generateBatchQRCodes');
-      return await exports.generateBatchQRCodes(event);
-    } else if (path.includes('/qr-code') && method === 'POST') {
-      console.log('✅ Routing to generateQRCode');
-      return await exports.generateQRCode(event);
-    } else if (path.includes('/qr-code') && method === 'GET') {
-      console.log('✅ Routing to getContainerQRCode');
-      return await exports.getContainerQRCode(event);
+    if (path.includes('/qr-codes/scan') && method === 'POST') {
+      console.log('✅ Routing to scanQRCode');
+      return await exports.scanQRCode(event);
     } else if (path.includes('/qr-codes/decode') && method === 'POST') {
       console.log('✅ Routing to decodeQRCode');
       return await exports.decodeQRCode(event);
-    } else if (path.includes('/qr-codes/scan') && method === 'POST') {
-      console.log('✅ Routing to scanQRCode');
-      return await exports.scanQRCode(event);
+    } else if (path.includes('/qr-codes/batch') && method === 'POST') {
+      console.log('✅ Routing to generateBatchQRCodes');
+      return await exports.generateBatchQRCodes(event);
     } else if (path.includes('/qr-codes/history') && method === 'GET') {
       console.log('✅ Routing to getScanHistory');
       return await exports.getScanHistory(event);
     } else if (path.includes('/qr-codes/recent') && method === 'GET') {
       console.log('✅ Routing to getRecentScans');
       return await exports.getRecentScans(event);
+    } else if (path.includes('/qr-code') && method === 'POST') {
+      console.log('✅ Routing to generateQRCode');
+      return await exports.generateQRCode(event);
+    } else if (path.includes('/qr-code') && method === 'GET') {
+      console.log('✅ Routing to getContainerQRCode');
+      return await exports.getContainerQRCode(event);
     } else if (path.includes('/containers/lookup') && method === 'POST') {
       console.log('✅ Routing to lookupContainer');
       return await exports.lookupContainer(event);

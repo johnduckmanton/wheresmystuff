@@ -868,7 +868,7 @@ class ApiClient {
   }
 
   // QR Code Scanning API
-  async scanQRCode(qrCodeData: string, inventoryId: string): Promise<{
+  async scanQRCode(qrCodeData: string, inventoryId?: string): Promise<{
     scanResult: {
       success: boolean;
       containerId: string;
@@ -879,9 +879,27 @@ class ApiClient {
     container: Container;
     items: ThingWithContainer[];
     itemCount: number;
+    inventoryId: string; // The actual inventory ID where the container was found
     scannedAt: string;
   }> {
-    return this.post<any>('/qr-codes/scan', { qrCodeData, inventoryId });
+    const payload: { qrCodeData: string; inventoryId?: string } = { qrCodeData };
+    if (inventoryId) {
+      payload.inventoryId = inventoryId;
+    }
+    return this.post<{
+      scanResult: {
+        success: boolean;
+        containerId: string;
+        qrCodeId: string;
+        generatedAt: string;
+        timestamp: number;
+      };
+      container: Container;
+      items: ThingWithContainer[];
+      itemCount: number;
+      inventoryId: string;
+      scannedAt: string;
+    }>('/qr-codes/scan', payload);
   }
 
   async lookupContainer(inventoryId: string, containerId?: string, containerName?: string): Promise<{
