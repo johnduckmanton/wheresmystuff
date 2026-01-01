@@ -5,40 +5,59 @@
 The GitHub Actions workflows were failing with npm cache configuration errors:
 
 ```
-/opt/hostedtoolcache/node/20.19.6/x64/bin/npm config get cache/home/runner/.npmError: Some specified paths were not resolved, unable to cache dependencies.
+/opt/hostedtoolcache/node/20.19.6/x64/bin/npm config get cache/home/runner/.npmError: Dependencies lock file is not found in /home/runner/work/wheresmystuff/wheresmystuff. Supported file patterns: package-lock.json,npm-shrinkwrap.json,yarn.lock
 ```
 
 ## Root Cause
 
-The issue was caused by the `cache-dependency-path` configuration in the Node.js setup action. When this parameter is specified, setup-node tries to validate that the exact paths exist, but the path resolution was failing in the GitHub Actions environment.
+The issue was caused by setup-node looking for package-lock.json files in the wrong location. The project has package-lock.json files in subdirectories (`backend/` and `frontend/`) but setup-node was looking in the root directory when `cache: 'npm'` was used without specifying `cache-dependency-path`.
 
 ## Final Solution
 
-**Removed `cache-dependency-path` entirely** and let setup-node auto-detect package-lock.json files:
+**Specify the correct `cache-dependency-path` for each job** based on which directories that job needs:
 
 ```yaml
-# ❌ Problematic approach
+# ✅ For jobs that work with backend only
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:
     node-version: ${{ env.NODE_VERSION }}
     cache: 'npm'
-    cache-dependency-path: 'backend/package-lock.json'  # This causes issues
+    cache-dependency-path: backend/package-lock.json
 
-# ✅ Working approach
+# ✅ For jobs that work with frontend only  
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:
     node-version: ${{ env.NODE_VERSION }}
-    cache: 'npm'  # Auto-detects package-lock.json files
+    cache: 'npm'
+    cache-dependency-path: frontend/package-lock.json
+
+# ✅ For jobs that work with both backend and frontend
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: ${{ env.NODE_VERSION }}
+    cache: 'npm'
+    cache-dependency-path: |
+      backend/package-lock.json
+      frontend/package-lock.json
+
+# ✅ For matrix jobs that work with different directories
+- name: Setup Node.js
+  uses: actions/setup-node@v4
+  with:
+    node-version: ${{ env.NODE_VERSION }}
+    cache: 'npm'
+    cache-dependency-path: ${{ matrix.directory }}/package-lock.json
 ```
 
 ## Why This Works
 
-- **Auto-detection**: setup-node automatically finds package-lock.json files in the repository
-- **No path validation**: Eliminates the path resolution errors
-- **Simpler configuration**: Less prone to configuration mistakes
-- **Better caching**: Still provides npm caching benefits without the complexity
+- **Correct path specification**: Points setup-node to the actual location of package-lock.json files
+- **Job-specific caching**: Each job caches only the dependencies it needs
+- **Matrix support**: Uses matrix variables to cache the correct directory for each matrix job
+- **Multi-directory support**: Can cache multiple directories when a job needs both backend and frontend
 
 ## Additional Fixes Applied
 
@@ -91,25 +110,25 @@ node-version: '20'
 ## Files Modified
 
 ### 1. `.github/workflows/ci-cd.yml`
-- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Added correct `cache-dependency-path` for each job
 - ✅ Updated AWS credentials to use OIDC
 - ✅ Added required permissions for OIDC
 - ✅ Updated Node.js version to 20
 
 ### 2. `.github/workflows/deploy-production.yml`
-- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Added correct `cache-dependency-path` for each job
 - ✅ Updated all AWS credentials configurations to use OIDC
 - ✅ Added AWS credentials to smoke-tests job
 - ✅ Updated Node.js version to 20
 
 ### 3. `.github/workflows/deploy-moving-storage.yml`
-- ✅ Removed all `cache-dependency-path` configurations
+- ✅ Added correct `cache-dependency-path` for each job
 - ✅ Updated all deployment jobs to use OIDC
 - ✅ Added required permissions
 - ✅ Updated Node.js version to 20
 
 ### 4. `.github/workflows/security-audit.yml`
-- ✅ Removed `cache-dependency-path` configuration
+- ✅ Added correct `cache-dependency-path` for matrix jobs
 - ✅ Updated Node.js version to 20
 
 ## Required Repository Configuration
@@ -157,14 +176,14 @@ Follow the [GitHub OIDC Setup Guide](GITHUB_OIDC_SETUP.md) to:
 ### Reliability Improvements
 - ✅ **Fixed npm cache errors** that were causing workflow failures
 - ✅ **Consistent Node.js versions** across all workflows
-- ✅ **Simplified cache configuration** reduces configuration errors
-- ✅ **Auto-detection** eliminates path resolution issues
+- ✅ **Correct cache paths** eliminate path resolution issues
+- ✅ **Job-specific caching** improves cache efficiency
 
 ### Operational Improvements
 - ✅ **Faster builds** with working npm cache
 - ✅ **Environment protection** with manual approvals for production
 - ✅ **Better workflow organization** with clear job dependencies
-- ✅ **Reduced maintenance** with simpler configurations
+- ✅ **Optimized caching** reduces build times
 
 ## Testing the Fix
 
@@ -214,11 +233,17 @@ Check the workflow logs for successful npm cache:
 #### 3. "Variable not found: DEV_ROLE_ARN"
 **Solution**: Add the required repository variables in GitHub Settings
 
-#### 4. npm cache not working
+#### 4. "Dependencies lock file is not found"
 **Solution**: 
 - Ensure package-lock.json files exist in backend/ and frontend/ directories
+- Verify the `cache-dependency-path` points to the correct locations
+- Check that the paths are relative to the repository root
+
+#### 5. npm cache not working
+**Solution**: 
 - Clear workflow cache if needed: **Actions > Caches** > Delete npm-related caches
-- The auto-detection should work without any additional configuration
+- Verify the cache-dependency-path matches the actual file locations
+- Ensure the job is running `npm ci` in the same directory specified in cache-dependency-path
 
 ## Migration Checklist
 
@@ -228,7 +253,7 @@ Check the workflow logs for successful npm cache:
 - [x] Repository variables added to GitHub
 - [x] GitHub environments configured
 - [x] Workflows updated (completed)
-- [x] npm cache configuration simplified
+- [x] npm cache paths corrected
 - [ ] Test development deployment
 - [ ] Test production deployment
 - [ ] Remove old AWS access keys (after confirming OIDC works)
@@ -236,7 +261,7 @@ Check the workflow logs for successful npm cache:
 
 ---
 
-**Document Version**: 2.0  
+**Document Version**: 3.0  
 **Last Updated**: $(date +%Y-%m-%d)  
-**Status**: Final Fix Applied - npm cache issues resolved  
+**Status**: Final Fix Applied - npm cache paths corrected  
 **Next Steps**: Test deployments and complete OIDC setup
