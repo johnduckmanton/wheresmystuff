@@ -33,6 +33,11 @@ on:
           - staging
           - prod
 
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required to checkout code
+  security-events: write  # Required for security scanning
+
 env:
   AWS_REGION: eu-west-1
   NODE_VERSION: '20'
@@ -152,9 +157,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.DEV_ROLE_ARN }}
+          role-session-name: GitHubActions-MovingStorage-Dev-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
       
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -265,9 +270,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.STAGING_ROLE_ARN }}
+          role-session-name: GitHubActions-MovingStorage-Staging-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
       
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -384,9 +389,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          role-session-name: GitHubActions-MovingStorage-Prod-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
       
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2

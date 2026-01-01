@@ -95,7 +95,7 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+        cache-dependency-path: '${{ matrix.directory }}/package-lock.json'
     
     - name: Install dependencies
       working-directory: ${{ matrix.directory }}
@@ -131,7 +131,7 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
+        cache-dependency-path: 'backend/package-lock.json'
     
     - name: Install backend dependencies
       working-directory: backend
@@ -298,9 +298,9 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-        aws-region: ${{ env.AWS_REGION }}
+        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+        role-session-name: GitHubActions-Prod-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
     
     - name: Deploy frontend to S3
       run: |
@@ -364,6 +364,13 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
     
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+        role-session-name: GitHubActions-SmokeTests-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+    
     - name: Run smoke tests
       run: |
         # Basic API health check
@@ -404,10 +411,6 @@ jobs:
           echo "❌ CloudFront distribution not accessible"
           exit 1
         fi
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-        AWS_DEFAULT_REGION: ${{ env.CLOUDFRONT_REGION }}
 
   deployment-summary:
     name: Deployment Summary

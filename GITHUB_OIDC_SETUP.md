@@ -311,6 +311,7 @@ git add .
 git commit -m "Test OIDC authentication"
 git push origin main
 
+
 # Monitor the GitHub Actions workflow
 # The workflow should now use OIDC authentication instead of access keys
 ```
