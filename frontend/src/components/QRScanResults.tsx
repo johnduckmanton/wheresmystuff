@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -87,14 +87,7 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
   const [showAllItems, setShowAllItems] = useState(false);
   const [recentScans, setRecentScans] = useState<ScanHistoryEntry[]>([]);
 
-  // Load recent scan history
-  useEffect(() => {
-    if (open && inventoryId) {
-      loadRecentScans();
-    }
-  }, [open, inventoryId]);
-
-  const loadRecentScans = async () => {
+  const loadRecentScans = useCallback(async () => {
     try {
       const response = await apiClient.getRecentScans(inventoryId, 5);
       setRecentScans(response.recentScans || []);
@@ -102,7 +95,14 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
       console.error('Error loading recent scans:', error);
       // Don't show error to user as this is not critical
     }
-  };
+  }, [inventoryId]);
+
+  // Load recent scan history
+  useEffect(() => {
+    if (open && inventoryId) {
+      loadRecentScans();
+    }
+  }, [open, inventoryId, loadRecentScans]);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('en-GB', {

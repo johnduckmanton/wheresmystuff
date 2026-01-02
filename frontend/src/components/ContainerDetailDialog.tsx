@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -61,15 +61,7 @@ export default function ContainerDetailDialog({
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
 
-  // Load location when dialog opens
-  useEffect(() => {
-    if (open && container) {
-      loadLocation();
-      setUpdatedContainer(container);
-    }
-  }, [open, container]);
-
-  const loadLocation = async () => {
+  const loadLocation = useCallback(async () => {
     if (!container.locationId) {
       setLocation(null);
       return;
@@ -82,7 +74,15 @@ export default function ContainerDetailDialog({
       console.error('Error loading location:', error);
       setLocation(null);
     }
-  };
+  }, [container.locationId, inventoryId]);
+
+  // Load location when dialog opens
+  useEffect(() => {
+    if (open && container) {
+      loadLocation();
+      setUpdatedContainer(container);
+    }
+  }, [open, container, loadLocation]);
 
   const getStatusColor = (status: ContainerStatus) => {
     switch (status) {

@@ -39,7 +39,7 @@ export function useMobileDetection(): MobileDetectionResult {
       return (
         'ontouchstart' in window ||
         navigator.maxTouchPoints > 0 ||
-        // @ts-ignore - msMaxTouchPoints is IE specific
+        // @ts-expect-error - msMaxTouchPoints is IE specific
         navigator.msMaxTouchPoints > 0
       );
     };

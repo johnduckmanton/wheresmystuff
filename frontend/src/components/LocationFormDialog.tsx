@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -230,6 +230,18 @@ export default function LocationFormDialog({
   const [rooms, setRooms] = useState<Room[]>([]);
   const { currentInventory } = useInventory();
 
+  // Load rooms for the current location
+  const loadRooms = useCallback(async (locationId: string) => {
+    if (!currentInventory) return;
+    
+    try {
+      const roomsData = await apiClient.getRooms(locationId, currentInventory.id);
+      setRooms(roomsData);
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+    }
+  }, [currentInventory]);
+
   // Initialize form data when dialog opens or location changes
   useEffect(() => {
     if (open) {
@@ -253,19 +265,7 @@ export default function LocationFormDialog({
       }
       setErrors({});
     }
-  }, [open, location]);
-
-  // Load rooms for the current location
-  const loadRooms = async (locationId: string) => {
-    if (!currentInventory) return;
-    
-    try {
-      const roomsData = await apiClient.getRooms(locationId, currentInventory.id);
-      setRooms(roomsData);
-    } catch (error) {
-      console.error('Error loading rooms:', error);
-    }
-  };
+  }, [open, location, loadRooms, currentInventory?.id]);
 
   // Handle field change
   const handleFieldChange = (name: string, value: any) => {

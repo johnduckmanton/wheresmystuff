@@ -135,61 +135,59 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     }
   }, [selectedDeviceId]);
 
-  // Start camera stream
-  const startCamera = useCallback(async () => {
-    if (!videoRef.current || !readerRef.current) return;
+  // Stop camera stream
+  const stopCamera = useCallback(() => {
+    setIsScanning(false);
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    if (readerRef.current) {
+      readerRef.current.reset();
+    }
+
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Handle successful QR code scan
+  const handleScanResult = useCallback(async (qrCodeData: string) => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+    setScanError(null);
+    setManualError(null);
+    stopCamera();
 
     try {
-      setScanError(null);
-      setIsScanning(true);
-
-      // Stop any existing stream
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-
-      const constraints: MediaStreamConstraints = {
-        video: {
-          deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-          facingMode: selectedDeviceId ? undefined : { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        }
-      };
-
-      // Add flash constraint if supported
-      if (flashEnabled) {
-        (constraints.video as any).torch = true;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-
-      // Start scanning
-      await videoRef.current.play();
-      startScanning();
+      // Call API to scan QR code and get container contents
+      // Pass inventoryId as optional - backend will find container across all user inventories
+      const result = await apiClient.scanQRCode(qrCodeData, inventoryId) as ScanResult;
+      onScanSuccess(result);
+      onClose();
 
     } catch (error) {
-      console.error('Error starting camera:', error);
-      setIsScanning(false);
+      console.error('Error processing QR scan:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process QR code';
       
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          setScanError('Camera permission denied. Please allow camera access and try again.');
-        } else if (error.name === 'NotFoundError') {
-          setScanError('No camera found. Please connect a camera and try again.');
-          setHasCamera(false);
-        } else if (error.name === 'NotReadableError') {
-          setScanError('Camera is being used by another application. Please close other apps and try again.');
-        } else {
-          setScanError(`Camera error: ${error.message}`);
-        }
+      // Set error based on which tab is active
+      if (tabValue === 0) {
+        setScanError(errorMessage);
       } else {
-        setScanError('Failed to access camera. Please check your camera permissions.');
+        setManualError(errorMessage);
       }
+      
+      setIsProcessing(false);
     }
-  }, [selectedDeviceId, flashEnabled]);
+  }, [isProcessing, inventoryId, onScanSuccess, onClose, tabValue, stopCamera]);
 
   // Start QR code scanning
   const startScanning = useCallback(() => {
@@ -219,81 +217,63 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     // Start continuous scanning
     scanFrame();
-  }, [isScanning, selectedDeviceId]);
+  }, [isScanning, selectedDeviceId, handleScanResult]);
 
-  // Stop camera stream
-  const stopCamera = useCallback(() => {
-    setIsScanning(false);
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-
-    if (readerRef.current) {
-      readerRef.current.reset();
-    }
-
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
-  }, []);
-
-  // Handle successful QR code scan
-  const handleScanResult = async (qrCodeData: string) => {
-    if (isProcessing) return;
-
-    setIsProcessing(true);
-    setScanError(null);
-    setManualError(null);
-    stopCamera();
+  // Start camera stream
+  const startCamera = useCallback(async () => {
+    if (!videoRef.current || !readerRef.current) return;
 
     try {
-      // Call API to scan QR code and get container contents
-      // Pass inventoryId as optional - backend will find container across all user inventories
-      const result = await apiClient.scanQRCode(qrCodeData, inventoryId) as ScanResult;
-      onScanSuccess(result);
-      onClose();
+      setScanError(null);
+      setIsScanning(true);
+
+      // Stop any existing stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints: MediaStreamConstraints = {
+        video: {
+          deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+          facingMode: selectedDeviceId ? undefined : { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        }
+      };
+
+      // Add flash constraint if supported
+      if (flashEnabled) {
+        (constraints.video as MediaTrackConstraints & { torch?: boolean }).torch = true;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+
+      // Start scanning
+      await videoRef.current.play();
+      startScanning();
 
     } catch (error) {
-      console.error('Error processing QR scan:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to process QR code';
+      console.error('Error starting camera:', error);
+      setIsScanning(false);
       
-      // Set error based on which tab is active
-      if (tabValue === 0) {
-        setScanError(errorMessage);
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          setScanError('Camera permission denied. Please allow camera access and try again.');
+        } else if (error.name === 'NotFoundError') {
+          setScanError('No camera found. Please connect a camera and try again.');
+          setHasCamera(false);
+        } else if (error.name === 'NotReadableError') {
+          setScanError('Camera is being used by another application. Please close other apps and try again.');
+        } else {
+          setScanError(`Camera error: ${error.message}`);
+        }
       } else {
-        setManualError(errorMessage);
+        setScanError('Failed to access camera. Please check your camera permissions.');
       }
-      
-      setIsProcessing(false);
     }
-  };
-
-  // Handle manual QR code entry
-  // const handleManualEntry = async () => {
-  //   if (!manualCode.trim()) {
-  //     setManualError('Please enter a QR code');
-  //     return;
-  //   }
-
-  //   setIsProcessing(true);
-  //   setManualError(null);
-
-  //   try {
-  //     await handleScanResult(manualCode.trim());
-  //   } catch (error) {
-  //     setManualError(error instanceof Error ? error.message : 'Invalid QR code');
-  //     setIsProcessing(false);
-  //   }
-  // };
-
-
+  }, [selectedDeviceId, flashEnabled, startScanning]);
 
   // Toggle flash
   const toggleFlash = useCallback(async () => {
@@ -301,11 +281,11 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     try {
       const track = streamRef.current.getVideoTracks()[0];
-      const capabilities = track.getCapabilities() as any;
+      const capabilities = track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean };
       
       if (capabilities.torch) {
         await track.applyConstraints({
-          advanced: [{ torch: !flashEnabled } as any]
+          advanced: [{ torch: !flashEnabled } as MediaTrackConstraints & { torch?: boolean }]
         });
         setFlashEnabled(!flashEnabled);
       }
