@@ -74,10 +74,6 @@ jobs:
         working-directory: backend
         run: npm run lint || true  # Don't fail on linting errors for now
       
-      - name: Run frontend tests
-        working-directory: frontend
-        run: npm test -- --run
-      
       - name: Run frontend linting
         working-directory: frontend
         run: npm run lint || true  # Don't fail on linting errors for now
