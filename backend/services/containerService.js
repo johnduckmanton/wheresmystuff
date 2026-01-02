@@ -91,7 +91,7 @@ class ContainerService {
     }));
 
     if (!result.Item) {
-      return null;
+      throw new Error('Container not found');
     }
 
     // Log the access
@@ -524,9 +524,9 @@ class ContainerService {
 
     // Log the container move
     await logContainerOperation(userId, 'move', containerId, inventoryId, {
-      previousLocationId: container.locationId,
+      previousLocationId: oldLocationId,
       newLocationId,
-      itemsUpdated: updatedItems.length
+      itemsUpdated: updatedItemsCount
     });
 
     return {

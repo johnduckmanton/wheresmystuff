@@ -217,7 +217,7 @@ describe('Core Moving & Storage Workflows', () => {
       
       expect(container.id).toBeDefined();
       expect(container.name).toBe('QR Test Container');
-      expect(container.qrCode).toMatch(/^CONTAINER_/);
+      expect(container.qrCode).toMatch(/^CONT_/);
       expect(container.status).toBe('empty');
       expect(container.itemCount).toBe(0);
       expect(container.estimatedValue).toBe(0);

@@ -47,6 +47,22 @@ jest.mock('../middleware/auth', () => ({
   })
 }));
 
+// Mock inventory access service
+jest.mock('../services/dynamodb', () => ({
+  hasInventoryAccess: jest.fn().mockResolvedValue(true),
+  getUserInventories: jest.fn().mockResolvedValue([
+    { id: 'inventory-456', name: 'Test Inventory' }
+  ])
+}));
+
+// Mock audit log service
+jest.mock('../services/auditLogService', () => ({
+  logDataAccess: jest.fn().mockResolvedValue(true),
+  logContainerOperation: jest.fn().mockResolvedValue(true),
+  logBulkOperation: jest.fn().mockResolvedValue(true),
+  logProjectOperation: jest.fn().mockResolvedValue(true)
+}));
+
 // Mock the AWS SDK modules
 const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, ScanCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client } = require('@aws-sdk/client-s3');
@@ -129,7 +145,8 @@ describe('System Integration Tests', () => {
       user: {
         userId: userId,
         inventoryId: inventoryId
-      }
+      },
+      httpMethod: method // Add for backward compatibility
     };
   };
 
@@ -235,38 +252,12 @@ describe('System Integration Tests', () => {
       ];
 
       const packingEvents = [
-        {
-          httpMethod: 'POST',
-          pathParameters: { id: 'container-1' },
-          path: '/containers/container-1/items',
-          body: JSON.stringify({
-            itemIds: ['item-1', 'item-2']
-          }),
-          requestContext: {
-            authorizer: {
-              claims: {
-                sub: userId,
-                'custom:inventory_id': inventoryId
-              }
-            }
-          }
-        },
-        {
-          httpMethod: 'POST',
-          pathParameters: { id: 'container-2' },
-          path: '/containers/container-2/items',
-          body: JSON.stringify({
-            itemIds: ['item-3', 'item-4']
-          }),
-          requestContext: {
-            authorizer: {
-              claims: {
-                sub: userId,
-                'custom:inventory_id': inventoryId
-              }
-            }
-          }
-        }
+        createTestEvent('POST', '/containers/container-1/items', {
+          itemIds: ['item-1', 'item-2']
+        }, { id: 'container-1' }, null, userId, inventoryId),
+        createTestEvent('POST', '/containers/container-2/items', {
+          itemIds: ['item-3', 'item-4']
+        }, { id: 'container-2' }, null, userId, inventoryId)
       ];
 
       // Mock packing operations
@@ -294,22 +285,11 @@ describe('System Integration Tests', () => {
       });
 
       // Step 4: Generate QR codes for containers
-      const qrCodeEvents = mockContainers.map(container => ({
-        httpMethod: 'POST',
-        pathParameters: { id: container.id },
-        path: `/containers/${container.id}/qr-code/generate`,
-        body: JSON.stringify({
+      const qrCodeEvents = mockContainers.map(container => 
+        createTestEvent('POST', `/containers/${container.id}/qr-code/generate`, {
           size: 'medium'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      }));
+        }, { id: container.id }, null, userId, inventoryId)
+      );
 
       mockS3Client.send
         .mockResolvedValueOnce({ Location: 'https://s3.amazonaws.com/bucket/qr-1.png' })
@@ -326,23 +306,10 @@ describe('System Integration Tests', () => {
       });
 
       // Step 5: Move containers to new location
-      const moveEvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        path: '/containers/bulk-move',
-        body: JSON.stringify({
-          containerIds: ['container-1', 'container-2'],
-          newLocationId: 'new-office'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const moveEvent = createTestEvent('POST', '/containers/bulk-move', {
+        containerIds: ['container-1', 'container-2'],
+        newLocationId: 'new-office'
+      }, null, null, userId, inventoryId);
 
       // Mock bulk move operation
       mockDocClient.send
@@ -361,23 +328,11 @@ describe('System Integration Tests', () => {
       expect(moveResult.itemsUpdated).toBe(4);
 
       // Step 6: Generate project report
-      const reportEvent = {
-        httpMethod: 'GET',
-        pathParameters: { id: 'project-123' },
-        path: '/reports/project/project-123',
-        queryStringParameters: {
-          format: 'json',
-          template: 'moving'
-        },
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const reportEvent = createTestEvent('GET', '/reports/project/project-123', null, 
+        { id: 'project-123' }, 
+        { format: 'json', template: 'moving' }, 
+        userId, inventoryId
+      );
 
       // Mock report generation
       const updatedProject = {
@@ -416,22 +371,9 @@ describe('System Integration Tests', () => {
       const qrCode = 'CONT_container-789_1703000000000_scan1234';
 
       // Step 1: Scan QR code
-      const scanEvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        path: '/qr-codes/scan',
-        body: JSON.stringify({
-          qrCodeData: qrCode
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const scanEvent = createTestEvent('POST', '/qr-codes/scan', {
+        qrCodeData: qrCode
+      }, null, null, userId, inventoryId);
 
       const mockContainer = {
         id: 'container-789',
@@ -456,19 +398,9 @@ describe('System Integration Tests', () => {
       expect(scanResult.container.name).toBe('Scanned Container');
 
       // Step 2: Get container contents
-      const contentsEvent = {
-        httpMethod: 'GET',
-        pathParameters: { id: 'container-789' },
-        path: '/containers/container-789/contents',
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const contentsEvent = createTestEvent('GET', '/containers/container-789/contents', null,
+        { id: 'container-789' }, null, userId, inventoryId
+      );
 
       const mockContents = [
         { id: 'item-1', name: 'Item 1', value: 50 },
@@ -525,29 +457,9 @@ describe('System Integration Tests', () => {
       ];
 
       // Step 1: Add items to container
-      const addItemsEvent = {
-        httpMethod: 'POST',
-        pathParameters: { id: containerId },
-        path: `/containers/${containerId}/items`,
-        body: JSON.stringify({
-          itemIds: ['item-1', 'item-2', 'item-3']
-        }),
-        requestContext: {
-          http: {
-            method: 'POST',
-            sourceIp: '127.0.0.1'
-          },
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        },
-        headers: {
-          'user-agent': 'test-agent'
-        }
-      };
+      const addItemsEvent = createTestEvent('POST', `/containers/${containerId}/items`, {
+        itemIds: ['item-1', 'item-2', 'item-3']
+      }, { id: containerId }, null, userId, inventoryId);
 
       mockDocClient.send
         .mockResolvedValueOnce({ Items: mockItems }) // Get items
@@ -573,19 +485,9 @@ describe('System Integration Tests', () => {
       );
 
       // Step 2: Remove one item
-      const removeItemEvent = {
-        httpMethod: 'DELETE',
-        pathParameters: { id: containerId, itemId: 'item-2' },
-        path: `/containers/${containerId}/items/item-2`,
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const removeItemEvent = createTestEvent('DELETE', `/containers/${containerId}/items/item-2`, null,
+        { id: containerId, itemId: 'item-2' }, null, userId, inventoryId
+      );
 
       const updatedContainer = {
         ...mockContainer,
@@ -617,22 +519,9 @@ describe('System Integration Tests', () => {
       );
 
       // Step 3: Move container and verify item locations are updated
-      const moveEvent = {
-        httpMethod: 'POST',
-        pathParameters: { id: containerId },
-        path: `/containers/${containerId}/move`,
-        body: JSON.stringify({
-          newLocationId: 'location-2'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const moveEvent = createTestEvent('POST', `/containers/${containerId}/move`, {
+        newLocationId: 'location-2'
+      }, { id: containerId }, null, userId, inventoryId);
 
       const finalContainer = {
         ...updatedContainer,
@@ -682,23 +571,10 @@ describe('System Integration Tests', () => {
       const inventoryId = 'inventory-456';
 
       // Test bulk container move with some containers failing
-      const bulkMoveEvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        path: '/containers/bulk-move',
-        body: JSON.stringify({
-          containerIds: ['container-1', 'container-2', 'container-3'],
-          newLocationId: 'new-location'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const bulkMoveEvent = createTestEvent('POST', '/containers/bulk-move', {
+        containerIds: ['container-1', 'container-2', 'container-3'],
+        newLocationId: 'new-location'
+      }, null, null, userId, inventoryId);
 
       const mockContainers = [
         { id: 'container-1', name: 'Container 1', itemCount: 5 },
@@ -728,22 +604,9 @@ describe('System Integration Tests', () => {
       const userId = 'user-123';
       const inventoryId = 'inventory-456';
 
-      const packingEvent = {
-        httpMethod: 'POST',
-        pathParameters: { id: 'container-123' },
-        path: '/containers/container-123/items',
-        body: JSON.stringify({
-          itemIds: ['item-1', 'item-2']
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const packingEvent = createTestEvent('POST', '/containers/container-123/items', {
+        itemIds: ['item-1', 'item-2']
+      }, { id: 'container-123' }, null, userId, inventoryId);
 
       // Mock database failure
       mockDocClient.send
@@ -768,23 +631,10 @@ describe('System Integration Tests', () => {
       // Test batch QR code generation for 50 containers
       const containerIds = Array.from({ length: 50 }, (_, i) => `container-${i}`);
       
-      const batchQREvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        path: '/qr-codes/batch',
-        body: JSON.stringify({
-          containerIds,
-          size: 'medium'
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const batchQREvent = createTestEvent('POST', '/qr-codes/batch', {
+        containerIds,
+        size: 'medium'
+      }, null, null, userId, inventoryId);
 
       const mockContainers = containerIds.map(id => ({
         id,
@@ -820,22 +670,11 @@ describe('System Integration Tests', () => {
       const containerId = 'container-concurrent-test';
 
       // Simulate concurrent packing operations
-      const concurrentEvents = Array.from({ length: 5 }, (_, i) => ({
-        httpMethod: 'POST',
-        pathParameters: { id: containerId },
-        path: `/containers/${containerId}/items`,
-        body: JSON.stringify({
+      const concurrentEvents = Array.from({ length: 5 }, (_, i) => 
+        createTestEvent('POST', `/containers/${containerId}/items`, {
           itemIds: [`item-${i}`]
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      }));
+        }, { id: containerId }, null, userId, inventoryId)
+      );
 
       const mockContainer = {
         id: containerId,
@@ -874,19 +713,9 @@ describe('System Integration Tests', () => {
       const userId = 'user-123';
       const unauthorizedInventoryId = 'inventory-unauthorized';
 
-      const containerEvent = {
-        httpMethod: 'GET',
-        pathParameters: { id: 'container-123' },
-        path: '/containers/container-123',
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': unauthorizedInventoryId
-            }
-          }
-        }
-      };
+      const containerEvent = createTestEvent('GET', '/containers/container-123', null,
+        { id: 'container-123' }, null, userId, unauthorizedInventoryId
+      );
 
       // Mock access denied
       mockDocClient.send.mockResolvedValueOnce({ Item: null });
@@ -905,22 +734,9 @@ describe('System Integration Tests', () => {
       // Test with tampered QR code
       const tamperedQRCode = 'CONT_container-123_9999999999999_tampered';
 
-      const scanEvent = {
-        httpMethod: 'POST',
-        pathParameters: null,
-        path: '/qr-codes/scan',
-        body: JSON.stringify({
-          qrCodeData: tamperedQRCode
-        }),
-        requestContext: {
-          authorizer: {
-            claims: {
-              sub: userId,
-              'custom:inventory_id': inventoryId
-            }
-          }
-        }
-      };
+      const scanEvent = createTestEvent('POST', '/qr-codes/scan', {
+        qrCodeData: tamperedQRCode
+      }, null, null, userId, inventoryId);
 
       const response = await qrCodeHandler.handler(scanEvent);
       

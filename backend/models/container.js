@@ -76,7 +76,10 @@ class Container {
    * @private
    */
   _generateQRCode() {
-    return `CONTAINER_${uuidv4().replace(/-/g, '').toUpperCase()}`;
+    // Use the same format as QRCodeService: CONT_{containerId}_{timestamp}_{uniqueId}
+    const timestamp = Date.now();
+    const uniqueId = uuidv4().substring(0, 8);
+    return `CONT_${this.id}_${timestamp}_${uniqueId}`;
   }
 
   /**
