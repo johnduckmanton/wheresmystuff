@@ -3,6 +3,46 @@
  * Tests complete system integration across all components
  */
 
+// Mock services that create timers FIRST, before any other mocks
+jest.mock('../services/cacheService', () => ({
+  get: jest.fn(),
+  set: jest.fn(),
+  delete: jest.fn(),
+  clear: jest.fn(),
+  clearAll: jest.fn(),
+  generateCacheKey: jest.fn(),
+  cacheContainerList: jest.fn(),
+  getCachedContainerList: jest.fn(),
+  cacheQRCodeImage: jest.fn(),
+  getCachedQRCodeImage: jest.fn(),
+  cacheReportResult: jest.fn(),
+  getCachedReportResult: jest.fn(),
+  cacheContainerContents: jest.fn(),
+  getCachedContainerContents: jest.fn(),
+  cacheAnalytics: jest.fn(),
+  getCachedAnalytics: jest.fn(),
+  invalidateInventoryCache: jest.fn(),
+  invalidateContainerCache: jest.fn(),
+  invalidatePattern: jest.fn(),
+  getCacheStats: jest.fn()
+}));
+
+jest.mock('../services/performanceMonitoringService', () => ({
+  startTiming: jest.fn(),
+  endTiming: jest.fn(),
+  recordMetric: jest.fn(),
+  recordContainerOperation: jest.fn(),
+  recordQRCodeOperation: jest.fn(),
+  recordReportGeneration: jest.fn(),
+  recordCacheOperation: jest.fn(),
+  recordDatabaseOperation: jest.fn(),
+  recordError: jest.fn(),
+  getPerformanceStats: jest.fn(),
+  getAllMetrics: jest.fn(),
+  createPerformanceReport: jest.fn(),
+  getCurrentStatus: jest.fn()
+}));
+
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-dynamodb');
 jest.mock('@aws-sdk/client-s3');
