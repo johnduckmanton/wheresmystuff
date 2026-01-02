@@ -28,7 +28,7 @@ jobs:
     
     - name: Install dependencies
       working-directory: ${{ matrix.directory }}
-      run: npm ci
+      run: npm install
     
     - name: Run security audit
       working-directory: ${{ matrix.directory }}

@@ -97,7 +97,7 @@ jobs:
     
     - name: Install dependencies
       working-directory: ${{ matrix.directory }}
-      run: npm ci
+      run: npm install
     
     - name: Run security audit
       working-directory: ${{ matrix.directory }}
@@ -131,7 +131,7 @@ jobs:
     
     - name: Install backend dependencies
       working-directory: backend
-      run: npm ci
+      run: npm install
     
     - name: Run backend tests
       working-directory: backend
@@ -167,13 +167,13 @@ jobs:
     
     - name: Build backend with SAM
       run: |
-        cd backend && npm ci --production
+        cd backend && npm install --production
         sam build --region ${{ env.AWS_REGION }}
     
     - name: Build frontend
       working-directory: frontend
       run: |
-        npm ci
+        npm install
         npm run build
     
     - name: Package artifacts

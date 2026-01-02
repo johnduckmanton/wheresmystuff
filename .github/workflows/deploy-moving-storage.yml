@@ -59,34 +59,28 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       
       - name: Install backend dependencies
-        run: |
-          cd backend
-          npm ci
+        working-directory: backend
+        run: npm install
       
       - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm ci
+        working-directory: frontend
+        run: npm install
       
       - name: Run backend tests
-        run: |
-          cd backend
-          npm test
+        working-directory: backend
+        run: npm test
       
       - name: Run backend linting
-        run: |
-          cd backend
-          npm run lint || true  # Don't fail on linting errors for now
+        working-directory: backend
+        run: npm run lint || true  # Don't fail on linting errors for now
       
       - name: Run frontend tests
-        run: |
-          cd frontend
-          npm test -- --run
+        working-directory: frontend
+        run: npm test -- --run
       
       - name: Run frontend linting
-        run: |
-          cd frontend
-          npm run lint || true  # Don't fail on linting errors for now
+        working-directory: frontend
+        run: npm run lint || true  # Don't fail on linting errors for now
       
       - name: Validate CloudFormation template
         uses: aws-actions/aws-cloudformation-github-deploy@v1
@@ -169,8 +163,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          cd backend && npm install
+          cd ../frontend && npm install
       
       - name: Build SAM application
         run: sam build --use-container
@@ -278,8 +272,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          cd backend && npm install
+          cd ../frontend && npm install
       
       - name: Build SAM application
         run: sam build --use-container
@@ -393,8 +387,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd backend && npm ci
-          cd ../frontend && npm ci
+          cd backend && npm install
+          cd ../frontend && npm install
       
       - name: Build SAM application
         run: sam build --use-container

@@ -51,7 +51,7 @@ jobs:
     
     - name: Install dependencies
       working-directory: ${{ matrix.directory }}
-      run: npm ci
+      run: npm install
     
     - name: Run security audit
       working-directory: ${{ matrix.directory }}
@@ -84,7 +84,7 @@ jobs:
     
     - name: Install backend dependencies
       working-directory: backend
-      run: npm ci
+      run: npm install
     
     - name: Run backend tests
       working-directory: backend
@@ -117,7 +117,7 @@ jobs:
     
     - name: Install frontend dependencies
       working-directory: frontend
-      run: npm ci
+      run: npm install
     
     - name: Run frontend linting
       working-directory: frontend
@@ -144,7 +144,7 @@ jobs:
     
     - name: Install backend dependencies
       working-directory: backend
-      run: npm ci --production
+      run: npm install --production
     
     - name: Final security check on production dependencies
       working-directory: backend
@@ -158,7 +158,7 @@ jobs:
         # Remove dev dependencies and test files
         rm -rf dist/backend/node_modules
         rm -rf dist/backend/tests
-        cd dist/backend && npm ci --production
+        cd dist/backend && npm install --production
     
     - name: Upload backend build artifact
       uses: actions/upload-artifact@v4
@@ -269,7 +269,7 @@ jobs:
       id: deploy_backend
       run: |
         # Install backend dependencies
-        cd backend && npm ci --production
+        cd backend && npm install --production
         
         # Build with SAM
         sam build --region ${{ env.AWS_REGION }}
@@ -309,7 +309,7 @@ jobs:
       run: |
         # Build frontend
         cd frontend
-        npm ci
+        npm install
         npm run build
         
         # Deploy to S3
