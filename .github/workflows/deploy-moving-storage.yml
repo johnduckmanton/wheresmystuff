@@ -137,6 +137,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Check AWS credentials configuration
+        run: |
+          if [ -z "${{ vars.DEV_ROLE_ARN }}" ]; then
+            echo "⚠️  DEV_ROLE_ARN not configured in repository variables"
+            echo "Please configure GitHub OIDC and set DEV_ROLE_ARN in repository variables"
+            echo "See GITHUB_OIDC_SETUP.md for instructions"
+            exit 1
+          fi
+          echo "✅ DEV_ROLE_ARN is configured"
+      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -154,13 +164,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install dependencies
-        run: |
-          cd backend && npm install
-          cd ../frontend && npm install
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
       
       - name: Build SAM application
-        run: sam build --use-container
+        run: sam build
       
       - name: Deploy infrastructure
         run: |
@@ -176,8 +189,8 @@ jobs:
             --resolve-s3
       
       - name: Run database migrations
+        working-directory: backend
         run: |
-          cd backend
           node scripts/add-moving-storage-indexes.js --environment=dev || true
           node scripts/migrate-moving-storage-schema.js --environment=dev || true
       
@@ -246,6 +259,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Check AWS credentials configuration
+        run: |
+          if [ -z "${{ vars.PROD_ROLE_ARN }}" ]; then
+            echo "⚠️  PROD_ROLE_ARN not configured in repository variables"
+            echo "Please configure GitHub OIDC and set PROD_ROLE_ARN in repository variables"
+            echo "See GITHUB_OIDC_SETUP.md for instructions"
+            exit 1
+          fi
+          echo "✅ PROD_ROLE_ARN is configured"
+      
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -263,13 +286,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install dependencies
-        run: |
-          cd backend && npm install
-          cd ../frontend && npm install
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
       
       - name: Build SAM application
-        run: sam build --use-container
+        run: sam build
       
       - name: Deploy infrastructure
         run: |
@@ -285,8 +311,8 @@ jobs:
             --resolve-s3
       
       - name: Run database migrations
+        working-directory: backend
         run: |
-          cd backend
           node scripts/add-moving-storage-indexes.js --environment=prod || true
           node scripts/migrate-moving-storage-schema.js --environment=prod || true
       
