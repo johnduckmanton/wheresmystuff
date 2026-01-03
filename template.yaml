@@ -2977,10 +2977,14 @@ Resources:
         TimeUnit: MONTHLY
         BudgetType: COST
         CostFilters:
-          TagKey:
-            - Environment
-          TagValue:
-            - !Ref Environment
+          Service:
+            - Amazon DynamoDB
+            - Amazon S3
+            - AWS Lambda
+            - Amazon API Gateway
+            - Amazon Cognito
+            - AWS CloudFormation
+            - Amazon CloudFront
       NotificationsWithSubscribers:
         # 50% threshold alert
         - Notification:
