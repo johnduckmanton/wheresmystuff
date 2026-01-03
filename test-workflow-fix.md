@@ -16,4 +16,3 @@ This file is created to test that our GitHub Actions npm installation fixes are 
 Created: $(date)
 
 change
-change
