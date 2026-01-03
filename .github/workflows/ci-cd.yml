@@ -278,6 +278,15 @@ jobs:
         echo "Listing root directory:"
         ls -la | head -20
         
+        # Create S3 bucket for SAM deployment if it doesn't exist
+        S3_BUCKET="home-inventory-sam-deployment-dev-1766535400"
+        if ! aws s3 ls "s3://$S3_BUCKET" 2>/dev/null; then
+          echo "Creating S3 bucket for SAM deployment: $S3_BUCKET"
+          aws s3 mb "s3://$S3_BUCKET" --region ${{ env.AWS_REGION }}
+        else
+          echo "✅ S3 bucket already exists: $S3_BUCKET"
+        fi
+        
         # Build with SAM from root directory
         sam build --template template.yaml --region ${{ env.AWS_REGION }}
         
@@ -287,7 +296,6 @@ jobs:
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
           --region ${{ env.AWS_REGION }} \
-          --resolve-s3 \
           --parameter-overrides \
             Environment=dev \
             EnableDeletionProtection=false \
