@@ -265,14 +265,21 @@ jobs:
       with:
         use-installer: true
     
+    - name: Install backend dependencies
+      working-directory: backend
+      run: npm install --production
+    
     - name: Build and deploy backend
       id: deploy_backend
       run: |
-        # Install backend dependencies
-        cd backend && npm install --production
+        # Debug: Show current directory and template file status
+        echo "Current directory: $(pwd)"
+        echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
+        echo "Listing root directory:"
+        ls -la | head -20
         
-        # Build with SAM
-        sam build --region ${{ env.AWS_REGION }}
+        # Build with SAM from root directory
+        sam build --template template.yaml --region ${{ env.AWS_REGION }}
         
         # Deploy backend stack
         sam deploy \
