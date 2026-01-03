@@ -114,7 +114,7 @@ Resources:
     DeletionPolicy: !If [IsProduction, Retain, Delete]
     UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
-      BucketName: !Sub home-inv-frontend-${AWS::AccountId}-${Environment}
+      BucketName: !Sub home-inv-web-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -177,7 +177,7 @@ Resources:
     Type: AWS::S3::Bucket
     Condition: IsProduction
     Properties:
-      BucketName: !Sub home-inv-access-logs-${AWS::AccountId}-${Environment}
+      BucketName: !Sub home-inv-logs-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -465,7 +465,7 @@ Resources:
     DeletionPolicy: !If [IsProduction, Retain, Delete]
     UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
-      BucketName: !Sub home-inv-qr-reports-${AWS::AccountId}-${Environment}
+      BucketName: !Sub home-inv-qr-${AWS::AccountId}-${Environment}
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
