@@ -30,7 +30,10 @@
         "iam:DeletePolicy",
         "iam:GetPolicy",
         "iam:GetPolicyVersion",
-        "iam:ListPolicyVersions"
+        "iam:ListPolicyVersions",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:ListRoleTags"
       ],
       "Resource": "*"
     },
