@@ -24,6 +24,7 @@ on:
 permissions:
   id-token: write   # Required for OIDC
   contents: read    # Required to checkout code
+  security-events: write  # Required for security scanning
 
 env:
   NODE_VERSION: '20'
@@ -347,6 +348,12 @@ jobs:
         
         echo "✅ Backend deployed to development"
         echo "API URL: $API_URL"
+    
+    - name: Run database migrations
+      working-directory: backend
+      run: |
+        node scripts/add-moving-storage-indexes.js --environment=dev || true
+        node scripts/migrate-moving-storage-schema.js --environment=dev || true
     
     - name: Build and deploy frontend
       id: deploy_frontend

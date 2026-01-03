@@ -101,7 +101,9 @@ describe('Environment Separation Tests', () => {
     });
 
     test('should have environment-specific S3 bucket naming', () => {
-      expect(templateContent).toContain('BucketName: !Sub home-inv-frontend-${AWS::AccountId}-${Environment}');
+      expect(templateContent).toContain('BucketName: !Sub home-inv-web-${AWS::AccountId}-${Environment}');
+      expect(templateContent).toContain('BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}');
+      expect(templateContent).toContain('BucketName: !Sub home-inv-qr-${AWS::AccountId}-${Environment}');
     });
 
     test('should have production-specific versioning', () => {
