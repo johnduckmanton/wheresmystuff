@@ -290,6 +290,10 @@ jobs:
         # Build with SAM from root directory
         sam build --template template.yaml --region ${{ env.AWS_REGION }}
         
+        # Validate template before deployment
+        echo "Validating CloudFormation template..."
+        sam validate --template .aws-sam/build/template.yaml --region ${{ env.AWS_REGION }} || true
+        
         # Deploy backend stack
         sam deploy \
           --config-file samconfig-dev.toml \
@@ -299,7 +303,31 @@ jobs:
           --parameter-overrides \
             Environment=dev \
             EnableDeletionProtection=false \
-            LogRetentionDays=3
+            LogRetentionDays=3 2>&1 | tee deploy.log
+        
+        DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
+        
+        # If deployment failed, try to get more details
+        if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+          echo "❌ Deployment failed with exit code: $DEPLOY_EXIT_CODE"
+          echo ""
+          echo "Checking CloudFormation stack events for details..."
+          aws cloudformation describe-stack-events \
+            --stack-name home-inventory-system-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query 'StackEvents[0:20]' \
+            --output table || true
+          
+          echo ""
+          echo "Checking for validation errors in changeset..."
+          aws cloudformation list-change-sets \
+            --stack-name home-inventory-system-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Summaries[0]' \
+            --output json || true
+          
+          exit 1
+        fi
         
         # Get stack outputs
         API_URL=$(aws cloudformation describe-stacks \
