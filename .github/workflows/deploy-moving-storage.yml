@@ -173,11 +173,15 @@ jobs:
         run: npm install
       
       - name: Build SAM application
-        run: sam build --template template.yaml
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
+          sam build --template template.yaml --config-file samconfig-dev.toml
       
       - name: Deploy infrastructure
         run: |
           sam deploy \
+            --config-file samconfig-dev.toml \
             --stack-name home-inventory-dev \
             --parameter-overrides \
               Environment=dev \
@@ -295,11 +299,15 @@ jobs:
         run: npm install
       
       - name: Build SAM application
-        run: sam build --template template.yaml
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
+          sam build --template template.yaml --config-file samconfig-prod.toml
       
       - name: Deploy infrastructure
         run: |
           sam deploy \
+            --config-file samconfig-prod.toml \
             --stack-name home-inventory-prod \
             --parameter-overrides \
               Environment=prod \
