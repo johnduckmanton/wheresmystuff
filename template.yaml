@@ -240,37 +240,24 @@ Resources:
           RequireLowercase: true
           RequireNumbers: true
           RequireSymbols: !If [IsProduction, true, false]
-          TemporaryPasswordValidityDays: !If [IsProduction, 1, 7]
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_email
             Priority: 1
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: !If [IsProduction, true, false]
-        InviteMessageAction: !If [IsProduction, SUPPRESS, RESEND]
-        TemporaryPasswordValidityDays: !If [IsProduction, 1, 7]
       DeviceConfiguration:
         ChallengeRequiredOnNewDevice: !If [IsProduction, true, false]
         DeviceOnlyRememberedOnUserPrompt: !If [IsProduction, true, false]
       MfaConfiguration: !If [EnableMFA, ON, 'OFF']
-      EnabledMfas: !If 
-        - EnableMFA
-        - - SOFTWARE_TOKEN_MFA
-          - SMS_MFA
-        - !Ref AWS::NoValue
       SmsConfiguration: !If
         - EnableMFA
         - SnsCallerArn: !GetAtt CognitoSMSRole.Arn
         - !Ref AWS::NoValue
-      UserPoolAddOns:
-        AdvancedSecurityMode: !If [IsProduction, ENFORCED, 'OFF']
       VerificationMessageTemplate:
         DefaultEmailOption: CONFIRM_WITH_CODE
         EmailMessage: 'Your verification code is {####}. This code expires in 24 hours.'
         EmailSubject: 'Home Inventory System - Email Verification'
-      Tags:
-        Environment: !Ref Environment
-        SecurityLevel: !If [IsProduction, High, Standard]
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
