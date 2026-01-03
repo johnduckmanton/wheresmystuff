@@ -2223,31 +2223,6 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-AlertTopicArn
 
-  BudgetAlertTopicArn:
-    Description: SNS Topic ARN for Budget Alerts
-    Value: !Ref BudgetAlertTopic
-    Export:
-      Name: !Sub ${AWS::StackName}-BudgetAlertTopicArn
-
-  DashboardUrl:
-    Description: CloudWatch Dashboard URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${MonitoringDashboard}
-    Export:
-      Name: !Sub ${AWS::StackName}-DashboardUrl
-
-  SecurityAlertTopicArn:
-    Description: SNS Topic ARN for Security Alerts
-    Value: !Ref SecurityAlertTopic
-    Export:
-      Name: !Sub ${AWS::StackName}-SecurityAlertTopicArn
-
-  WAFWebACLArn:
-    Condition: IsProduction
-    Description: WAF Web ACL ARN
-    Value: !GetAtt WebACL.Arn
-    Export:
-      Name: !Sub ${AWS::StackName}-WAFWebACLArn
-
   WebsiteBucket:
     Description: S3 Bucket Name for Frontend Website
     Value: !Ref WebsiteBucket
