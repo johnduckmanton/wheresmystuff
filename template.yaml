@@ -268,9 +268,6 @@ Resources:
         DefaultEmailOption: CONFIRM_WITH_CODE
         EmailMessage: 'Your verification code is {####}. This code expires in 24 hours.'
         EmailSubject: 'Home Inventory System - Email Verification'
-      UserAttributeUpdateSettings:
-        AttributesRequireVerificationBeforeUpdate:
-          - email
       Tags:
         Environment: !Ref Environment
         SecurityLevel: !If [IsProduction, High, Standard]
