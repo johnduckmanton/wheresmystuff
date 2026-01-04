@@ -42,3 +42,6 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Kiro settings (user-specific configuration)
+.kiro/settings/
