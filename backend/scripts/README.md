@@ -1,8 +1,63 @@
 # Migration Scripts
 
-This directory contains scripts for migrating the Home Inventory System to the new inventory-based multi-user architecture.
+This directory contains scripts for migrating the Home Inventory System to the new inventory-based multi-user architecture, as well as CI/CD deployment validation scripts.
 
-## Scripts
+## CI/CD Migration Scripts
+
+These scripts are automatically run during deployment to validate database schema readiness:
+
+### `add-moving-storage-indexes.js`
+
+**Purpose**: Checks and optionally creates required GSI indexes for the Moving & Storage System.
+
+**What it does:**
+- Checks if the DynamoDB table exists and is accessible
+- Validates that required GSI indexes are present:
+  - `ContainerLocationIndex` - Query containers by location
+  - `ProjectContainerIndex` - Query containers by project
+  - `QRCodeIndex` - Fast QR code lookup
+- Reports the status of all indexes
+- **Optionally creates missing indexes** when run with `--create` flag
+
+**Usage:**
+```bash
+# Check mode (default) - validation only
+node backend/scripts/add-moving-storage-indexes.js --environment=dev
+node backend/scripts/add-moving-storage-indexes.js --environment=prod
+
+# Create mode - adds missing indexes
+node backend/scripts/add-moving-storage-indexes.js --environment=dev --create
+node backend/scripts/add-moving-storage-indexes.js --environment=prod --create
+```
+
+**When to use CREATE mode:**
+- Existing tables that were deployed before indexes were added to CloudFormation
+- Manual index management outside of CloudFormation deployments
+- Emergency index creation without full stack redeployment
+
+**Note**: For new deployments, indexes are automatically created by the CloudFormation template. This script is primarily for existing tables or manual management.
+
+### `migrate-moving-storage-schema.js`
+
+**Purpose**: Validates the database schema is ready for the Moving & Storage System.
+
+**What it does:**
+- Validates table structure and accessibility
+- Checks existing data patterns
+- Counts existing containers and projects
+- Verifies GSI indexes are active
+- Reports schema readiness
+
+**Usage:**
+```bash
+node backend/scripts/migrate-moving-storage-schema.js --environment=dev
+node backend/scripts/migrate-moving-storage-schema.js --environment=prod
+node backend/scripts/migrate-moving-storage-schema.js --dry-run --environment=dev
+```
+
+**CI/CD Integration**: These scripts are automatically run during deployment in the CI/CD pipeline with `|| true` to prevent deployment failure during initial table creation.
+
+## Data Migration Scripts
 
 ### `add-user-by-email.js`
 

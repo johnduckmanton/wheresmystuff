@@ -130,13 +130,6 @@ Resources:
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred
-      NotificationConfiguration: !If
-        - IsProduction
-        - CloudWatchConfigurations:
-            - Event: s3:ObjectCreated:*
-              CloudWatchConfiguration:
-                LogGroupName: !Ref S3SecurityLogGroup
-        - !Ref AWS::NoValue
       LoggingConfiguration: !If
         - IsProduction
         - DestinationBucketName: !Ref S3AccessLogsBucket
@@ -249,7 +242,7 @@ Resources:
       DeviceConfiguration:
         ChallengeRequiredOnNewDevice: !If [IsProduction, true, false]
         DeviceOnlyRememberedOnUserPrompt: !If [IsProduction, true, false]
-      MfaConfiguration: !If [EnableMFA, ON, 'OFF']
+      MfaConfiguration: !If [EnableMFA, 'ON', 'OFF']
       SmsConfiguration: !If
         - EnableMFA
         - SnsCallerArn: !GetAtt CognitoSMSRole.Arn
@@ -330,6 +323,7 @@ Resources:
         Enabled: true
       SSESpecification:
         SSEEnabled: true
+        SSEType: !If [IsProduction, 'KMS', !Ref AWS::NoValue]
         KMSMasterKeyId: !If [IsProduction, !Ref DynamoDBKMSKey, !Ref AWS::NoValue]
       ContributorInsightsSpecification: !If
         - IsProduction
@@ -371,7 +365,7 @@ Resources:
             Condition:
               StringEquals:
                 kms:ViaService: !Sub dynamodb.${AWS::Region}.amazonaws.com
-      KeyRotationStatus: true
+      EnableKeyRotation: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -603,6 +597,35 @@ Resources:
           Value: LambdaDeadLetterQueue
 
   # Lambda Functions will be added in subsequent tasks
+  
+  # Health Check Lambda (no authentication required)
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/health.handler
+      Description: Health check endpoint for monitoring and smoke tests
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+      Events:
+        HealthCheck:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+            # No Auth section - this endpoint is public
+      Tags:
+        Environment: !Ref Environment
+        Purpose: HealthCheck
+
   # Placeholder for Things Lambda
   ThingsFunction:
     Type: AWS::Serverless::Function
