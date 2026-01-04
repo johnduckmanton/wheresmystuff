@@ -281,8 +281,9 @@ jobs:
           echo "✅ S3 bucket already exists: $S3_BUCKET"
         fi
         
-        # Deploy main backend stack
+        # Deploy main backend stack using the built template
         sam deploy \
+          --template-file build/template.yaml \
           --config-file samconfig.toml \
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
@@ -595,6 +596,7 @@ jobs:
         
         # Redeploy backend with the CloudFront URL parameter
         sam deploy \
+          --template-file build/template.yaml \
           --config-file samconfig.toml \
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
