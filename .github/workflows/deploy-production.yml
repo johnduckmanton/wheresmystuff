@@ -78,7 +78,7 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     needs: validate-deployment
-    if: ${{ !github.event.inputs.skip_tests }}
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
     
     strategy:
       matrix:
@@ -116,7 +116,7 @@ jobs:
     name: Test Backend
     runs-on: ubuntu-latest
     needs: validate-deployment
-    if: ${{ !github.event.inputs.skip_tests }}
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
     
     steps:
     - name: Checkout code
