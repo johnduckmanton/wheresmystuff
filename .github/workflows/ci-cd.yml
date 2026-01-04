@@ -378,9 +378,71 @@ jobs:
     - name: Build and deploy frontend
       id: deploy_frontend
       run: |
-        # Build frontend
+        # Get additional stack outputs for frontend configuration
+        USER_POOL_ID=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+          --output text)
+        
+        USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+          --output text)
+        
+        S3_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+          --output text)
+        
+        # Validate that all required values are present
+        if [ -z "$USER_POOL_ID" ] || [ "$USER_POOL_ID" = "None" ]; then
+          echo "❌ USER_POOL_ID is missing from stack outputs"
+          exit 1
+        fi
+        
+        if [ -z "$USER_POOL_CLIENT_ID" ] || [ "$USER_POOL_CLIENT_ID" = "None" ]; then
+          echo "❌ USER_POOL_CLIENT_ID is missing from stack outputs"
+          exit 1
+        fi
+        
+        if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" = "None" ]; then
+          echo "❌ S3_BUCKET is missing from stack outputs"
+          exit 1
+        fi
+        
+        if [ -z "${{ steps.deploy_backend.outputs.api_url }}" ]; then
+          echo "❌ API_URL is missing from backend deployment"
+          exit 1
+        fi
+        
+        echo "Frontend Configuration:"
+        echo "API_URL: ${{ steps.deploy_backend.outputs.api_url }}"
+        echo "USER_POOL_ID: $USER_POOL_ID"
+        echo "USER_POOL_CLIENT_ID: $USER_POOL_CLIENT_ID"
+        echo "S3_BUCKET: $S3_BUCKET"
+        echo "AWS_REGION: ${{ env.AWS_REGION }}"
+        
+        # Build frontend with dynamic environment variables
         cd frontend
         npm install
+        
+        # Create dynamic .env.production file with actual deployment values
+        cat > .env.production << EOF
+        VITE_AWS_REGION=${{ env.AWS_REGION }}
+        VITE_USER_POOL_ID=$USER_POOL_ID
+        VITE_USER_POOL_CLIENT_ID=$USER_POOL_CLIENT_ID
+        VITE_API_URL=${{ steps.deploy_backend.outputs.api_url }}
+        VITE_S3_BUCKET=$S3_BUCKET
+        VITE_ENVIRONMENT=production
+        EOF
+        
+        echo "Generated .env.production:"
+        cat .env.production
+        
+        # Build with production environment
         npm run build
         
         # Deploy to S3
@@ -447,13 +509,21 @@ jobs:
         CLOUDFRONT_URL="${{ needs.deploy-development.outputs.cloudfront_url }}"
         
         echo "Running smoke tests against development environment..."
+        echo "API_URL: $API_URL"
+        echo "CLOUDFRONT_URL: $CLOUDFRONT_URL"
         
         # Test API health
         echo "Testing API health endpoint..."
         if curl -f -s "$API_URL/health" > /dev/null; then
           echo "✅ API health check passed"
+          
+          # Get detailed health response for debugging
+          echo "API Health Response:"
+          curl -s "$API_URL/health" | jq '.' || curl -s "$API_URL/health"
         else
           echo "❌ API health check failed"
+          echo "Attempting to get error details:"
+          curl -v "$API_URL/health" || true
           exit 1
         fi
         
@@ -461,8 +531,21 @@ jobs:
         echo "Testing frontend accessibility..."
         if curl -f -s "$CLOUDFRONT_URL" > /dev/null; then
           echo "✅ Frontend accessible"
+          
+          # Check if frontend contains expected content
+          echo "Checking frontend content..."
+          FRONTEND_CONTENT=$(curl -s "$CLOUDFRONT_URL")
+          if echo "$FRONTEND_CONTENT" | grep -q "Home Inventory" || echo "$FRONTEND_CONTENT" | grep -q "react" || echo "$FRONTEND_CONTENT" | grep -q "<!DOCTYPE html>"; then
+            echo "✅ Frontend contains expected content"
+          else
+            echo "⚠️  Frontend accessible but content may be incomplete"
+            echo "First 500 characters of response:"
+            echo "$FRONTEND_CONTENT" | head -c 500
+          fi
         else
           echo "❌ Frontend not accessible"
+          echo "Attempting to get error details:"
+          curl -v "$CLOUDFRONT_URL" || true
           exit 1
         fi
         
