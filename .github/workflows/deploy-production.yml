@@ -165,10 +165,24 @@ jobs:
       with:
         use-installer: true
     
+    - name: Install backend dependencies
+      working-directory: backend
+      run: npm install --production
+    
     - name: Build backend with SAM
       run: |
-        cd backend && npm install --production
-        sam build --region ${{ env.AWS_REGION }}
+        # Debug: Show current directory and template file status
+        echo "Current directory: $(pwd)"
+        echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
+        echo "Listing root directory:"
+        ls -la | head -20
+        
+        # Build with SAM from root directory
+        sam build --template template.yaml --region ${{ env.AWS_REGION }}
+        
+        # Validate template before packaging
+        echo "Validating CloudFormation template..."
+        sam validate --template .aws-sam/build/template.yaml --region ${{ env.AWS_REGION }} || true
     
     - name: Build frontend
       working-directory: frontend
@@ -275,7 +289,9 @@ jobs:
           --parameter-overrides \
             Environment=prod \
             EnableDeletionProtection=true \
-            LogRetentionDays=7 2>&1 | tee deploy.log
+            LogRetentionDays=7 \
+            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
+            ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" 2>&1 | tee deploy.log
         
         DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
         
@@ -290,19 +306,34 @@ jobs:
             --query 'StackEvents[0:20]' \
             --output table || true
           
+          echo ""
+          echo "Checking for validation errors in changeset..."
+          aws cloudformation list-change-sets \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Summaries[0]' \
+            --output json || true
+          
           exit 1
         fi
     
     - name: Run database migrations
       working-directory: ./deployment
       run: |
-        # Install backend dependencies for migration scripts
-        cd build/ContainerFunction && npm install --production
-        cd ../..
+        # Check if migration scripts exist and run them
+        if [ -f "build/ContainerFunction/scripts/add-moving-storage-indexes.js" ]; then
+          echo "Running add-moving-storage-indexes migration..."
+          node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
+        else
+          echo "Migration script add-moving-storage-indexes.js not found, skipping..."
+        fi
         
-        # Run database migrations for production
-        node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
-        node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
+        if [ -f "build/ContainerFunction/scripts/migrate-moving-storage-schema.js" ]; then
+          echo "Running migrate-moving-storage-schema migration..."
+          node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
+        else
+          echo "Migration script migrate-moving-storage-schema.js not found, skipping..."
+        fi
     
     - name: Get backend outputs
       id: backend_outputs
@@ -369,6 +400,11 @@ jobs:
       cloudfront_url: ${{ steps.deploy_cloudfront.outputs.cloudfront_url }}
     
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+    
     - name: Download deployment artifacts
       uses: actions/download-artifact@v4
       with:
@@ -424,8 +460,18 @@ jobs:
         echo "S3_BUCKET: $S3_BUCKET"
         echo "AWS_REGION: ${{ env.AWS_REGION }}"
         
+        # The frontend is already built in the build-and-package job
+        # We need to rebuild it with the actual production configuration
+        
+        # Download the source code to rebuild frontend with correct config
+        cd /tmp
+        git clone https://github.com/${{ github.repository }}.git temp-repo
+        cd temp-repo
+        git checkout ${{ needs.validate-deployment.outputs.commit_sha }}
+        
         # Build frontend with dynamic environment variables
-        cd deployment/frontend-build
+        cd frontend
+        npm install
         
         # Create dynamic .env.production file with actual deployment values
         cat > .env.production << EOF
@@ -440,9 +486,12 @@ jobs:
         echo "Generated .env.production:"
         cat .env.production
         
-        # Note: Frontend is already built in the build-and-package job
-        # We're just updating the environment configuration here
-        cd ../..
+        # Build with production environment
+        npm run build
+        
+        # Copy the new build back to deployment directory
+        rm -rf $GITHUB_WORKSPACE/deployment/frontend-build/*
+        cp -r ./dist/* $GITHUB_WORKSPACE/deployment/frontend-build/
     
     - name: Deploy frontend to S3
       run: |
@@ -551,7 +600,9 @@ jobs:
             Environment=prod \
             EnableDeletionProtection=true \
             LogRetentionDays=7 \
-            CloudFrontOrigin="$CLOUDFRONT_URL"
+            CloudFrontOrigin="$CLOUDFRONT_URL" \
+            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
+            ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
         
         echo "✅ Backend CORS configuration updated with CloudFront URL"
 
