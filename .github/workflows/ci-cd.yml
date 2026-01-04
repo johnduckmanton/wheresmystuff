@@ -406,7 +406,7 @@ jobs:
         CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
           --stack-name home-inventory-cloudfront-dev \
           --region ${{ env.CLOUDFRONT_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`DistributionUrl`].OutputValue' \
+          --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
           --output text)
         
         echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
