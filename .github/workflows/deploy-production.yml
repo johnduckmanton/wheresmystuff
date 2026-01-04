@@ -285,7 +285,6 @@ jobs:
         sam deploy \
           --template-file build/template.yaml \
           --config-file samconfig.toml \
-          --stack-name home-inventory-system-prod \
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
           --region ${{ env.AWS_REGION }} \
@@ -599,7 +598,6 @@ jobs:
         sam deploy \
           --template-file build/template.yaml \
           --config-file samconfig.toml \
-          --stack-name home-inventory-system-prod \
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
           --region ${{ env.AWS_REGION }} \
