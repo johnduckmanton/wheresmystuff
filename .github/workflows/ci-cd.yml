@@ -331,6 +331,13 @@ jobs:
         fi
         
         # Get stack outputs
+        echo "Getting stack outputs..."
+        aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs' \
+          --output table
+        
         API_URL=$(aws cloudformation describe-stacks \
           --stack-name home-inventory-system-dev \
           --region ${{ env.AWS_REGION }} \
@@ -340,8 +347,21 @@ jobs:
         FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
           --stack-name home-inventory-system-dev \
           --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`FrontendBucket`].OutputValue' \
+          --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' \
           --output text)
+        
+        echo "API_URL: $API_URL"
+        echo "FRONTEND_BUCKET: $FRONTEND_BUCKET"
+        
+        if [ -z "$FRONTEND_BUCKET" ]; then
+          echo "❌ Frontend bucket name is empty! Stack outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output json
+          exit 1
+        fi
         
         echo "api_url=$API_URL" >> $GITHUB_OUTPUT
         echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
@@ -370,14 +390,17 @@ jobs:
           --cache-control "public, max-age=300"
         
         # Deploy CloudFront stack
+        WEBSITE_BUCKET_DOMAIN="${{ steps.deploy_backend.outputs.frontend_bucket }}.s3.amazonaws.com"
+        API_DOMAIN=$(echo "${{ steps.deploy_backend.outputs.api_url }}" | sed 's|https://||' | sed 's|/.*||')
+        
         aws cloudformation deploy \
           --template-file ../cloudfront-template.yaml \
           --stack-name home-inventory-cloudfront-dev \
           --region ${{ env.CLOUDFRONT_REGION }} \
           --parameter-overrides \
             Environment=dev \
-            FrontendBucket=${{ steps.deploy_backend.outputs.frontend_bucket }} \
-            ApiUrl=${{ steps.deploy_backend.outputs.api_url }}
+            WebsiteBucketDomainName="$WEBSITE_BUCKET_DOMAIN" \
+            ApiGatewayDomainName="$API_DOMAIN"
         
         # Get CloudFront URL
         CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
