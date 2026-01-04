@@ -9,7 +9,7 @@ set -e
 ENVIRONMENT=${1:-dev}
 IMPORT_DIR=${2:-./data-export}
 REGION=${AWS_REGION:-eu-west-1}
-STACK_NAME="home-inventory-${ENVIRONMENT}"
+STACK_NAME="${STACK_NAME:-home-inventory-system-${ENVIRONMENT}}"
 DRY_RUN=${DRY_RUN:-false}
 
 # Colors for output

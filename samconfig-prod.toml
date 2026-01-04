@@ -30,7 +30,7 @@ s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
 s3_prefix = "home-inventory-system-prod"
 confirm_changeset = true  # Always require confirmation for production
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=\"prod\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\""
+parameter_overrides = "Environment=\"prod\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\" CustomDomainName=\"wheresmystuff.johnduckmanton.co.uk\" ACMCertificateArn=\"arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID\""
 image_repositories = []
 tags = "Environment=prod Project=home-inventory CostCenter=production DataProtection=enabled BackupEnabled=true"
 disable_rollback = false  # Enable rollback for production safety
