@@ -475,6 +475,27 @@ jobs:
         
         echo "✅ Frontend deployed to development"
         echo "CloudFront URL: $CLOUDFRONT_URL"
+    
+    - name: Update backend CORS with CloudFront URL
+      run: |
+        CLOUDFRONT_URL="${{ steps.deploy_frontend.outputs.cloudfront_url }}"
+        
+        echo "Updating backend CORS configuration with CloudFront URL..."
+        echo "CloudFront URL: $CLOUDFRONT_URL"
+        
+        # Redeploy backend with the CloudFront URL parameter
+        sam deploy \
+          --config-file samconfig-dev.toml \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --region ${{ env.AWS_REGION }} \
+          --parameter-overrides \
+            Environment=dev \
+            EnableDeletionProtection=false \
+            LogRetentionDays=3 \
+            CloudFrontOrigin="$CLOUDFRONT_URL"
+        
+        echo "✅ Backend CORS configuration updated with CloudFront URL"
 
   deploy-production:
     name: Deploy to Production

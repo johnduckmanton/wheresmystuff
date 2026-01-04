@@ -16,7 +16,7 @@ Globals:
         USER_POOL_ID: !Ref UserPool
         USER_POOL_CLIENT_ID: !Ref UserPoolClient
         AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
-        ALLOWED_ORIGINS: 'https://d24t9lc3ds7gry.cloudfront.net,http://localhost:5173,http://localhost:3000'
+        ALLOWED_ORIGINS: !Sub '${CloudFrontOrigin},http://localhost:5173,http://localhost:3000'
         NODE_ENV: !Ref Environment
         SECURITY_LEVEL: !If [IsProduction, HIGH, STANDARD]
     Tracing: !If [IsProduction, Active, PassThrough]
@@ -61,6 +61,13 @@ Parameters:
     Description: Email address for security notifications
     AllowedPattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
     ConstraintDescription: Must be a valid email address
+  
+  CloudFrontOrigin:
+    Type: String
+    Default: 'https://localhost:5173'
+    Description: CloudFront distribution URL for CORS configuration
+    AllowedPattern: ^https://.*$
+    ConstraintDescription: Must be a valid HTTPS URL
   
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
@@ -440,7 +447,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
-              - 'https://d24t9lc3ds7gry.cloudfront.net'
+              - !Ref CloudFrontOrigin
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -503,7 +510,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
-              - 'https://d24t9lc3ds7gry.cloudfront.net'
+              - !Ref CloudFrontOrigin
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -529,8 +536,7 @@ Resources:
       StageName: !Ref Environment
       CorsConfiguration:
         AllowOrigins:
-          
-          - 'https://d24t9lc3ds7gry.cloudfront.net'  # Current CloudFront URL
+          - !Ref CloudFrontOrigin  # Dynamic CloudFront URL from parameter
           - 'http://localhost:5173'
           - 'http://localhost:3000'  # Support both Vite and Create React App dev servers
         AllowHeaders:
