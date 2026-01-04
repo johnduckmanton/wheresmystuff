@@ -27,204 +27,204 @@ jobs:
     name: Validate Deployment Request
     runs-on: ubuntu-latest
     environment: production-validation
-    
+
     outputs:
       version: ${{ steps.validate.outputs.version }}
       commit_sha: ${{ steps.validate.outputs.commit_sha }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.inputs.version }}
-        fetch-depth: 0
-    
-    - name: Validate deployment version
-      id: validate
-      run: |
-        VERSION="${{ github.event.inputs.version }}"
-        
-        # Get the actual commit SHA
-        COMMIT_SHA=$(git rev-parse HEAD)
-        echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
-        # Validate that this is a valid commit
-        if ! git cat-file -e $COMMIT_SHA; then
-          echo "❌ Invalid commit SHA: $COMMIT_SHA"
-          exit 1
-        fi
-        
-        # Check if this is a tagged release
-        if git describe --exact-match --tags $COMMIT_SHA 2>/dev/null; then
-          echo "✅ Deploying tagged release: $(git describe --exact-match --tags $COMMIT_SHA)"
-        else
-          echo "⚠️ Deploying from commit: $COMMIT_SHA"
-        fi
-        
-        # Show recent commits for context
-        echo "Recent commits:"
-        git log --oneline -5
-    
-    - name: Check for breaking changes
-      run: |
-        # Check if there are any database schema changes
-        if git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"; then
-          echo "⚠️ Infrastructure changes detected - ensure compatibility"
-          git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version }}
+          fetch-depth: 0
+
+      - name: Validate deployment version
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Get the actual commit SHA
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Validate that this is a valid commit
+          if ! git cat-file -e $COMMIT_SHA; then
+            echo "❌ Invalid commit SHA: $COMMIT_SHA"
+            exit 1
+          fi
+
+          # Check if this is a tagged release
+          if git describe --exact-match --tags $COMMIT_SHA 2>/dev/null; then
+            echo "✅ Deploying tagged release: $(git describe --exact-match --tags $COMMIT_SHA)"
+          else
+            echo "⚠️ Deploying from commit: $COMMIT_SHA"
+          fi
+
+          # Show recent commits for context
+          echo "Recent commits:"
+          git log --oneline -5
+
+      - name: Check for breaking changes
+        run: |
+          # Check if there are any database schema changes
+          if git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"; then
+            echo "⚠️ Infrastructure changes detected - ensure compatibility"
+            git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"
+          fi
 
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
     needs: validate-deployment
     if: ${{ github.event.inputs.skip_tests != 'true' }}
-    
+
     strategy:
       matrix:
         directory: [backend, frontend]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Install dependencies
-      working-directory: ${{ matrix.directory }}
-      run: npm install
-    
-    - name: Run security audit
-      working-directory: ${{ matrix.directory }}
-      run: npm run security:check
-    
-    - name: Fail on high/critical vulnerabilities
-      working-directory: ${{ matrix.directory }}
-      run: |
-        if ! npm audit --audit-level=high --omit=dev; then
-          echo "❌ High or critical vulnerabilities found in production dependencies!"
-          echo "Production deployment blocked due to security vulnerabilities."
-          exit 1
-        fi
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.directory }}
+        run: npm install
+
+      - name: Run security audit
+        working-directory: ${{ matrix.directory }}
+        run: npm run security:check
+
+      - name: Fail on high/critical vulnerabilities
+        working-directory: ${{ matrix.directory }}
+        run: |
+          if ! npm audit --audit-level=high --omit=dev; then
+            echo "❌ High or critical vulnerabilities found in production dependencies!"
+            echo "Production deployment blocked due to security vulnerabilities."
+            exit 1
+          fi
 
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
     needs: validate-deployment
     if: ${{ github.event.inputs.skip_tests != 'true' }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Install backend dependencies
-      working-directory: backend
-      run: npm install
-    
-    - name: Run backend tests
-      working-directory: backend
-      run: npm test
-      env:
-        NODE_ENV: test
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+        env:
+          NODE_ENV: test
 
   build-and-package:
     name: Build and Package
     runs-on: ubuntu-latest
     needs: [validate-deployment, security-audit, test-backend]
     if: always() && needs.validate-deployment.result == 'success' && ((needs.security-audit.result == 'success' || needs.security-audit.result == 'skipped') && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped'))
-    
+
     outputs:
       backend_artifact: ${{ steps.package.outputs.backend_artifact }}
       frontend_artifact: ${{ steps.package.outputs.frontend_artifact }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Install AWS SAM CLI
-      uses: aws-actions/setup-sam@v2
-      with:
-        use-installer: true
-    
-    - name: Install backend dependencies
-      working-directory: backend
-      run: npm install --production
-    
-    - name: Build backend with SAM
-      run: |
-        # Debug: Show current directory and template file status
-        echo "Current directory: $(pwd)"
-        echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
-        echo "Listing root directory:"
-        ls -la | head -20
-        
-        # Build with SAM from root directory
-        sam build --template template.yaml --region ${{ env.AWS_REGION }}
-        
-        # Validate template before packaging
-        echo "Validating CloudFormation template..."
-        sam validate --template .aws-sam/build/template.yaml --region ${{ env.AWS_REGION }} || true
-    
-    - name: Build frontend
-      working-directory: frontend
-      run: |
-        npm install
-        npm run build
-    
-    - name: Package artifacts
-      id: package
-      run: |
-        # Create deployment package
-        mkdir -p dist/production-deployment
-        
-        # Package SAM build
-        cp -r .aws-sam/build dist/production-deployment/
-        cp template.yaml dist/production-deployment/
-        cp samconfig-prod.toml dist/production-deployment/samconfig.toml
-        cp cloudfront-template.yaml dist/production-deployment/
-        
-        # Package frontend build
-        cp -r frontend/dist dist/production-deployment/frontend-build
-        
-        # Create deployment metadata
-        cat > dist/production-deployment/deployment-info.json << EOF
-        {
-          "version": "${{ needs.validate-deployment.outputs.version }}",
-          "commit_sha": "${{ needs.validate-deployment.outputs.commit_sha }}",
-          "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "build_number": "${{ github.run_number }}",
-          "workflow_run_id": "${{ github.run_id }}"
-        }
-        EOF
-        
-        echo "backend_artifact=production-deployment-${{ github.run_number }}" >> $GITHUB_OUTPUT
-        echo "frontend_artifact=production-frontend-${{ github.run_number }}" >> $GITHUB_OUTPUT
-    
-    - name: Upload deployment artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: production-deployment-${{ github.run_number }}
-        path: dist/production-deployment/
-        retention-days: 90
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install --production
+
+      - name: Build backend with SAM
+        run: |
+          # Debug: Show current directory and template file status
+          echo "Current directory: $(pwd)"
+          echo "Template file exists: $(test -f template.yaml && echo 'yes' || echo 'no')"
+          echo "Listing root directory:"
+          ls -la | head -20
+
+          # Build with SAM from root directory
+          sam build --template template.yaml --region ${{ env.AWS_REGION }}
+
+          # Validate template before packaging
+          echo "Validating CloudFormation template..."
+          sam validate --template .aws-sam/build/template.yaml --region ${{ env.AWS_REGION }} || true
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Package artifacts
+        id: package
+        run: |
+          # Create deployment package
+          mkdir -p dist/production-deployment
+
+          # Package SAM build
+          cp -r .aws-sam/build dist/production-deployment/
+          cp template.yaml dist/production-deployment/
+          cp samconfig-prod.toml dist/production-deployment/samconfig.toml
+          cp cloudfront-template.yaml dist/production-deployment/
+
+          # Package frontend build
+          cp -r frontend/dist dist/production-deployment/frontend-build
+
+          # Create deployment metadata
+          cat > dist/production-deployment/deployment-info.json << EOF
+          {
+            "version": "${{ needs.validate-deployment.outputs.version }}",
+            "commit_sha": "${{ needs.validate-deployment.outputs.commit_sha }}",
+            "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "build_number": "${{ github.run_number }}",
+            "workflow_run_id": "${{ github.run_id }}"
+          }
+          EOF
+
+          echo "backend_artifact=production-deployment-${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "frontend_artifact=production-frontend-${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-${{ github.run_number }}
+          path: dist/production-deployment/
+          retention-days: 90
 
   deploy-backend:
     name: Deploy Backend to Production
@@ -232,165 +232,166 @@ jobs:
     needs: [validate-deployment, build-and-package]
     if: needs.build-and-package.result == 'success'
     environment: production
-    
+
     outputs:
       api_url: ${{ steps.backend_outputs.outputs.api_url }}
       frontend_bucket: ${{ steps.backend_outputs.outputs.frontend_bucket }}
       user_pool_id: ${{ steps.backend_outputs.outputs.user_pool_id }}
       user_pool_client_id: ${{ steps.backend_outputs.outputs.user_pool_client_id }}
-    
+
     steps:
-    - name: Download deployment artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ needs.build-and-package.outputs.backend_artifact }}
-        path: ./deployment
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
-        role-session-name: GitHubActions-Prod-${{ github.run_id }}
-        aws-region: ${{ vars.AWS_REGION }}
-    
-    - name: Install AWS SAM CLI
-      uses: aws-actions/setup-sam@v2
-      with:
-        use-installer: true
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Validate CloudFormation template
-      working-directory: ./deployment
-      run: |
-        echo "Validating CloudFormation template..."
-        sam validate --template build/template.yaml --region ${{ env.AWS_REGION }} || true
-    
-    - name: Deploy backend infrastructure
-      working-directory: ./deployment
-      run: |
-        # Create S3 bucket for SAM deployment if it doesn't exist
-        S3_BUCKET="home-inventory-sam-deployment-prod-1766535400"
-        if ! aws s3 ls "s3://$S3_BUCKET" 2>/dev/null; then
-          echo "Creating S3 bucket for SAM deployment: $S3_BUCKET"
-          aws s3 mb "s3://$S3_BUCKET" --region ${{ env.AWS_REGION }}
-        else
-          echo "✅ S3 bucket already exists: $S3_BUCKET"
-        fi
-        
-        # Deploy main backend stack using the built template
-        sam deploy \
-          --template-file build/template.yaml \
-          --config-file samconfig.toml \
-          --no-confirm-changeset \
-          --no-fail-on-empty-changeset \
-          --region ${{ env.AWS_REGION }} \
-          --parameter-overrides \
-            Environment=prod \
-            EnableDeletionProtection=true \
-            LogRetentionDays=7 \
-            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-            ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" 2>&1 | tee deploy.log
-        
-        DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
-        
-        # If deployment failed, try to get more details
-        if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-          echo "❌ Deployment failed with exit code: $DEPLOY_EXIT_CODE"
-          echo ""
-          echo "Checking CloudFormation stack events for details..."
-          aws cloudformation describe-stack-events \
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-and-package.outputs.backend_artifact }}
+          path: ./deployment
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          role-session-name: GitHubActions-Prod-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate CloudFormation template
+        working-directory: ./deployment
+        run: |
+          echo "Validating CloudFormation template..."
+          sam validate --template build/template.yaml --region ${{ env.AWS_REGION }} || true
+
+      - name: Deploy backend infrastructure
+        working-directory: ./deployment
+        run: |
+          # Create S3 bucket for SAM deployment if it doesn't exist
+          S3_BUCKET="home-inventory-sam-deployment-prod-1766535400"
+          if ! aws s3 ls "s3://$S3_BUCKET" 2>/dev/null; then
+            echo "Creating S3 bucket for SAM deployment: $S3_BUCKET"
+            aws s3 mb "s3://$S3_BUCKET" --region ${{ env.AWS_REGION }}
+          else
+            echo "✅ S3 bucket already exists: $S3_BUCKET"
+          fi
+
+          # Deploy main backend stack
+          sam deploy \
+            --template-file build/template.yaml \
             --stack-name home-inventory-system-prod \
+            --config-file samconfig.toml \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
             --region ${{ env.AWS_REGION }} \
-            --query 'StackEvents[0:20]' \
-            --output table || true
-          
-          echo ""
-          echo "Checking for validation errors in changeset..."
-          aws cloudformation list-change-sets \
-            --stack-name home-inventory-system-prod \
-            --region ${{ env.AWS_REGION }} \
-            --query 'Summaries[0]' \
-            --output json || true
-          
-          exit 1
-        fi
-    
-    - name: Run database migrations
-      working-directory: ./deployment
-      run: |
-        # Check if migration scripts exist and run them
-        if [ -f "build/ContainerFunction/scripts/add-moving-storage-indexes.js" ]; then
-          echo "Running add-moving-storage-indexes migration..."
-          node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
-        else
-          echo "Migration script add-moving-storage-indexes.js not found, skipping..."
-        fi
-        
-        if [ -f "build/ContainerFunction/scripts/migrate-moving-storage-schema.js" ]; then
-          echo "Running migrate-moving-storage-schema migration..."
-          node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
-        else
-          echo "Migration script migrate-moving-storage-schema.js not found, skipping..."
-        fi
-    
-    - name: Get backend outputs
-      id: backend_outputs
-      run: |
-        # Get stack outputs
-        echo "Getting stack outputs..."
-        aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs' \
-          --output table
-        
-        API_URL=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
-          --output text)
-        
-        FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' \
-          --output text)
-        
-        USER_POOL_ID=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
-          --output text)
-        
-        USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
-          --output text)
-        
-        # Validate that all required values are present
-        if [ -z "$FRONTEND_BUCKET" ] || [ "$FRONTEND_BUCKET" = "None" ]; then
-          echo "❌ Frontend bucket name is empty! Stack outputs:"
+            --parameter-overrides \
+              Environment=prod \
+              EnableDeletionProtection=true \
+              LogRetentionDays=7 \
+              CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" 2>&1 | tee deploy.log
+
+          DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
+
+          # If deployment failed, try to get more details
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo "❌ Deployment failed with exit code: $DEPLOY_EXIT_CODE"
+            echo ""
+            echo "Checking CloudFormation stack events for details..."
+            aws cloudformation describe-stack-events \
+              --stack-name home-inventory-system-prod \
+              --region ${{ env.AWS_REGION }} \
+              --query 'StackEvents[0:20]' \
+              --output table || true
+
+            echo ""
+            echo "Checking for validation errors in changeset..."
+            aws cloudformation list-change-sets \
+              --stack-name home-inventory-system-prod \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Summaries[0]' \
+              --output json || true
+
+            exit 1
+          fi
+
+      - name: Run database migrations
+        working-directory: ./deployment
+        run: |
+          # Check if migration scripts exist and run them
+          if [ -f "build/ContainerFunction/scripts/add-moving-storage-indexes.js" ]; then
+            echo "Running add-moving-storage-indexes migration..."
+            node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
+          else
+            echo "Migration script add-moving-storage-indexes.js not found, skipping..."
+          fi
+
+          if [ -f "build/ContainerFunction/scripts/migrate-moving-storage-schema.js" ]; then
+            echo "Running migrate-moving-storage-schema migration..."
+            node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
+          else
+            echo "Migration script migrate-moving-storage-schema.js not found, skipping..."
+          fi
+
+      - name: Get backend outputs
+        id: backend_outputs
+        run: |
+          # Get stack outputs
+          echo "Getting stack outputs..."
           aws cloudformation describe-stacks \
             --stack-name home-inventory-system-prod \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs' \
-            --output json
-          exit 1
-        fi
-        
-        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-        echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
-        echo "user_pool_id=$USER_POOL_ID" >> $GITHUB_OUTPUT
-        echo "user_pool_client_id=$USER_POOL_CLIENT_ID" >> $GITHUB_OUTPUT
-        
-        echo "✅ Backend deployed successfully"
-        echo "API URL: $API_URL"
-        echo "Frontend Bucket: $FRONTEND_BUCKET"
+            --output table
+
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' \
+            --output text)
+
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+            --output text)
+
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+            --output text)
+
+          # Validate that all required values are present
+          if [ -z "$FRONTEND_BUCKET" ] || [ "$FRONTEND_BUCKET" = "None" ]; then
+            echo "❌ Frontend bucket name is empty! Stack outputs:"
+            aws cloudformation describe-stacks \
+              --stack-name home-inventory-system-prod \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Stacks[0].Outputs' \
+              --output json
+            exit 1
+          fi
+
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+          echo "user_pool_id=$USER_POOL_ID" >> $GITHUB_OUTPUT
+          echo "user_pool_client_id=$USER_POOL_CLIENT_ID" >> $GITHUB_OUTPUT
+
+          echo "✅ Backend deployed successfully"
+          echo "API URL: $API_URL"
+          echo "Frontend Bucket: $FRONTEND_BUCKET"
 
   deploy-frontend:
     name: Deploy Frontend to Production
@@ -398,167 +399,167 @@ jobs:
     needs: [validate-deployment, build-and-package, deploy-backend]
     if: needs.deploy-backend.result == 'success'
     environment: production
-    
+
     outputs:
       cloudfront_url: ${{ steps.deploy_cloudfront.outputs.cloudfront_url }}
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
-    
-    - name: Download deployment artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ needs.build-and-package.outputs.backend_artifact }}
-        path: ./deployment
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
-        role-session-name: GitHubActions-Prod-${{ github.run_id }}
-        aws-region: ${{ vars.AWS_REGION }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Build frontend with production configuration
-      run: |
-        # Get additional stack outputs for frontend configuration
-        S3_BUCKET=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-system-prod \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
-          --output text)
-        
-        # Validate that all required values are present
-        if [ -z "${{ needs.deploy-backend.outputs.user_pool_id }}" ] || [ "${{ needs.deploy-backend.outputs.user_pool_id }}" = "None" ]; then
-          echo "❌ USER_POOL_ID is missing from backend deployment"
-          exit 1
-        fi
-        
-        if [ -z "${{ needs.deploy-backend.outputs.user_pool_client_id }}" ] || [ "${{ needs.deploy-backend.outputs.user_pool_client_id }}" = "None" ]; then
-          echo "❌ USER_POOL_CLIENT_ID is missing from backend deployment"
-          exit 1
-        fi
-        
-        if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" = "None" ]; then
-          echo "❌ S3_BUCKET is missing from stack outputs"
-          exit 1
-        fi
-        
-        if [ -z "${{ needs.deploy-backend.outputs.api_url }}" ]; then
-          echo "❌ API_URL is missing from backend deployment"
-          exit 1
-        fi
-        
-        echo "Frontend Configuration:"
-        echo "API_URL: ${{ needs.deploy-backend.outputs.api_url }}"
-        echo "USER_POOL_ID: ${{ needs.deploy-backend.outputs.user_pool_id }}"
-        echo "USER_POOL_CLIENT_ID: ${{ needs.deploy-backend.outputs.user_pool_client_id }}"
-        echo "S3_BUCKET: $S3_BUCKET"
-        echo "AWS_REGION: ${{ env.AWS_REGION }}"
-        
-        # The frontend is already built in the build-and-package job
-        # We need to rebuild it with the actual production configuration
-        
-        # Download the source code to rebuild frontend with correct config
-        cd /tmp
-        git clone https://github.com/${{ github.repository }}.git temp-repo
-        cd temp-repo
-        git checkout ${{ needs.validate-deployment.outputs.commit_sha }}
-        
-        # Build frontend with dynamic environment variables
-        cd frontend
-        npm install
-        
-        # Create dynamic .env.production file with actual deployment values
-        cat > .env.production << EOF
-        VITE_AWS_REGION=${{ env.AWS_REGION }}
-        VITE_USER_POOL_ID=${{ needs.deploy-backend.outputs.user_pool_id }}
-        VITE_USER_POOL_CLIENT_ID=${{ needs.deploy-backend.outputs.user_pool_client_id }}
-        VITE_API_URL=${{ needs.deploy-backend.outputs.api_url }}
-        VITE_S3_BUCKET=$S3_BUCKET
-        VITE_ENVIRONMENT=production
-        EOF
-        
-        echo "Generated .env.production:"
-        cat .env.production
-        
-        # Build with production environment
-        npm run build
-        
-        # Copy the new build back to deployment directory
-        rm -rf $GITHUB_WORKSPACE/deployment/frontend-build/*
-        cp -r ./dist/* $GITHUB_WORKSPACE/deployment/frontend-build/
-    
-    - name: Deploy frontend to S3
-      run: |
-        # Sync frontend build to S3
-        aws s3 sync ./deployment/frontend-build/ \
-          s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
-          --delete \
-          --cache-control "public, max-age=31536000" \
-          --exclude "*.html" \
-          --exclude "*.json"
-        
-        # Deploy HTML files with shorter cache
-        aws s3 sync ./deployment/frontend-build/ \
-          s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
-          --cache-control "public, max-age=300" \
-          --include "*.html" \
-          --include "*.json"
-    
-    - name: Deploy CloudFront distribution
-      id: deploy_cloudfront
-      run: |
-        # Deploy CloudFront stack
-        WEBSITE_BUCKET_DOMAIN="${{ needs.deploy-backend.outputs.frontend_bucket }}.s3.amazonaws.com"
-        API_DOMAIN=$(echo "${{ needs.deploy-backend.outputs.api_url }}" | sed 's|https://||' | sed 's|/.*||')
-        
-        aws cloudformation deploy \
-          --template-file ./deployment/cloudfront-template.yaml \
-          --stack-name home-inventory-cloudfront-prod \
-          --region ${{ env.CLOUDFRONT_REGION }} \
-          --parameter-overrides \
-            Environment=prod \
-            WebsiteBucketDomainName="$WEBSITE_BUCKET_DOMAIN" \
-            ApiGatewayDomainName="$API_DOMAIN" \
-            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-            ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
-        
-        # Get CloudFront URL
-        CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-cloudfront-prod \
-          --region ${{ env.CLOUDFRONT_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
-          --output text)
-        
-        echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
-        
-        echo "✅ CloudFront distribution deployed"
-        echo "CloudFront URL: $CLOUDFRONT_URL"
-    
-    - name: Invalidate CloudFront cache
-      run: |
-        # Get CloudFront distribution ID
-        DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
-          --stack-name home-inventory-cloudfront-prod \
-          --region ${{ env.CLOUDFRONT_REGION }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
-          --output text)
-        
-        # Create invalidation
-        aws cloudfront create-invalidation \
-          --distribution-id $DISTRIBUTION_ID \
-          --paths "/*"
-        
-        echo "✅ Frontend deployed and cache invalidated"
-        echo "Distribution ID: $DISTRIBUTION_ID"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-and-package.outputs.backend_artifact }}
+          path: ./deployment
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          role-session-name: GitHubActions-Prod-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build frontend with production configuration
+        run: |
+          # Get additional stack outputs for frontend configuration
+          S3_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+            --output text)
+
+          # Validate that all required values are present
+          if [ -z "${{ needs.deploy-backend.outputs.user_pool_id }}" ] || [ "${{ needs.deploy-backend.outputs.user_pool_id }}" = "None" ]; then
+            echo "❌ USER_POOL_ID is missing from backend deployment"
+            exit 1
+          fi
+
+          if [ -z "${{ needs.deploy-backend.outputs.user_pool_client_id }}" ] || [ "${{ needs.deploy-backend.outputs.user_pool_client_id }}" = "None" ]; then
+            echo "❌ USER_POOL_CLIENT_ID is missing from backend deployment"
+            exit 1
+          fi
+
+          if [ -z "$S3_BUCKET" ] || [ "$S3_BUCKET" = "None" ]; then
+            echo "❌ S3_BUCKET is missing from stack outputs"
+            exit 1
+          fi
+
+          if [ -z "${{ needs.deploy-backend.outputs.api_url }}" ]; then
+            echo "❌ API_URL is missing from backend deployment"
+            exit 1
+          fi
+
+          echo "Frontend Configuration:"
+          echo "API_URL: ${{ needs.deploy-backend.outputs.api_url }}"
+          echo "USER_POOL_ID: ${{ needs.deploy-backend.outputs.user_pool_id }}"
+          echo "USER_POOL_CLIENT_ID: ${{ needs.deploy-backend.outputs.user_pool_client_id }}"
+          echo "S3_BUCKET: $S3_BUCKET"
+          echo "AWS_REGION: ${{ env.AWS_REGION }}"
+
+          # The frontend is already built in the build-and-package job
+          # We need to rebuild it with the actual production configuration
+
+          # Download the source code to rebuild frontend with correct config
+          cd /tmp
+          git clone https://github.com/${{ github.repository }}.git temp-repo
+          cd temp-repo
+          git checkout ${{ needs.validate-deployment.outputs.commit_sha }}
+
+          # Build frontend with dynamic environment variables
+          cd frontend
+          npm install
+
+          # Create dynamic .env.production file with actual deployment values
+          cat > .env.production << EOF
+          VITE_AWS_REGION=${{ env.AWS_REGION }}
+          VITE_USER_POOL_ID=${{ needs.deploy-backend.outputs.user_pool_id }}
+          VITE_USER_POOL_CLIENT_ID=${{ needs.deploy-backend.outputs.user_pool_client_id }}
+          VITE_API_URL=${{ needs.deploy-backend.outputs.api_url }}
+          VITE_S3_BUCKET=$S3_BUCKET
+          VITE_ENVIRONMENT=production
+          EOF
+
+          echo "Generated .env.production:"
+          cat .env.production
+
+          # Build with production environment
+          npm run build
+
+          # Copy the new build back to deployment directory
+          rm -rf $GITHUB_WORKSPACE/deployment/frontend-build/*
+          cp -r ./dist/* $GITHUB_WORKSPACE/deployment/frontend-build/
+
+      - name: Deploy frontend to S3
+        run: |
+          # Sync frontend build to S3
+          aws s3 sync ./deployment/frontend-build/ \
+            s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000" \
+            --exclude "*.html" \
+            --exclude "*.json"
+
+          # Deploy HTML files with shorter cache
+          aws s3 sync ./deployment/frontend-build/ \
+            s3://${{ needs.deploy-backend.outputs.frontend_bucket }}/ \
+            --cache-control "public, max-age=300" \
+            --include "*.html" \
+            --include "*.json"
+
+      - name: Deploy CloudFront distribution
+        id: deploy_cloudfront
+        run: |
+          # Deploy CloudFront stack
+          WEBSITE_BUCKET_DOMAIN="${{ needs.deploy-backend.outputs.frontend_bucket }}.s3.amazonaws.com"
+          API_DOMAIN=$(echo "${{ needs.deploy-backend.outputs.api_url }}" | sed 's|https://||' | sed 's|/.*||')
+
+          aws cloudformation deploy \
+            --template-file ./deployment/cloudfront-template.yaml \
+            --stack-name home-inventory-cloudfront-prod \
+            --region ${{ env.CLOUDFRONT_REGION }} \
+            --parameter-overrides \
+              Environment=prod \
+              WebsiteBucketDomainName="$WEBSITE_BUCKET_DOMAIN" \
+              ApiGatewayDomainName="$API_DOMAIN" \
+              CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
+
+          # Get CloudFront URL
+          CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region ${{ env.CLOUDFRONT_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
+            --output text)
+
+          echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
+
+          echo "✅ CloudFront distribution deployed"
+          echo "CloudFront URL: $CLOUDFRONT_URL"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          # Get CloudFront distribution ID
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region ${{ env.CLOUDFRONT_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
+            --output text)
+
+          # Create invalidation
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+
+          echo "✅ Frontend deployed and cache invalidated"
+          echo "Distribution ID: $DISTRIBUTION_ID"
 
   update-backend-cors:
     name: Update Backend CORS Configuration
@@ -566,186 +567,187 @@ jobs:
     needs: [deploy-backend, deploy-frontend]
     if: needs.deploy-frontend.result == 'success'
     environment: production
-    
+
     steps:
-    - name: Download deployment artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ needs.build-and-package.outputs.backend_artifact }}
-        path: ./deployment
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
-        role-session-name: GitHubActions-CORS-${{ github.run_id }}
-        aws-region: ${{ vars.AWS_REGION }}
-    
-    - name: Install AWS SAM CLI
-      uses: aws-actions/setup-sam@v2
-      with:
-        use-installer: true
-    
-    - name: Update backend CORS with CloudFront URL
-      working-directory: ./deployment
-      run: |
-        CLOUDFRONT_URL="${{ needs.deploy-frontend.outputs.cloudfront_url }}"
-        
-        echo "Updating backend CORS configuration with CloudFront URL..."
-        echo "CloudFront URL: $CLOUDFRONT_URL"
-        
-        # Redeploy backend with the CloudFront URL parameter
-        sam deploy \
-          --template-file build/template.yaml \
-          --config-file samconfig.toml \
-          --no-confirm-changeset \
-          --no-fail-on-empty-changeset \
-          --region ${{ env.AWS_REGION }} \
-          --parameter-overrides \
-            Environment=prod \
-            EnableDeletionProtection=true \
-            LogRetentionDays=7 \
-            CloudFrontOrigin="$CLOUDFRONT_URL" \
-            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-            ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
-        
-        echo "✅ Backend CORS configuration updated with CloudFront URL"
+      - name: Download deployment artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-and-package.outputs.backend_artifact }}
+          path: ./deployment
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          role-session-name: GitHubActions-CORS-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Update backend CORS with CloudFront URL
+        working-directory: ./deployment
+        run: |
+          CLOUDFRONT_URL="${{ needs.deploy-frontend.outputs.cloudfront_url }}"
+
+          echo "Updating backend CORS configuration with CloudFront URL..."
+          echo "CloudFront URL: $CLOUDFRONT_URL"
+
+          # Redeploy backend with the CloudFront URL parameter
+          sam deploy \
+            --template-file build/template.yaml \
+            --stack-name home-inventory-system-prod \
+            --config-file samconfig.toml \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --region ${{ env.AWS_REGION }} \
+            --parameter-overrides \
+              Environment=prod \
+              EnableDeletionProtection=true \
+              LogRetentionDays=7 \
+              CloudFrontOrigin="$CLOUDFRONT_URL" \
+              CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
+
+          echo "✅ Backend CORS configuration updated with CloudFront URL"
 
   smoke-tests:
     name: Production Smoke Tests
     runs-on: ubuntu-latest
     needs: [deploy-backend, deploy-frontend, update-backend-cors]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.PROD_ROLE_ARN }}
-        role-session-name: GitHubActions-SmokeTests-${{ github.run_id }}
-        aws-region: ${{ vars.AWS_REGION }}
-    
-    - name: Run smoke tests
-      run: |
-        # Basic API health check
-        API_URL="${{ needs.deploy-backend.outputs.api_url }}"
-        CLOUDFRONT_URL="${{ needs.deploy-frontend.outputs.cloudfront_url }}"
-        
-        echo "Running smoke tests against production environment..."
-        echo "API_URL: $API_URL"
-        echo "CLOUDFRONT_URL: $CLOUDFRONT_URL"
-        
-        # Test API health
-        echo "Testing API health endpoint..."
-        if curl -f -s "$API_URL/health" > /dev/null; then
-          echo "✅ API health check passed"
-          
-          # Get detailed health response for debugging
-          echo "API Health Response:"
-          curl -s "$API_URL/health" | jq '.' || curl -s "$API_URL/health"
-        else
-          echo "❌ API health check failed"
-          echo "Attempting to get error details:"
-          curl -v "$API_URL/health" || true
-          exit 1
-        fi
-        
-        # Test CORS headers
-        echo "Testing CORS configuration..."
-        CORS_RESPONSE=$(curl -s -I -X OPTIONS "$API_URL/health" \
-          -H "Origin: $CLOUDFRONT_URL" \
-          -H "Access-Control-Request-Method: GET")
-        
-        if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin"; then
-          echo "✅ CORS configuration working"
-        else
-          echo "❌ CORS configuration issue"
-          echo "CORS Response Headers:"
-          echo "$CORS_RESPONSE"
-          exit 1
-        fi
-        
-        # Test frontend
-        echo "Testing frontend accessibility..."
-        if curl -f -s "$CLOUDFRONT_URL" > /dev/null; then
-          echo "✅ Frontend accessible"
-          
-          # Check if frontend contains expected content
-          echo "Checking frontend content..."
-          FRONTEND_CONTENT=$(curl -s "$CLOUDFRONT_URL")
-          if echo "$FRONTEND_CONTENT" | grep -q "Home Inventory" || echo "$FRONTEND_CONTENT" | grep -q "react" || echo "$FRONTEND_CONTENT" | grep -q "<!DOCTYPE html>"; then
-            echo "✅ Frontend contains expected content"
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_ROLE_ARN }}
+          role-session-name: GitHubActions-SmokeTests-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Run smoke tests
+        run: |
+          # Basic API health check
+          API_URL="${{ needs.deploy-backend.outputs.api_url }}"
+          CLOUDFRONT_URL="${{ needs.deploy-frontend.outputs.cloudfront_url }}"
+
+          echo "Running smoke tests against production environment..."
+          echo "API_URL: $API_URL"
+          echo "CLOUDFRONT_URL: $CLOUDFRONT_URL"
+
+          # Test API health
+          echo "Testing API health endpoint..."
+          if curl -f -s "$API_URL/health" > /dev/null; then
+            echo "✅ API health check passed"
+
+            # Get detailed health response for debugging
+            echo "API Health Response:"
+            curl -s "$API_URL/health" | jq '.' || curl -s "$API_URL/health"
           else
-            echo "⚠️  Frontend accessible but content may be incomplete"
-            echo "First 500 characters of response:"
-            echo "$FRONTEND_CONTENT" | head -c 500
+            echo "❌ API health check failed"
+            echo "Attempting to get error details:"
+            curl -v "$API_URL/health" || true
+            exit 1
           fi
-        else
-          echo "❌ Frontend not accessible"
-          echo "Attempting to get error details:"
-          curl -v "$CLOUDFRONT_URL" || true
-          exit 1
-        fi
-        
-        echo "✅ All smoke tests passed"
+
+          # Test CORS headers
+          echo "Testing CORS configuration..."
+          CORS_RESPONSE=$(curl -s -I -X OPTIONS "$API_URL/health" \
+            -H "Origin: $CLOUDFRONT_URL" \
+            -H "Access-Control-Request-Method: GET")
+
+          if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin"; then
+            echo "✅ CORS configuration working"
+          else
+            echo "❌ CORS configuration issue"
+            echo "CORS Response Headers:"
+            echo "$CORS_RESPONSE"
+            exit 1
+          fi
+
+          # Test frontend
+          echo "Testing frontend accessibility..."
+          if curl -f -s "$CLOUDFRONT_URL" > /dev/null; then
+            echo "✅ Frontend accessible"
+
+            # Check if frontend contains expected content
+            echo "Checking frontend content..."
+            FRONTEND_CONTENT=$(curl -s "$CLOUDFRONT_URL")
+            if echo "$FRONTEND_CONTENT" | grep -q "Home Inventory" || echo "$FRONTEND_CONTENT" | grep -q "react" || echo "$FRONTEND_CONTENT" | grep -q "<!DOCTYPE html>"; then
+              echo "✅ Frontend contains expected content"
+            else
+              echo "⚠️  Frontend accessible but content may be incomplete"
+              echo "First 500 characters of response:"
+              echo "$FRONTEND_CONTENT" | head -c 500
+            fi
+          else
+            echo "❌ Frontend not accessible"
+            echo "Attempting to get error details:"
+            curl -v "$CLOUDFRONT_URL" || true
+            exit 1
+          fi
+
+          echo "✅ All smoke tests passed"
 
   deployment-summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
     needs: [validate-deployment, deploy-backend, deploy-frontend, update-backend-cors, smoke-tests]
     if: always()
-    
+
     steps:
-    - name: Generate deployment summary
-      run: |
-        echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Version:** ${{ needs.validate-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Commit:** ${{ needs.validate-deployment.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Build:** #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Deployment time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [[ "${{ needs.smoke-tests.result }}" == "success" ]]; then
-          echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **API:** ${{ needs.deploy-backend.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Frontend:** ${{ needs.deploy-frontend.outputs.cloudfront_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Smoke tests:** All tests passed" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ **Status:** Deployment failed or incomplete" >> $GITHUB_STEP_SUMMARY
-          echo "Please check the logs and consider rollback if necessary." >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "- Monitor application metrics and logs" >> $GITHUB_STEP_SUMMARY
-        echo "- Verify user functionality in production" >> $GITHUB_STEP_SUMMARY
-        echo "- Update documentation if needed" >> $GITHUB_STEP_SUMMARY
+      - name: Generate deployment summary
+        run: |
+          echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.validate-deployment.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ needs.validate-deployment.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build:** #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.smoke-tests.result }}" == "success" ]]; then
+            echo "✅ **Status:** Deployment successful" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **API:** ${{ needs.deploy-backend.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Frontend:** ${{ needs.deploy-frontend.outputs.cloudfront_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Smoke tests:** All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Deployment failed or incomplete" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the logs and consider rollback if necessary." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor application metrics and logs" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify user functionality in production" >> $GITHUB_STEP_SUMMARY
+          echo "- Update documentation if needed" >> $GITHUB_STEP_SUMMARY
 
   notify-deployment:
     name: Notify Deployment
     runs-on: ubuntu-latest
     needs: [validate-deployment, deployment-summary]
     if: always()
-    
+
     steps:
-    - name: Notify deployment status
-      run: |
-        if [[ "${{ needs.deployment-summary.result }}" == "success" ]]; then
-          echo "✅ Production deployment completed successfully"
-          echo "Version: ${{ needs.validate-deployment.outputs.version }}"
-          echo "Commit: ${{ needs.validate-deployment.outputs.commit_sha }}"
-        else
-          echo "❌ Production deployment failed or was cancelled"
-          echo "Please check the workflow logs for details"
-        fi
+      - name: Notify deployment status
+        run: |
+          if [[ "${{ needs.deployment-summary.result }}" == "success" ]]; then
+            echo "✅ Production deployment completed successfully"
+            echo "Version: ${{ needs.validate-deployment.outputs.version }}"
+            echo "Commit: ${{ needs.validate-deployment.outputs.commit_sha }}"
+          else
+            echo "❌ Production deployment failed or was cancelled"
+            echo "Please check the workflow logs for details"
+          fi
