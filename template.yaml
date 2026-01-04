@@ -165,6 +165,21 @@ Resources:
         - Key: SecurityLevel
           Value: !If [IsProduction, High, Standard]
 
+  # S3 Bucket Policy to allow CloudFront access
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipal
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${WebsiteBucket}/*'
+
   # S3 Access Logs Bucket (Production only)
   S3AccessLogsBucket:
     Type: AWS::S3::Bucket
