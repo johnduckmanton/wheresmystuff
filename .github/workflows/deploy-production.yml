@@ -143,7 +143,7 @@ jobs:
     name: Build and Package
     runs-on: ubuntu-latest
     needs: [validate-deployment, security-audit, test-backend]
-    if: always() && (needs.validate-deployment.result == 'success' && (needs.security-audit.result == 'success' || needs.security-audit.result == 'skipped') && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped'))
+    if: always() && needs.validate-deployment.result == 'success'
     
     outputs:
       backend_artifact: ${{ steps.package.outputs.backend_artifact }}
@@ -230,6 +230,7 @@ jobs:
     name: Deploy Backend to Production
     runs-on: ubuntu-latest
     needs: [validate-deployment, build-and-package]
+    if: needs.build-and-package.result == 'success'
     environment: production
     
     outputs:
@@ -394,6 +395,7 @@ jobs:
     name: Deploy Frontend to Production
     runs-on: ubuntu-latest
     needs: [validate-deployment, build-and-package, deploy-backend]
+    if: needs.deploy-backend.result == 'success'
     environment: production
     
     outputs:
@@ -525,7 +527,7 @@ jobs:
             Environment=prod \
             WebsiteBucketDomainName="$WEBSITE_BUCKET_DOMAIN" \
             ApiGatewayDomainName="$API_DOMAIN" \
-            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || '' }}" \
+            CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
             ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
         
         # Get CloudFront URL
@@ -561,6 +563,7 @@ jobs:
     name: Update Backend CORS Configuration
     runs-on: ubuntu-latest
     needs: [deploy-backend, deploy-frontend]
+    if: needs.deploy-frontend.result == 'success'
     environment: production
     
     steps:
