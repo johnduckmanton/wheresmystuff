@@ -621,7 +621,8 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /health
             Method: GET
-            # No Auth section - this endpoint is public
+            Auth:
+              Authorizer: NONE
       Tags:
         Environment: !Ref Environment
         Purpose: HealthCheck
