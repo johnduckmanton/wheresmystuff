@@ -549,15 +549,40 @@ jobs:
       - name: Invalidate CloudFront cache
         run: |
           # Get CloudFront distribution ID
+          echo "Getting CloudFront distribution ID from stack: home-inventory-cloudfront-prod"
+          
+          # First, check if the stack exists and get all outputs for debugging
+          echo "Stack outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region ${{ env.CLOUDFRONT_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output table || echo "Failed to get stack outputs"
+
           DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
             --stack-name home-inventory-cloudfront-prod \
             --region ${{ env.CLOUDFRONT_REGION }} \
             --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
             --output text)
 
+          echo "Retrieved Distribution ID: '$DISTRIBUTION_ID'"
+
+          # Check if distribution ID is empty or None
+          if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" = "None" ]; then
+            echo "❌ CloudFront distribution ID is empty or None"
+            echo "Available outputs:"
+            aws cloudformation describe-stacks \
+              --stack-name home-inventory-cloudfront-prod \
+              --region ${{ env.CLOUDFRONT_REGION }} \
+              --query 'Stacks[0].Outputs[*].{Key:OutputKey,Value:OutputValue}' \
+              --output table
+            exit 1
+          fi
+
           # Create invalidation
+          echo "Creating CloudFront invalidation for distribution: $DISTRIBUTION_ID"
           aws cloudfront create-invalidation \
-            --distribution-id $DISTRIBUTION_ID \
+            --distribution-id "$DISTRIBUTION_ID" \
             --paths "/*"
 
           echo "✅ Frontend deployed and cache invalidated"
