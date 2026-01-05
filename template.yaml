@@ -7,7 +7,7 @@ Globals:
     Timeout: 30
     Runtime: nodejs20.x
     MemorySize: 512
-    ReservedConcurrentExecutions: !If [IsProduction, 10, !Ref AWS::NoValue]
+    ReservedConcurrentExecutions: !Ref AWS::NoValue
     Environment:
       Variables:
         TABLE_NAME: !Ref InventoryTable
