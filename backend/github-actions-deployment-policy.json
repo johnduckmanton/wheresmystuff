@@ -33,7 +33,8 @@
         "iam:ListPolicyVersions",
         "iam:TagRole",
         "iam:UntagRole",
-        "iam:ListRoleTags"
+        "iam:ListRoleTags",
+        "iam:CreateServiceLinkedRole"
       ],
       "Resource": "*"
     },
