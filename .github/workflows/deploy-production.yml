@@ -286,6 +286,7 @@ jobs:
             --template-file build/template.yaml \
             --stack-name home-inventory-system-prod \
             --s3-bucket "$S3_BUCKET" \
+            --capabilities CAPABILITY_IAM \
             --config-file samconfig.toml \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
@@ -602,6 +603,7 @@ jobs:
             --template-file build/template.yaml \
             --stack-name home-inventory-system-prod \
             --s3-bucket "$S3_BUCKET" \
+            --capabilities CAPABILITY_IAM \
             --config-file samconfig.toml \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
