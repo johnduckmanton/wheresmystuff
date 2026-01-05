@@ -656,6 +656,7 @@ jobs:
     name: Production Smoke Tests
     runs-on: ubuntu-latest
     needs: [deploy-backend, deploy-frontend, update-backend-cors]
+    environment: production
 
     steps:
       - name: Checkout code
