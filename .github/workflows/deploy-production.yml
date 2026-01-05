@@ -552,7 +552,7 @@ jobs:
           DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
             --stack-name home-inventory-cloudfront-prod \
             --region ${{ env.CLOUDFRONT_REGION }} \
-            --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
             --output text)
 
           # Create invalidation
