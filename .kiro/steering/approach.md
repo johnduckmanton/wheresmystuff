@@ -5,3 +5,5 @@ When a conversation starts with "CONTEXT TRANSFER" or summary of previous work:
 3. PROPOSE - Suggest next steps based on the summary
 4. STOP AND WAIT - Do NOT make any changes until the user explicitly approves
 NEVER automatically continue work after context transfer. Always wait for explicit user approval before making any file changes.
+
+In general, don't automatically create summary MD documents for changes. Ask the user to confirm whether they want a summary

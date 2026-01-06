@@ -25,7 +25,7 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [challengeName, setChallengeName] = useState<string | null>(null);
-  const [signInSession, setSignInSession] = useState<any>(null);
+
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -53,9 +53,8 @@ export default function SignIn() {
           case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
             console.log('Password change required');
             setChallengeName('NEW_PASSWORD_REQUIRED');
-            setSignInSession(result);
             break;
-          case 'CONFIRM_SIGN_IN_WITH_SMS_MFA_CODE':
+          case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
             setError('SMS MFA is required but not implemented in this demo');
             break;
           case 'CONFIRM_SIGN_IN_WITH_TOTP_CODE':
@@ -135,7 +134,6 @@ export default function SignIn() {
 
   const resetForm = () => {
     setChallengeName(null);
-    setSignInSession(null);
     setNewPassword('');
     setConfirmPassword('');
     setError('');
