@@ -15,6 +15,7 @@ import { InventoryProvider } from './contexts/InventoryContext';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
+import AuthDebug from './components/AuthDebug';
 import ProtectedRoute from './components/ProtectedRoute';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -149,6 +150,7 @@ function App() {
                 <Routes>
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
+                <Route path="/auth-debug" element={<AuthDebug />} />
                 <Route path="/shared/container/:shareId" element={<SharedContainerView />} />
                 <Route
                   path="/accept-invitation"

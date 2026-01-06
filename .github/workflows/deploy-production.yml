@@ -707,7 +707,7 @@ jobs:
             -H "Origin: $CLOUDFRONT_URL" \
             -H "Access-Control-Request-Method: GET")
 
-          if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin"; then
+          if echo "$CORS_RESPONSE" | grep -qi "access-control-allow-origin"; then
             echo "✅ CORS configuration working"
           else
             echo "❌ CORS configuration issue"
