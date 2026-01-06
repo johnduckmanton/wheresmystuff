@@ -972,6 +972,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListInventories:
           Type: HttpApi
