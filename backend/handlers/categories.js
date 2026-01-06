@@ -60,6 +60,11 @@ const categoriesHandler = async (event) => {
       case 'GET':
         return await handleGet(event);
       case 'POST':
+        // Check if this is a CSV import request
+        const body = event.body ? JSON.parse(event.body) : {};
+        if (body.csvData) {
+          return await handleImportCSV(event);
+        }
         return await handleCreate(event);
       case 'PUT':
         return await handleUpdate(event, pathParameters.id);
@@ -217,6 +222,149 @@ async function handleUpdate(event, id) {
     }
     
     throw new Error('Failed to update category');
+  }
+}
+
+/**
+ * Handle CSV import - Import categories from CSV data
+ */
+async function handleImportCSV(event) {
+  try {
+    // Parse request body
+    const body = JSON.parse(event.body || '{}');
+    const { csvData, inventoryId } = body;
+    
+    if (!csvData || !inventoryId) {
+      return error('csvData and inventoryId are required', 400);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400);
+    }
+    
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+    
+    // Parse CSV data
+    const lines = csvData.trim().split('\n');
+    if (lines.length < 2) {
+      return error('CSV must contain at least a header row and one data row', 400);
+    }
+    
+    // Parse header
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const expectedHeaders = ['name', 'description', 'color', 'icon'];
+    
+    // Validate headers
+    const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+      return error(`Missing required headers: ${missingHeaders.join(', ')}`, 400);
+    }
+    
+    // Get existing categories to check for duplicates
+    const existingCategories = await listEntities(ENTITY_TYPE, inventoryId);
+    const existingCategoryMap = new Map();
+    existingCategories.forEach(cat => {
+      existingCategoryMap.set(cat.name.toLowerCase(), cat);
+    });
+    
+    const results = {
+      imported: 0,
+      updated: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    // Process each data row
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Skip empty lines
+      
+      try {
+        // Parse CSV row (simple CSV parser for quoted fields)
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            if (inQuotes && line[j + 1] === '"') {
+              // Escaped quote
+              current += '"';
+              j++; // Skip next quote
+            } else {
+              // Toggle quote state
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim()); // Add last value
+        
+        // Create category object
+        const categoryData = {};
+        headers.forEach((header, index) => {
+          if (values[index] !== undefined) {
+            categoryData[header] = values[index];
+          }
+        });
+        
+        // Add required fields
+        categoryData.inventoryId = inventoryId;
+        
+        // Validate the category data
+        const validation = validateAndSanitize(categoryData, categorySchema);
+        if (!validation.valid) {
+          results.failed++;
+          results.errors.push(`Row ${i + 1}: ${validation.errors.map(e => e.message).join(', ')}`);
+          continue;
+        }
+        
+        // Check if category exists (case-insensitive name match)
+        const existingCategory = existingCategoryMap.get(validation.data.name.toLowerCase());
+        
+        if (existingCategory) {
+          // Update existing category
+          await updateEntity(ENTITY_TYPE, inventoryId, existingCategory.id, validation.data);
+          results.updated++;
+        } else {
+          // Create new category
+          await createEntity(ENTITY_TYPE, validation.data);
+          results.imported++;
+        }
+        
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Row ${i + 1}: ${error.message}`);
+      }
+    }
+    
+    // Log data access
+    await logDataAccess(event.user.userId, 'create', 'categories', 'bulk-import', inventoryId);
+    
+    const totalProcessed = results.imported + results.updated;
+    return success({
+      message: `Import completed: ${results.imported} new, ${results.updated} updated, ${results.failed} failed`,
+      imported: results.imported,
+      updated: results.updated,
+      failed: results.failed,
+      errors: results.errors,
+      totalProcessed
+    });
+    
+  } catch (err) {
+    console.error('Error importing categories from CSV:', err);
+    
+    if (err.statusCode === 403) {
+      return error(err.message || 'Access denied', 403);
+    }
+    
+    throw new Error('Failed to import categories from CSV');
   }
 }
 

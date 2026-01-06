@@ -216,6 +216,86 @@ class MockApiClient {
     this.data.categories.splice(index, 1);
   }
 
+  async importCategoriesFromCSV(csvData: string, inventoryId: string): Promise<{
+    message: string;
+    imported: number;
+    updated: number;
+    failed: number;
+    errors: string[];
+    totalProcessed: number;
+  }> {
+    await mockDelay();
+    
+    // Parse CSV data (simplified for mock)
+    const lines = csvData.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('CSV must contain at least a header row and one data row');
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    let imported = 0;
+    let updated = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    // Process each data row
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      try {
+        // Simple CSV parsing for mock
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        
+        const categoryData: any = {};
+        headers.forEach((header, index) => {
+          if (values[index] !== undefined) {
+            categoryData[header] = values[index];
+          }
+        });
+
+        categoryData.inventoryId = inventoryId;
+
+        // Check if category exists (by name)
+        const existingIndex = this.data.categories.findIndex(
+          c => c.name.toLowerCase() === categoryData.name?.toLowerCase() && c.inventoryId === inventoryId
+        );
+
+        if (existingIndex >= 0) {
+          // Update existing
+          this.data.categories[existingIndex] = {
+            ...this.data.categories[existingIndex],
+            ...categoryData,
+            dateAdded: this.data.categories[existingIndex].dateAdded, // Keep original date
+          };
+          updated++;
+        } else {
+          // Create new
+          const newCategory: Category = {
+            id: this.generateId('cat'),
+            dateAdded: new Date().toISOString(),
+            ...categoryData,
+          };
+          this.data.categories.push(newCategory);
+          imported++;
+        }
+      } catch (error) {
+        failed++;
+        errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Parse error'}`);
+      }
+    }
+
+    const totalProcessed = imported + updated;
+    return {
+      message: `Import completed: ${imported} new, ${updated} updated, ${failed} failed`,
+      imported,
+      updated,
+      failed,
+      errors,
+      totalProcessed,
+    };
+  }
+
   // People API
   async getPeople(inventoryId?: string): Promise<Person[]> {
     await mockDelay();

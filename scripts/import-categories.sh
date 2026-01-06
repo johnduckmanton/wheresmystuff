@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# Simple Categories Import Script
-# Imports categories one by one using put-item instead of batch-write-item
+# Categories CSV Import Script
+# Imports categories from CSV file using the API endpoint
 
 set -e
 
 ENVIRONMENT=${1:-dev}
-CATEGORIES_FILE="./data-export/entities/categories.json"
+CATEGORIES_FILE=${2:-"categories.csv"}
 REGION="eu-west-1"
-TABLE_NAME="home-inv-dev"
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,9 +32,9 @@ warn() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-log "🏷️  Starting simple categories import"
+log "🏷️  Starting CSV categories import"
 log "📁 Categories file: ${CATEGORIES_FILE}"
-log "🗄️  Target table: ${TABLE_NAME}"
+log "🌍 Environment: ${ENVIRONMENT}"
 log "🌍 Region: ${REGION}"
 
 if [ ! -f "$CATEGORIES_FILE" ]; then
@@ -43,54 +42,56 @@ if [ ! -f "$CATEGORIES_FILE" ]; then
     exit 1
 fi
 
-# Get total count
-TOTAL_ITEMS=$(jq '.Items | length' "$CATEGORIES_FILE")
-log "📊 Total categories to import: ${TOTAL_ITEMS}"
-
-# Import each category individually
-IMPORTED=0
-FAILED=0
-
-for i in $(seq 0 $((TOTAL_ITEMS - 1))); do
-    # Extract single item
-    ITEM=$(jq ".Items[$i]" "$CATEGORIES_FILE")
-    CATEGORY_NAME=$(echo "$ITEM" | jq -r '.entityData.M.name.S')
-    
-    log "Importing category $((i + 1))/${TOTAL_ITEMS}: ${CATEGORY_NAME}"
-    
-    # Write item to temp file
-    echo "$ITEM" > "/tmp/category-${i}.json"
-    
-    # Import the item
-    if aws dynamodb put-item \
-        --table-name "${TABLE_NAME}" \
-        --region "${REGION}" \
-        --item "file:///tmp/category-${i}.json" \
-        --no-cli-pager > /dev/null 2>&1; then
-        
-        success "✓ Imported: ${CATEGORY_NAME}"
-        IMPORTED=$((IMPORTED + 1))
-    else
-        error "✗ Failed to import: ${CATEGORY_NAME}"
-        FAILED=$((FAILED + 1))
-    fi
-    
-    # Clean up temp file
-    rm -f "/tmp/category-${i}.json"
-    
-    # Small delay to avoid throttling
-    sleep 0.1
-done
-
-echo ""
-log "📊 Import Summary:"
-log "   ✅ Successfully imported: ${IMPORTED}"
-log "   ❌ Failed to import: ${FAILED}"
-log "   📈 Total processed: ${TOTAL_ITEMS}"
-
-if [ $FAILED -eq 0 ]; then
-    success "🎉 All categories imported successfully!"
-else
-    warn "⚠️  Some categories failed to import"
+# Check if file is CSV
+if [[ ! "$CATEGORIES_FILE" =~ \.csv$ ]]; then
+    error "File must be a CSV file (*.csv)"
     exit 1
 fi
+
+# Get API URL based on environment
+if [ "$ENVIRONMENT" = "prod" ]; then
+    API_URL="https://f8bwpf2rcf.execute-api.eu-west-1.amazonaws.com/prod"
+else
+    API_URL="https://your-dev-api-url.execute-api.eu-west-1.amazonaws.com/dev"
+fi
+
+log "🔗 API URL: ${API_URL}"
+
+# Read CSV content
+CSV_CONTENT=$(cat "$CATEGORIES_FILE")
+TOTAL_LINES=$(wc -l < "$CATEGORIES_FILE")
+TOTAL_CATEGORIES=$((TOTAL_LINES - 1)) # Subtract header row
+
+log "📊 Total categories to import: ${TOTAL_CATEGORIES}"
+
+# Note: This script requires manual authentication setup
+# In a real implementation, you would need to:
+# 1. Get JWT token from Cognito
+# 2. Get inventory ID from user
+# 3. Make authenticated API call
+
+warn "⚠️  This script requires manual setup:"
+warn "   1. Update API_URL for your environment"
+warn "   2. Add authentication (JWT token)"
+warn "   3. Specify inventory ID"
+warn "   4. Make API call to /categories endpoint with csvData"
+
+log "📋 CSV file is ready for import through the web interface"
+log "   File: ${CATEGORIES_FILE}"
+log "   Categories: ${TOTAL_CATEGORIES}"
+
+success "🎉 CSV file validated and ready for import!"
+
+# Example of what the API call would look like:
+cat << EOF
+
+Example API call (requires authentication):
+curl -X POST "${API_URL}/categories" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+  -d '{
+    "csvData": "$(cat "$CATEGORIES_FILE" | sed 's/"/\\"/g' | tr '\n' '\\n')",
+    "inventoryId": "YOUR_INVENTORY_ID"
+  }'
+
+EOF

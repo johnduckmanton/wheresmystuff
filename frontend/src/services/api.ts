@@ -311,6 +311,24 @@ class ApiClient {
     return this.delete<void>(url);
   }
 
+  async importCategoriesFromCSV(csvData: string, inventoryId: string): Promise<{
+    message: string;
+    imported: number;
+    updated: number;
+    failed: number;
+    errors: string[];
+    totalProcessed: number;
+  }> {
+    return this.post<{
+      message: string;
+      imported: number;
+      updated: number;
+      failed: number;
+      errors: string[];
+      totalProcessed: number;
+    }>('/categories', { csvData, inventoryId });
+  }
+
   // People API
   async getPeople(inventoryId?: string): Promise<Person[]> {
     const url = inventoryId ? `/people?inventoryId=${inventoryId}` : '/people';

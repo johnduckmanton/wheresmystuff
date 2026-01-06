@@ -1,9 +1,11 @@
 import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
+import UploadIcon from '@mui/icons-material/Upload';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import CategoryFormDialog from '../components/CategoryFormDialog';
+import CategoryImportDialog from '../components/CategoryImportDialog';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
@@ -56,6 +58,7 @@ export default function Categories() {
   
   // Dialog states
   const [formDialogOpen, setFormDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<CategoryTableRow | null>(null);
@@ -125,6 +128,39 @@ export default function Categories() {
   const handleAdd = () => {
     setEditingCategory(undefined);
     setFormDialogOpen(true);
+  };
+
+  const handleImport = () => {
+    setImportDialogOpen(true);
+  };
+
+  const handleImportCSV = async (csvData: string) => {
+    if (!currentInventory) {
+      throw new Error('No inventory selected');
+    }
+
+    try {
+      const results = await apiClient.importCategoriesFromCSV(csvData, currentInventory.id);
+      
+      // Show success message
+      if (results.failed === 0) {
+        showSuccess(`Successfully imported ${results.imported} new and updated ${results.updated} categories`);
+      } else {
+        showSuccess(`Import completed: ${results.imported} new, ${results.updated} updated, ${results.failed} failed`);
+      }
+      
+      // Refresh the categories list
+      await loadData();
+      
+      return results;
+    } catch (error) {
+      console.error('Error importing categories:', error);
+      throw error;
+    }
+  };
+
+  const handleImportClose = () => {
+    setImportDialogOpen(false);
   };
 
   const handleEdit = (row: CategoryTableRow) => {
@@ -220,9 +256,14 @@ export default function Categories() {
         <Typography variant="h4" component="h1">
           Categories - {currentInventory.name}
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
-          Add Category
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" startIcon={<UploadIcon />} onClick={handleImport}>
+            Import CSV
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
+            Add Category
+          </Button>
+        </Box>
       </Box>
 
       <EntityTable
@@ -240,6 +281,13 @@ export default function Categories() {
         category={editingCategory}
         onSubmit={handleFormSubmit}
         onClose={handleFormClose}
+      />
+
+      {/* Category Import Dialog */}
+      <CategoryImportDialog
+        open={importDialogOpen}
+        onClose={handleImportClose}
+        onImport={handleImportCSV}
       />
 
       {/* Delete Confirmation Dialog */}

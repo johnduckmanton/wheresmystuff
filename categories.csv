@@ -1,0 +1,25 @@
+name,description,color,icon
+"Furniture","Tables, chairs, sofas, beds, wardrobes, and other furniture items",#8B4513,chair
+"Electronics","TVs, computers, phones, tablets, gaming consoles, and electronic devices",#4169E1,tv
+"Kitchen Appliances","Refrigerators, ovens, microwaves, dishwashers, kettles, and cooking equipment",#FF6347,kitchen
+"Small Appliances","Toasters, blenders, coffee makers, vacuum cleaners, and portable appliances",#32CD32,blender
+"Clothing & Textiles","Clothes, shoes, bedding, curtains, towels, and fabric items",#FF69B4,shirt
+"Books & Media","Books, DVDs, CDs, magazines, vinyl records, and media collections",#8A2BE2,book
+"Tools & Hardware","Hand tools, power tools, screws, nails, and DIY equipment",#FF8C00,hammer
+"Garden & Outdoor","Garden tools, outdoor furniture, plants, pots, and gardening equipment",#228B22,leaf
+"Sports & Recreation","Exercise equipment, sports gear, games, toys, and recreational items",#FF4500,sports
+"Art & Collectibles","Paintings, sculptures, antiques, collectibles, and decorative items",#9932CC,palette
+"Jewelry & Accessories","Jewelry, watches, bags, wallets, and personal accessories",#FFD700,diamond
+"Musical Instruments","Guitars, pianos, drums, and other musical instruments and equipment",#DC143C,music
+"Office & Stationery","Desk supplies, printers, office chairs, filing cabinets, and work equipment",#708090,briefcase
+"Bathroom Items","Toiletries, towels, bathroom scales, and personal care items",#20B2AA,bath
+"Cleaning Supplies","Vacuum cleaners, mops, cleaning products, and household maintenance items",#87CEEB,spray
+"Lighting","Lamps, light fixtures, bulbs, and lighting equipment",#FFFF00,lightbulb
+"Storage & Organization","Boxes, containers, shelving units, and organizational systems",#A0522D,box
+"Automotive","Car accessories, tools, maintenance items, and vehicle-related equipment",#2F4F4F,car
+"Pet Supplies","Pet food, toys, beds, carriers, and animal care items",#DDA0DD,paw
+"Health & Fitness","Medical supplies, fitness equipment, supplements, and health monitoring devices",#00CED1,heart
+"Baby & Children","Baby equipment, toys, children's furniture, and childcare items",#FFB6C1,baby
+"Documents & Papers","Important documents, certificates, warranties, and paperwork",#F5F5DC,document
+"Seasonal Items","Christmas decorations, holiday items, seasonal clothing, and event supplies",#FF1493,snowflake
+"Miscellaneous","Items that don't fit into other categories",#696969,question

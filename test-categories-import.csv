@@ -1,0 +1,4 @@
+name,description,color,icon
+"Test Category 1","A test category for validation",#FF0000,test
+"Test Category 2","Another test category",#00FF00,test2
+"Electronics","Updated description for electronics",#4169E1,tv
