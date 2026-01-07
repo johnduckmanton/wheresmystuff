@@ -16,7 +16,7 @@ Globals:
         USER_POOL_ID: !Ref UserPool
         USER_POOL_CLIENT_ID: !Ref UserPoolClient
         AUDIT_LOG_HMAC_SECRET: !Sub 'default-secret-change-in-production-${Environment}'
-        ALLOWED_ORIGINS: !Sub '${CloudFrontOrigin},http://localhost:5173,http://localhost:3000'
+        ALLOWED_ORIGINS: !Sub '${CloudFrontOrigin},https://${CustomDomainName},http://localhost:5173,http://localhost:3000'
         NODE_ENV: !Ref Environment
         SECURITY_LEVEL: !If [IsProduction, HIGH, STANDARD]
     Tracing: !If [IsProduction, Active, PassThrough]
@@ -68,6 +68,20 @@ Parameters:
     Description: CloudFront distribution URL for CORS configuration
     AllowedPattern: ^https://.*$
     ConstraintDescription: Must be a valid HTTPS URL
+  
+  CustomDomainName:
+    Type: String
+    Default: 'wheresmystuff.johnduckmanton.co.uk'
+    Description: Custom domain name for the application
+    AllowedPattern: ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$
+    ConstraintDescription: Must be a valid domain name
+  
+  ACMCertificateArn:
+    Type: String
+    Default: ''
+    Description: ACM Certificate ARN for HTTPS (optional)
+    AllowedPattern: ^(arn:aws:acm:.*)?$
+    ConstraintDescription: Must be a valid ACM certificate ARN or empty
   
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
@@ -448,6 +462,7 @@ Resources:
         CorsRules:
           - AllowedOrigins:
               - !Ref CloudFrontOrigin
+              - !Sub 'https://${CustomDomainName}'
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -511,6 +526,7 @@ Resources:
         CorsRules:
           - AllowedOrigins:
               - !Ref CloudFrontOrigin
+              - !Sub 'https://${CustomDomainName}'
               - 'http://localhost:3000'
               - 'http://localhost:5173'
             AllowedMethods:
@@ -537,6 +553,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Ref CloudFrontOrigin  # Dynamic CloudFront URL from parameter
+          - !Sub 'https://${CustomDomainName}'  # Custom domain
           - 'http://localhost:5173'
           - 'http://localhost:3000'  # Support both Vite and Create React App dev servers
         AllowHeaders:
