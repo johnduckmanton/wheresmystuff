@@ -45,7 +45,7 @@ Parameters:
   
   OpenAIAPIKey:
     Type: String
-    Default: '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'
+    Default: ''
     Description: OpenAI API Key for AI analysis features
     NoEcho: true
   

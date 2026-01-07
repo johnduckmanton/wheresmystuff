@@ -295,6 +295,7 @@ jobs:
               Environment=prod \
               EnableDeletionProtection=true \
               LogRetentionDays=7 \
+              OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
               CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
               ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" 2>&1 | tee deploy.log
 
@@ -646,6 +647,7 @@ jobs:
               Environment=prod \
               EnableDeletionProtection=true \
               LogRetentionDays=7 \
+              OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
               CloudFrontOrigin="$CLOUDFRONT_URL" \
               CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
               ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"

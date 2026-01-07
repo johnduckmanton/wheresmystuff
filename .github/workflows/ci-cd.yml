@@ -304,6 +304,7 @@ jobs:
           --parameter-overrides \
             Environment=dev \
             EnableDeletionProtection=false \
+            OpenAIAPIKey="${{ secrets.OPENAI_API_KEY_DEV || secrets.OPENAI_API_KEY }}" \
             LogRetentionDays=3 2>&1 | tee deploy.log
         
         DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
@@ -492,6 +493,7 @@ jobs:
           --parameter-overrides \
             Environment=dev \
             EnableDeletionProtection=false \
+            OpenAIAPIKey="${{ secrets.OPENAI_API_KEY_DEV || secrets.OPENAI_API_KEY }}" \
             LogRetentionDays=3 \
             CloudFrontOrigin="$CLOUDFRONT_URL"
         
