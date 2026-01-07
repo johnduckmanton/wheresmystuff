@@ -46,7 +46,8 @@ export const mockData: {
       dateAdded: new Date().toISOString(),
       photos: [],
       notes: 'Primary work laptop',
-      containerId: 'container-2'
+      containerId: 'container-2',
+      tags: ['electronics', 'work', 'apple', 'laptop']
     },
     {
       id: 'thing-2',
@@ -60,7 +61,8 @@ export const mockData: {
       dateAdded: new Date().toISOString(),
       photos: [],
       notes: 'Daily use coffee machine',
-      containerId: 'container-1'
+      containerId: 'container-1',
+      tags: ['kitchen', 'appliance', 'coffee', 'breville']
     },
     {
       id: 'thing-3',
@@ -74,7 +76,8 @@ export const mockData: {
       dateAdded: new Date().toISOString(),
       photos: [],
       notes: 'Sharp kitchen knives',
-      containerId: 'container-1'
+      containerId: 'container-1',
+      tags: ['kitchen', 'tools', 'sharp', 'cooking']
     }
   ],
   locations: [

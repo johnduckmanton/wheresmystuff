@@ -33,6 +33,7 @@ import UserProfile from './pages/UserProfile';
 import AcceptInvitation from './pages/AcceptInvitation';
 import MovingDashboard from './pages/MovingDashboard';
 import StorageDashboard from './pages/StorageDashboard';
+import InventoryDashboard from './pages/InventoryDashboard';
 import Containers from './pages/Containers';
 import Projects from './pages/Projects';
 import SharedContainerView from './components/SharedContainerView';
@@ -166,6 +167,16 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <Home />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/inventory"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <InventoryDashboard />
                       </MainLayout>
                     </ProtectedRoute>
                   }

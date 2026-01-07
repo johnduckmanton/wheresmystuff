@@ -1859,6 +1859,220 @@ class MockApiClient {
       ]
     };
   }
+
+  // Tag-related API methods
+  async getTags(inventoryId: string, options?: {
+    q?: string;
+    exclude?: string[];
+    limit?: number;
+  }): Promise<{ tags: string[] }> {
+    await mockDelay();
+    
+    // Extract all tags from things in the inventory
+    const things = this.data.things.filter(t => t.inventoryId === inventoryId);
+    const allTags = new Set<string>();
+    
+    things.forEach(thing => {
+      if (thing.tags && Array.isArray(thing.tags)) {
+        thing.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+      }
+    });
+    
+    let tags = Array.from(allTags);
+    
+    // Apply filters
+    if (options?.exclude && options.exclude.length > 0) {
+      const excludeSet = new Set(options.exclude.map(tag => tag.toLowerCase()));
+      tags = tags.filter(tag => !excludeSet.has(tag));
+    }
+    
+    if (options?.q) {
+      const query = options.q.toLowerCase();
+      tags = tags.filter(tag => tag.includes(query));
+    }
+    
+    // Apply limit
+    if (options?.limit) {
+      tags = tags.slice(0, options.limit);
+    }
+    
+    return { tags: tags.sort() };
+  }
+
+  async getTagAnalytics(inventoryId: string): Promise<{
+    inventoryId: string;
+    totalTags: number;
+    uniqueTags: number;
+    totalThings: number;
+    taggedThings: number;
+    tagStatistics: Array<{
+      tag: string;
+      count: number;
+      percentage: number;
+      firstUsed: string;
+      lastUsed: string;
+    }>;
+    lastUpdated: string;
+  }> {
+    await mockDelay();
+    
+    const things = this.data.things.filter(t => t.inventoryId === inventoryId);
+    const tagCounts = new Map<string, number>();
+    let totalTagInstances = 0;
+    let taggedThings = 0;
+    
+    things.forEach(thing => {
+      if (thing.tags && Array.isArray(thing.tags) && thing.tags.length > 0) {
+        taggedThings++;
+        thing.tags.forEach(tag => {
+          const normalizedTag = tag.toLowerCase();
+          totalTagInstances++;
+          tagCounts.set(normalizedTag, (tagCounts.get(normalizedTag) || 0) + 1);
+        });
+      }
+    });
+    
+    const tagStatistics = Array.from(tagCounts.entries()).map(([tag, count]) => ({
+      tag,
+      count,
+      percentage: taggedThings > 0 ? Math.round((count / taggedThings) * 100) : 0,
+      firstUsed: new Date().toISOString(),
+      lastUsed: new Date().toISOString(),
+    })).sort((a, b) => b.count - a.count);
+    
+    return {
+      inventoryId,
+      totalTags: totalTagInstances,
+      uniqueTags: tagCounts.size,
+      totalThings: things.length,
+      taggedThings,
+      tagStatistics,
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  async searchThingsByTags(inventoryId: string, options: {
+    tags: string[];
+    tagMode?: 'and' | 'or';
+    partialMatch?: boolean;
+  }): Promise<Thing[]> {
+    await mockDelay();
+    
+    const things = this.data.things.filter(t => t.inventoryId === inventoryId);
+    const searchTags = options.tags.map(tag => tag.toLowerCase());
+    const mode = options.tagMode || 'and';
+    
+    return things.filter(thing => {
+      if (!thing.tags || !Array.isArray(thing.tags) || thing.tags.length === 0) {
+        return false;
+      }
+      
+      const thingTags = thing.tags.map(tag => tag.toLowerCase());
+      
+      if (mode === 'and') {
+        return searchTags.every(searchTag => 
+          options.partialMatch 
+            ? thingTags.some(thingTag => thingTag.includes(searchTag))
+            : thingTags.includes(searchTag)
+        );
+      } else {
+        return searchTags.some(searchTag => 
+          options.partialMatch 
+            ? thingTags.some(thingTag => thingTag.includes(searchTag))
+            : thingTags.includes(searchTag)
+        );
+      }
+    });
+  }
+
+  async bulkTagOperation(inventoryId: string, operation: {
+    operation: 'add' | 'remove' | 'replace';
+    thingIds: string[];
+    tags: string[];
+  }): Promise<{
+    operation: string;
+    totalRequested: number;
+    successful: number;
+    failed: number;
+    errors: string[];
+    updatedThings: Array<{
+      id: string;
+      name: string;
+      previousTags: string[];
+      newTags: string[];
+    }>;
+  }> {
+    await mockDelay();
+    
+    const results = {
+      operation: operation.operation,
+      totalRequested: operation.thingIds.length,
+      successful: 0,
+      failed: 0,
+      errors: [] as string[],
+      updatedThings: [] as Array<{
+        id: string;
+        name: string;
+        previousTags: string[];
+        newTags: string[];
+      }>
+    };
+
+    for (const thingId of operation.thingIds) {
+      try {
+        const thingIndex = this.data.things.findIndex(t => t.id === thingId && t.inventoryId === inventoryId);
+        
+        if (thingIndex === -1) {
+          results.failed++;
+          results.errors.push(`Thing not found: ${thingId}`);
+          continue;
+        }
+
+        const thing = this.data.things[thingIndex];
+        const previousTags = [...(thing.tags || [])];
+        let newTags = [...previousTags];
+
+        // Apply the operation
+        switch (operation.operation) {
+          case 'add':
+            for (const tag of operation.tags) {
+              if (!newTags.includes(tag)) {
+                newTags.push(tag);
+              }
+            }
+            break;
+
+          case 'remove':
+            newTags = newTags.filter(tag => !operation.tags.includes(tag));
+            break;
+
+          case 'replace':
+            newTags = [...operation.tags];
+            break;
+        }
+
+        // Update the thing
+        this.data.things[thingIndex] = {
+          ...thing,
+          tags: newTags,
+        };
+
+        results.successful++;
+        results.updatedThings.push({
+          id: thingId,
+          name: thing.name,
+          previousTags,
+          newTags,
+        });
+
+      } catch (error) {
+        results.failed++;
+        results.errors.push(`Failed to update ${thingId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    return results;
+  }
 }
 
 export default MockApiClient;

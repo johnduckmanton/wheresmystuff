@@ -541,6 +541,111 @@ function validateAndSanitize(data, schema) {
   };
 }
 
+/**
+ * Normalize and validate a tag name according to requirements
+ * @param {string} tag - Tag name to normalize
+ * @returns {object} { valid: boolean, normalizedTag: string|null, error: string|null }
+ */
+function normalizeAndValidateTag(tag) {
+  if (!tag) {
+    return {
+      valid: false,
+      normalizedTag: null,
+      error: 'Tag cannot be empty'
+    };
+  }
+
+  if (typeof tag !== 'string') {
+    return {
+      valid: false,
+      normalizedTag: null,
+      error: 'Tag must be a text value'
+    };
+  }
+
+  // Trim whitespace
+  const trimmed = tag.trim();
+  
+  if (trimmed.length === 0) {
+    return {
+      valid: false,
+      normalizedTag: null,
+      error: 'Tag cannot be empty'
+    };
+  }
+
+  // Check length limit (Requirement 2.3)
+  if (trimmed.length > 50) {
+    return {
+      valid: false,
+      normalizedTag: null,
+      error: 'Tag cannot exceed 50 characters'
+    };
+  }
+
+  // Check allowed characters (Requirement 2.1)
+  const allowedCharsRegex = /^[a-zA-Z0-9_-]+$/;
+  if (!allowedCharsRegex.test(trimmed)) {
+    return {
+      valid: false,
+      normalizedTag: null,
+      error: 'Tag can only contain letters, numbers, hyphens, and underscores'
+    };
+  }
+
+  // Normalize to lowercase (Requirement 2.4)
+  const normalized = trimmed.toLowerCase();
+
+  return {
+    valid: true,
+    normalizedTag: normalized,
+    error: null
+  };
+}
+
+/**
+ * Validate and normalize an array of tags
+ * @param {Array<string>} tags - Array of tag names
+ * @returns {object} { valid: boolean, normalizedTags: Array<string>|null, errors: Array<string> }
+ */
+function validateAndNormalizeTags(tags) {
+  if (!Array.isArray(tags)) {
+    return {
+      valid: false,
+      normalizedTags: null,
+      errors: ['Tags must be an array']
+    };
+  }
+
+  const normalizedTags = [];
+  const errors = [];
+  const seenTags = new Set();
+
+  for (let i = 0; i < tags.length; i++) {
+    const tagResult = normalizeAndValidateTag(tags[i]);
+    
+    if (!tagResult.valid) {
+      errors.push(`Tag ${i + 1}: ${tagResult.error}`);
+      continue;
+    }
+
+    // Check for duplicates (Requirement 7.1)
+    if (seenTags.has(tagResult.normalizedTag)) {
+      errors.push(`Tag ${i + 1}: Duplicate tag "${tagResult.normalizedTag}"`);
+      continue;
+    }
+
+    seenTags.add(tagResult.normalizedTag);
+    normalizedTags.push(tagResult.normalizedTag);
+  }
+
+  return {
+    valid: errors.length === 0,
+    normalizedTags: errors.length === 0 ? normalizedTags : null,
+    errors
+  };
+}
+
 module.exports = {
   validateRequired,
   validateUUID,
@@ -551,5 +656,7 @@ module.exports = {
   decodeHtmlEntities,
   validateEmail,
   validateUserRole,
-  validateInvitationToken
+  validateInvitationToken,
+  normalizeAndValidateTag,
+  validateAndNormalizeTags
 };

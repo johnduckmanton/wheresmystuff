@@ -113,7 +113,10 @@ const thingSchema = {
       maxItems: 20,
       items: {
         type: 'string',
-        maxLength: 50
+        maxLength: 50,
+        pattern: /^[a-zA-Z0-9_-]+$/,
+        sanitize: true,
+        trim: true
       }
     },
     // Container reference fields for Moving & Storage System

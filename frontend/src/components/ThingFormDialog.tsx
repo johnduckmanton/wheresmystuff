@@ -36,6 +36,7 @@ import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
 import S3Image from './S3Image';
+import TagInput from './TagInput';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
@@ -377,6 +378,17 @@ export default function ThingFormDialog({
           onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
           error={errors.inventoryId}
           required
+        />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <TagInput
+          tags={formData.tags || []}
+          onTagsChange={(tags) => handleFieldChange('tags', tags)}
+          label="Tags"
+          placeholder="Add tags to categorize this item..."
+          enableApiSuggestions={true}
+          size={isMobile ? 'medium' : 'small'}
+          maxTags={20}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>

@@ -431,7 +431,11 @@ describe('Validation Property Tests', () => {
           inventoryId: fc.uuid(),
           description: fc.option(fc.string({ maxLength: 1000 }), { nil: '' }),
           photos: fc.option(fc.array(fc.string({ maxLength: 500 }), { maxLength: 10 }), { nil: [] }),
-          tags: fc.option(fc.array(fc.string({ minLength: 1, maxLength: 50 }), { maxLength: 20 }), { nil: [] }),
+          tags: fc.option(fc.array(
+            fc.string({ minLength: 1, maxLength: 50 })
+              .filter(s => /^[a-zA-Z0-9_-]+$/.test(s.trim())), // Only valid tag characters
+            { maxLength: 20 }
+          ), { nil: [] }),
           value: fc.option(fc.float({ min: 0, max: 1000000, noNaN: true }), { nil: undefined }),
           serialNumber: fc.option(fc.string({ maxLength: 100 }), { nil: '' }),
           model: fc.option(fc.string({ maxLength: 100 }), { nil: '' }),

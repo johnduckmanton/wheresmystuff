@@ -73,19 +73,76 @@ async function getEntity(entityType, inventoryId, id) {
 }
 
 /**
- * List all entities of a given type for a specific inventory
+ * List all entities of a given type for a specific inventory with optional tag filtering
  * @param {string} entityType - Entity type
  * @param {string} inventoryId - Inventory UUID
+ * @param {object} options - Optional filtering options
+ * @param {Array<string>} options.tags - Tags to filter by
+ * @param {string} options.tagMode - 'and' or 'or' for tag filtering
  * @returns {Promise<Array>} Array of entities
  */
-async function listEntities(entityType, inventoryId) {
-  const result = await docClient.send(new QueryCommand({
+async function listEntities(entityType, inventoryId, options = {}) {
+  const { tags, tagMode = 'and' } = options;
+  
+  // Base query parameters
+  const queryParams = {
     TableName: TABLE_NAME,
     KeyConditionExpression: 'pk = :pk',
     ExpressionAttributeValues: {
       ':pk': `INVENTORY#${inventoryId}#${entityType}`
     }
-  }));
+  };
+  
+  // Add tag filtering if tags are provided
+  if (tags && Array.isArray(tags) && tags.length > 0) {
+    const { ScanCommand } = require('@aws-sdk/lib-dynamodb');
+    
+    // For tag filtering, we need to use scan instead of query
+    // because we need to filter on the data.tags array
+    const scanParams = {
+      TableName: TABLE_NAME,
+      FilterExpression: 'pk = :pk',
+      ExpressionAttributeValues: {
+        ':pk': `INVENTORY#${inventoryId}#${entityType}`
+      }
+    };
+    
+    // Build tag filter expressions
+    const tagFilters = [];
+    const attributeNames = {};
+    const attributeValues = { ...scanParams.ExpressionAttributeValues };
+    
+    tags.forEach((tag, index) => {
+      const tagKey = `:tag${index}`;
+      const tagAttr = `#tags`;
+      attributeValues[tagKey] = tag;
+      attributeNames[tagAttr] = 'tags';
+      tagFilters.push(`contains(#data.#tags, ${tagKey})`);
+    });
+    
+    // Add data attribute name
+    attributeNames['#data'] = 'data';
+    
+    // Combine tag filters based on mode
+    const tagFilterExpression = tagMode === 'or' 
+      ? tagFilters.join(' OR ')
+      : tagFilters.join(' AND ');
+    
+    // Combine with existing filter
+    scanParams.FilterExpression = `${scanParams.FilterExpression} AND (${tagFilterExpression})`;
+    scanParams.ExpressionAttributeNames = attributeNames;
+    scanParams.ExpressionAttributeValues = attributeValues;
+    
+    const result = await docClient.send(new ScanCommand(scanParams));
+    
+    return result.Items.map(item => ({
+      id: item.sk,
+      ...item.data
+    }));
+  }
+  
+  // No tag filtering, use regular query
+  const result = await docClient.send(new QueryCommand(queryParams));
   
   return result.Items.map(item => ({
     id: item.sk,

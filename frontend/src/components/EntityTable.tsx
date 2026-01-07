@@ -16,6 +16,7 @@ import type {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FilterPanel from './FilterPanel';
+import type { SearchQuery } from './SearchBar';
 
 export interface EntityTableColumn {
   field: string;
@@ -40,6 +41,11 @@ export interface EntityTableProps {
   onRowClick?: (row: any) => void;
   loading?: boolean;
   dropdownFilters?: Record<string, FilterOption[]>;
+  // New props for tag search integration
+  inventoryId?: string;
+  enableTagSearch?: boolean;
+  onTagSearch?: (query: SearchQuery) => void;
+  currentSearchQuery?: SearchQuery;
 }
 
 export default function EntityTable({
@@ -50,6 +56,10 @@ export default function EntityTable({
   onRowClick,
   loading = false,
   dropdownFilters = {},
+  inventoryId,
+  enableTagSearch = false,
+  onTagSearch,
+  currentSearchQuery,
 }: EntityTableProps) {
   const [globalSearch, setGlobalSearch] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -58,13 +68,16 @@ export default function EntityTable({
     page: 0,
     pageSize: 10,
   });
+  const [internalSearchQuery, setInternalSearchQuery] = useState<SearchQuery>({
+    tagMode: 'and',
+  });
 
   // Filter data based on global search and column filters
   const filteredData = useMemo(() => {
     let filtered = [...data];
 
-    // Apply global search
-    if (globalSearch) {
+    // Apply global search (only if not using tag search)
+    if (!enableTagSearch && globalSearch) {
       const searchLower = globalSearch.toLowerCase();
       filtered = filtered.filter((row) => {
         return columns.some((col) => {
@@ -101,7 +114,7 @@ export default function EntityTable({
     });
 
     return filtered;
-  }, [data, globalSearch, columnFilters, columns]);
+  }, [data, globalSearch, columnFilters, columns, enableTagSearch]);
 
   // Handle column filter change
   const handleColumnFilterChange = (field: string, value: string) => {
@@ -109,6 +122,14 @@ export default function EntityTable({
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Handle tag search
+  const handleTagSearch = (query: SearchQuery) => {
+    setInternalSearchQuery(query);
+    if (onTagSearch) {
+      onTagSearch(query);
+    }
   };
 
   // Build DataGrid columns with actions
@@ -170,6 +191,10 @@ export default function EntityTable({
         filteredCount={filteredData.length}
         totalCount={data.length}
         dropdownFilters={dropdownFilters}
+        inventoryId={inventoryId}
+        enableTagSearch={enableTagSearch}
+        onTagSearch={handleTagSearch}
+        currentSearchQuery={currentSearchQuery || internalSearchQuery}
       />
 
       {/* DataGrid */}

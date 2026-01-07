@@ -2,10 +2,13 @@ import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogCont
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
 import AIPhotoUpload from '../components/AIPhotoUpload';
+import BulkTagOperationsDialog from '../components/BulkTagOperationsDialog';
+import type { SearchQuery } from '../components/SearchBar';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
@@ -190,20 +193,28 @@ interface ThingTableRow {
 
 export default function Things() {
   const [things, setThings] = useState<Thing[]>([]);
+  const [allThings, setAllThings] = useState<Thing[]>([]); // Store all things for filtering
   const [locations, setLocations] = useState<Location[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   
   // Dialog states
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingThing, setEditingThing] = useState<Thing | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [thingToDelete, setThingToDelete] = useState<ThingTableRow | null>(null);
+  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
   
   // AI Upload states
   const [showAIUpload, setShowAIUpload] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<SearchQuery>({
+    tagMode: 'and',
+  });
 
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
@@ -236,7 +247,9 @@ export default function Things() {
       ]);
       
       // Ensure all data are arrays, fallback to empty arrays if not
-      setThings(Array.isArray(thingsData) ? thingsData : []);
+      const thingsArray = Array.isArray(thingsData) ? thingsData : [];
+      setThings(thingsArray);
+      setAllThings(thingsArray); // Store all things for filtering
       setLocations(Array.isArray(locationsData) ? locationsData : []);
       setRooms(Array.isArray(roomsData) ? roomsData : []);
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
@@ -287,6 +300,68 @@ export default function Things() {
     firstPhotoKey: thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined,
   }));
 
+  // Handle tag search
+  const handleTagSearch = async (query: SearchQuery) => {
+    if (!currentInventory) return;
+
+    setSearchQuery(query);
+    
+    try {
+      setSearchLoading(true);
+      
+      // If no search criteria, show all things
+      if (!query.text && (!query.tags || query.tags.length === 0)) {
+        setThings(allThings);
+        return;
+      }
+
+      let filteredThings = [...allThings];
+
+      // Apply text search
+      if (query.text) {
+        const searchLower = query.text.toLowerCase();
+        filteredThings = filteredThings.filter(thing => 
+          thing.name.toLowerCase().includes(searchLower) ||
+          (thing.description && thing.description.toLowerCase().includes(searchLower)) ||
+          (thing.notes && thing.notes.toLowerCase().includes(searchLower)) ||
+          (thing.serialNumber && thing.serialNumber.toLowerCase().includes(searchLower))
+        );
+      }
+
+      // Apply tag search
+      if (query.tags && query.tags.length > 0) {
+        if (query.tagMode === 'and') {
+          // AND mode: thing must have ALL specified tags
+          filteredThings = filteredThings.filter(thing => {
+            if (!thing.tags || thing.tags.length === 0) return false;
+            return query.tags!.every(searchTag => 
+              thing.tags!.some(thingTag => 
+                thingTag.toLowerCase().includes(searchTag.toLowerCase())
+              )
+            );
+          });
+        } else {
+          // OR mode: thing must have ANY of the specified tags
+          filteredThings = filteredThings.filter(thing => {
+            if (!thing.tags || thing.tags.length === 0) return false;
+            return query.tags!.some(searchTag => 
+              thing.tags!.some(thingTag => 
+                thingTag.toLowerCase().includes(searchTag.toLowerCase())
+              )
+            );
+          });
+        }
+      }
+
+      setThings(filteredThings);
+    } catch (error) {
+      console.error('Error searching things:', error);
+      showError('Failed to search things. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   // Create dropdown filter options
   const dropdownFilters = {
     location: locations.map(location => ({
@@ -331,8 +406,9 @@ export default function Things() {
       setDeleteDialogOpen(false);
       setThingToDelete(null);
       showSuccess('Thing deleted successfully');
-      // Refresh the table
+      // Refresh the table and reset search
       await loadData();
+      setSearchQuery({ tagMode: 'and' });
     } catch (error) {
       console.error('Error deleting thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to delete thing. Please try again.');
@@ -362,8 +438,9 @@ export default function Things() {
       
       setFormDialogOpen(false);
       setEditingThing(undefined);
-      // Refresh the table
+      // Refresh the table and reset search
       await loadData();
+      setSearchQuery({ tagMode: 'and' });
     } catch (error) {
       console.error('Error saving thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to save thing. Please try again.');
@@ -405,6 +482,21 @@ export default function Things() {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             variant="outlined" 
+            startIcon={<LocalOfferIcon />} 
+            onClick={() => setBulkTagDialogOpen(true)}
+            sx={{
+              color: 'text.primary',
+              borderColor: 'text.primary',
+              '&:hover': {
+                backgroundColor: 'primary.50',
+                borderColor: 'primary.main',
+              }
+            }}
+          >
+            Bulk Tags
+          </Button>
+          <Button 
+            variant="outlined" 
             startIcon={<AutoAwesomeIcon />} 
             onClick={() => setShowAIUpload(!showAIUpload)}
             color={showAIUpload ? 'primary' : 'primary'}
@@ -430,9 +522,11 @@ export default function Things() {
         <Box sx={{ mb: 3 }}>
           <AIPhotoUpload 
             categories={categories}
-            onThingCreated={(newThing) => {
-              setThings(prev => [...prev, newThing]);
+            onThingCreated={async () => {
+              // Refresh all data to include the new thing
+              await loadData();
               setShowAIUpload(false);
+              setSearchQuery({ tagMode: 'and' });
             }}
           />
         </Box>
@@ -444,8 +538,12 @@ export default function Things() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRowClick={handleRowClick}
-        loading={loading}
+        loading={loading || searchLoading}
         dropdownFilters={dropdownFilters}
+        inventoryId={currentInventory.id}
+        enableTagSearch={true}
+        onTagSearch={handleTagSearch}
+        currentSearchQuery={searchQuery}
       />
 
       {/* Thing Form Dialog */}
@@ -484,6 +582,16 @@ export default function Things() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Bulk Tag Operations Dialog */}
+      <BulkTagOperationsDialog
+        open={bulkTagDialogOpen}
+        onClose={() => setBulkTagDialogOpen(false)}
+        onSuccess={async () => {
+          // Refresh things data after bulk operation
+          await loadData();
+        }}
+      />
     </Box>
   );
 }

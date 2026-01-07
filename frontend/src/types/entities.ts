@@ -19,6 +19,7 @@ export interface Thing {
   disposalDate?: string; // ISO date
   nextReviewDate?: string; // ISO date
   photos?: string[]; // Array of S3 keys
+  tags?: string[]; // Array of tag names for categorization and search
   dateAdded: string; // ISO date, auto-generated
 }
 
@@ -255,6 +256,7 @@ export interface ThingWithContainer extends Thing {
   containerId?: string;          // Current container (if packed)
   packedAt?: string;             // When added to container
   previousLocationId?: string;   // Location before packing
+  tags?: string[];               // Inherited from Thing, but explicitly included for clarity
 }
 
 export interface ApiResponse<T> {
@@ -262,4 +264,37 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+// Tag-related interfaces for search and analytics
+export interface TagAnalytics {
+  inventoryId: string;
+  totalTags: number;
+  uniqueTags: number;
+  totalThings: number;
+  taggedThings: number;
+  tagStatistics: TagStatistic[];
+  lastUpdated: string;
+}
+
+export interface TagStatistic {
+  tag: string;
+  count: number;
+  percentage: number;
+  firstUsed: string;
+  lastUsed: string;
+}
+
+export interface SearchQuery {
+  text?: string;
+  tags?: string[];
+  tagMode: 'and' | 'or';
+  categoryId?: string;
+  locationId?: string;
+  partialMatch?: boolean;
+}
+
+// Tag autocomplete response
+export interface TagSuggestions {
+  tags: string[];
 }

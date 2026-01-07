@@ -18,6 +18,7 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import HomeIcon from '@mui/icons-material/Home';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -51,6 +52,11 @@ const navigationItems: NavigationItem[] = [
 ];
 
 const inventoryItems: NavigationItem[] = [
+  {
+    label: 'Inventory Dashboard',
+    path: '/inventory',
+    icon: <DashboardIcon />,
+  },
   {
     label: 'Things',
     path: '/things',

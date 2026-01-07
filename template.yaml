@@ -694,6 +694,30 @@ Resources:
             Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
+        GetTags:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/tags
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetTagAnalytics:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/tags/analytics
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        BulkTagOperations:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/tags/bulk
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   # Placeholder for Locations Lambda
   LocationsFunction:

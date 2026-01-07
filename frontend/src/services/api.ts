@@ -16,6 +16,8 @@ import type {
   MovingProject,
   ThingWithContainer,
   ApiResponse,
+  TagAnalytics,
+  TagSuggestions,
 } from '../types';
 import { isDevelopmentMode, logDevelopmentInfo } from '../config/development';
 import MockApiClient from './mockApi';
@@ -215,8 +217,32 @@ class ApiClient {
   }
 
   // Things API
-  async getThings(inventoryId?: string): Promise<Thing[]> {
-    const url = inventoryId ? `/things?inventoryId=${inventoryId}` : '/things';
+  async getThings(inventoryId?: string, options?: {
+    tags?: string[];
+    tagMode?: 'and' | 'or';
+    search?: string;
+    categoryId?: string;
+    locationId?: string;
+    partialMatch?: boolean;
+  }): Promise<Thing[]> {
+    let url = inventoryId ? `/things?inventoryId=${inventoryId}` : '/things';
+    
+    if (options) {
+      const params = new URLSearchParams();
+      if (inventoryId) params.append('inventoryId', inventoryId);
+      
+      if (options.tags && options.tags.length > 0) {
+        params.append('tags', options.tags.join(','));
+      }
+      if (options.tagMode) params.append('tagMode', options.tagMode);
+      if (options.search) params.append('search', options.search);
+      if (options.categoryId) params.append('categoryId', options.categoryId);
+      if (options.locationId) params.append('locationId', options.locationId);
+      if (options.partialMatch) params.append('partialMatch', 'true');
+      
+      url = `/things?${params.toString()}`;
+    }
+    
     return this.get<Thing[]>(url);
   }
 
@@ -225,16 +251,199 @@ class ApiClient {
   }
 
   async createThing(data: Omit<Thing, 'dateAdded'>): Promise<Thing> {
-    return this.post<Thing>('/things', data);
+    // Ensure tags are properly formatted
+    const thingData = {
+      ...data,
+      tags: data.tags || []
+    };
+    return this.post<Thing>('/things', thingData);
   }
 
   async updateThing(id: string, data: Partial<Omit<Thing, 'id' | 'dateAdded'>>): Promise<Thing> {
-    return this.put<Thing>(`/things/${id}`, data);
+    // Ensure tags are properly formatted if provided
+    const updateData = {
+      ...data
+    };
+    if (data.tags !== undefined) {
+      updateData.tags = data.tags || [];
+    }
+    return this.put<Thing>(`/things/${id}`, updateData);
   }
 
   async deleteThing(id: string, inventoryId?: string): Promise<void> {
     const url = inventoryId ? `/things/${id}?inventoryId=${inventoryId}` : `/things/${id}`;
     return this.delete<void>(url);
+  }
+
+  // Tag-related API methods
+  async getTags(inventoryId: string, options?: {
+    q?: string;
+    exclude?: string[];
+    limit?: number;
+  }): Promise<TagSuggestions> {
+    const params = new URLSearchParams();
+    params.append('inventoryId', inventoryId);
+    
+    if (options?.q) params.append('q', options.q);
+    if (options?.exclude && options.exclude.length > 0) {
+      params.append('exclude', options.exclude.join(','));
+    }
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    return this.get<TagSuggestions>(`/things/tags?${params.toString()}`);
+  }
+
+  async getTagAnalytics(inventoryId: string, options?: {
+    limit?: number;
+    offset?: number;
+    sortBy?: 'count' | 'tag' | 'percentage';
+    sortOrder?: 'asc' | 'desc';
+    filter?: string;
+  }): Promise<TagAnalytics & {
+    pagination?: {
+      limit: number;
+      offset: number;
+      totalResults: number;
+      currentPage: number;
+      totalPages: number;
+      hasMore: boolean;
+      hasPrevious: boolean;
+      sortBy: string;
+      sortOrder: string;
+      filter: string | null;
+    };
+  }> {
+    const params = new URLSearchParams();
+    params.append('inventoryId', inventoryId);
+    
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    if (options?.sortBy) params.append('sortBy', options.sortBy);
+    if (options?.sortOrder) params.append('sortOrder', options.sortOrder);
+    if (options?.filter) params.append('filter', options.filter);
+
+    return this.get<TagAnalytics & {
+      pagination?: {
+        limit: number;
+        offset: number;
+        totalResults: number;
+        currentPage: number;
+        totalPages: number;
+        hasMore: boolean;
+        hasPrevious: boolean;
+        sortBy: string;
+        sortOrder: string;
+        filter: string | null;
+      };
+    }>(`/things/tags/analytics?${params.toString()}`);
+  }
+
+  async getTagsPaginated(inventoryId: string, options?: {
+    limit?: number;
+    offset?: number;
+    filter?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<{
+    inventoryId: string;
+    tags: string[];
+    pagination: {
+      limit: number;
+      offset: number;
+      totalResults: number;
+      currentPage: number;
+      totalPages: number;
+      hasMore: boolean;
+      hasPrevious: boolean;
+      sortOrder: string;
+      filter: string | null;
+    };
+  }> {
+    const params = new URLSearchParams();
+    params.append('inventoryId', inventoryId);
+    
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+    if (options?.filter) params.append('filter', options.filter);
+    if (options?.sortOrder) params.append('sortOrder', options.sortOrder);
+
+    return this.get<{
+      inventoryId: string;
+      tags: string[];
+      pagination: {
+        limit: number;
+        offset: number;
+        totalResults: number;
+        currentPage: number;
+        totalPages: number;
+        hasMore: boolean;
+        hasPrevious: boolean;
+        sortOrder: string;
+        filter: string | null;
+      };
+    }>(`/things/tags/paginated?${params.toString()}`);
+  }
+
+  async searchThingsByTags(inventoryId: string, options: {
+    tags: string[];
+    tagMode?: 'and' | 'or';
+    partialMatch?: boolean;
+  }): Promise<Thing[]> {
+    const params = new URLSearchParams();
+    params.append('inventoryId', inventoryId);
+    params.append('tags', options.tags.join(','));
+    
+    if (options.tagMode) params.append('tagMode', options.tagMode);
+    if (options.partialMatch) params.append('partialMatch', 'true');
+
+    return this.get<Thing[]>(`/things?${params.toString()}`);
+  }
+
+  // Comprehensive search method combining text and tag search
+  async searchThings(inventoryId: string, searchQuery: {
+    text?: string;
+    tags?: string[];
+    tagMode?: 'and' | 'or';
+    categoryId?: string;
+    locationId?: string;
+    partialMatch?: boolean;
+  }): Promise<Thing[]> {
+    const params = new URLSearchParams();
+    params.append('inventoryId', inventoryId);
+    
+    if (searchQuery.text) params.append('search', searchQuery.text);
+    if (searchQuery.tags && searchQuery.tags.length > 0) {
+      params.append('tags', searchQuery.tags.join(','));
+    }
+    if (searchQuery.tagMode) params.append('tagMode', searchQuery.tagMode);
+    if (searchQuery.categoryId) params.append('categoryId', searchQuery.categoryId);
+    if (searchQuery.locationId) params.append('locationId', searchQuery.locationId);
+    if (searchQuery.partialMatch) params.append('partialMatch', 'true');
+
+    return this.get<Thing[]>(`/things?${params.toString()}`);
+  }
+
+  // Bulk tag operations
+  async bulkTagOperation(inventoryId: string, operation: {
+    operation: 'add' | 'remove' | 'replace';
+    thingIds: string[];
+    tags: string[];
+  }): Promise<{
+    operation: string;
+    totalRequested: number;
+    successful: number;
+    failed: number;
+    errors: string[];
+    updatedThings: Array<{
+      id: string;
+      name: string;
+      previousTags: string[];
+      newTags: string[];
+    }>;
+  }> {
+    return this.post('/things/tags/bulk', {
+      inventoryId,
+      ...operation
+    });
   }
 
   // Locations API
