@@ -103,7 +103,7 @@ export default function ThingFormDialog({
       }
       setErrors({});
     }
-  }, [open, thing]);
+  }, [open, thing, currentInventory?.id]);
 
   // Handle field change
   const handleFieldChange = (name: string, value: any) => {

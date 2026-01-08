@@ -80,6 +80,7 @@ export default function TagInput({
   const [retryCount, setRetryCount] = useState(0);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  const [anchorWidth, setAnchorWidth] = useState<number | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const { currentInventory } = useInventory();
@@ -233,6 +234,13 @@ export default function TagInput({
     setSelectedSuggestionIndex(-1);
   }, [filteredSuggestions.length]);
 
+  // Initialize anchor width on mount
+  useEffect(() => {
+    if (anchorRef.current) {
+      setAnchorWidth(anchorRef.current.offsetWidth);
+    }
+  }, []);
+
   // Enhanced tag validation with detailed error messages
   const validateTag = useCallback((tagName: string): { valid: boolean; error?: string } => {
     if (!tagName || typeof tagName !== 'string') {
@@ -332,6 +340,11 @@ export default function TagInput({
     const value = event.target.value;
     setInputValue(value);
     
+    // Update anchor width when input changes
+    if (anchorRef.current) {
+      setAnchorWidth(anchorRef.current.offsetWidth);
+    }
+    
     // Clear validation error when user starts typing
     if (validationError) {
       setValidationError(null);
@@ -413,6 +426,11 @@ export default function TagInput({
 
   // Handle input focus
   const handleInputFocus = () => {
+    // Update anchor width when focused
+    if (anchorRef.current) {
+      setAnchorWidth(anchorRef.current.offsetWidth);
+    }
+    
     const shouldShowSuggestions = inputValue.length > 0 && (
       (enableApiSuggestions && !!effectiveInventoryId) || 
       (!enableApiSuggestions && filteredSuggestions.length > 0)
@@ -611,7 +629,7 @@ export default function TagInput({
           open={showSuggestions && (filteredSuggestions.length > 0 || loadingSuggestions || !!suggestionError)}
           anchorEl={anchorRef.current}
           placement="bottom-start"
-          style={{ zIndex: 1300, width: anchorRef.current?.offsetWidth }}
+          style={{ zIndex: 1300, width: anchorWidth }}
         >
           <Paper 
             elevation={4}
