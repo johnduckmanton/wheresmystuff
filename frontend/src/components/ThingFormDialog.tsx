@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -73,6 +73,16 @@ export default function ThingFormDialog({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Memoize tags to prevent infinite re-renders
+  const memoizedTags = useMemo(() => {
+    return formData.tags || [];
+  }, [formData.tags]);
+
+  // Memoize the onTagsChange callback to prevent infinite re-renders
+  const handleTagsChange = useCallback((tags: string[]) => {
+    handleFieldChange('tags', tags);
+  }, []);
 
   // Initialize form data when dialog opens or thing changes
   useEffect(() => {
@@ -382,8 +392,8 @@ export default function ThingFormDialog({
       </Grid>
       <Grid size={{ xs: 12 }}>
         <TagInput
-          tags={formData.tags || []}
-          onTagsChange={(tags) => handleFieldChange('tags', tags)}
+          tags={memoizedTags}
+          onTagsChange={handleTagsChange}
           label="Tags"
           placeholder="Add tags to categorize this item..."
           enableApiSuggestions={true}

@@ -81,6 +81,7 @@ export default function TagInput({
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
   const [anchorWidth, setAnchorWidth] = useState<number | undefined>(undefined);
+  const [anchorElement, setAnchorElement] = useState<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const { currentInventory } = useInventory();
@@ -167,7 +168,7 @@ export default function TagInput({
 
   // Debounced API call for suggestions with enhanced error handling and retry logic
   const fetchApiSuggestions = useCallback(
-    async (query: string) => {
+    async (query: string, currentTags: string[]) => {
       if (!enableApiSuggestions || !effectiveInventoryId || query.length === 0) {
         setApiSuggestions([]);
         setSuggestionError(null);
@@ -178,7 +179,7 @@ export default function TagInput({
       const cachedSuggestions = tagCacheService.getCachedSuggestions(
         effectiveInventoryId, 
         query, 
-        tags
+        currentTags
       );
       
       if (cachedSuggestions) {
@@ -194,7 +195,7 @@ export default function TagInput({
       await retryOperation(async () => {
         const response = await apiClient.getTags(effectiveInventoryId, {
           q: query,
-          exclude: tags,
+          exclude: currentTags,
           limit: 10,
         });
         
@@ -204,7 +205,7 @@ export default function TagInput({
         tagCacheService.cacheSuggestions(
           effectiveInventoryId, 
           query, 
-          tags, 
+          currentTags, 
           response.tags
         );
         console.log(`Cached ${response.tags.length} tag suggestions for: ${query}`);
@@ -212,7 +213,7 @@ export default function TagInput({
 
       setLoadingSuggestions(false);
     },
-    [enableApiSuggestions, effectiveInventoryId, tags, retryOperation]
+    [enableApiSuggestions, effectiveInventoryId, retryOperation]
   );
 
   // Debounce API calls
@@ -223,11 +224,11 @@ export default function TagInput({
     }
 
     const timeoutId = setTimeout(() => {
-      fetchApiSuggestions(inputValue);
+      fetchApiSuggestions(inputValue, tags);
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [inputValue, fetchApiSuggestions, enableApiSuggestions]);
+  }, [inputValue, fetchApiSuggestions, enableApiSuggestions, tags]);
 
   // Reset suggestion selection when suggestions change
   useEffect(() => {
@@ -238,6 +239,7 @@ export default function TagInput({
   useEffect(() => {
     if (anchorRef.current) {
       setAnchorWidth(anchorRef.current.offsetWidth);
+      setAnchorElement(anchorRef.current);
     }
   }, []);
 
@@ -280,7 +282,27 @@ export default function TagInput({
       .substring(0, 50); // Max 50 characters
   };
 
-  // Enhanced tag validation
+  // Enhanced tag validation (pure function - no side effects)
+  const isValidTagPure = (tagName: string): boolean => {
+    const validation = validateTag(tagName);
+    if (!validation.valid) {
+      return false;
+    }
+
+    const normalizedTag = normalizeTag(tagName);
+    
+    if (tags.includes(normalizedTag)) {
+      return false;
+    }
+
+    if (maxTags && tags.length >= maxTags) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Enhanced tag validation with side effects (for use in event handlers)
   const isValidTag = (tagName: string): boolean => {
     const validation = validateTag(tagName);
     if (!validation.valid) {
@@ -339,11 +361,6 @@ export default function TagInput({
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setInputValue(value);
-    
-    // Update anchor width when input changes
-    if (anchorRef.current) {
-      setAnchorWidth(anchorRef.current.offsetWidth);
-    }
     
     // Clear validation error when user starts typing
     if (validationError) {
@@ -426,11 +443,6 @@ export default function TagInput({
 
   // Handle input focus
   const handleInputFocus = () => {
-    // Update anchor width when focused
-    if (anchorRef.current) {
-      setAnchorWidth(anchorRef.current.offsetWidth);
-    }
-    
     const shouldShowSuggestions = inputValue.length > 0 && (
       (enableApiSuggestions && !!effectiveInventoryId) || 
       (!enableApiSuggestions && filteredSuggestions.length > 0)
@@ -463,9 +475,9 @@ export default function TagInput({
       setRetryCount(0);
       setSuggestionError(null);
       setShowErrorSnackbar(false);
-      fetchApiSuggestions(inputValue);
+      fetchApiSuggestions(inputValue, tags);
     }
-  }, [inputValue, fetchApiSuggestions]);
+  }, [inputValue, fetchApiSuggestions, tags]);
 
   // Get effective error message and helper text
   const getEffectiveHelperText = () => {
@@ -498,35 +510,7 @@ export default function TagInput({
           helperText={getEffectiveHelperText()}
           inputRef={inputRef}
           InputProps={{
-            startAdornment: tags.length > 0 ? (
-              <InputAdornment position="start">
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: 0.5,
-                  maxWidth: '300px',
-                  overflow: 'hidden',
-                }}>
-                  {tags.map((tag, index) => (
-                    <Chip
-                      key={`${tag}-${index}`}
-                      label={tag}
-                      size="small"
-                      onDelete={() => removeTag(tag)}
-                      disabled={disabled}
-                      color={validationError ? 'error' : 'default'}
-                      sx={{
-                        height: size === 'small' ? 24 : 28,
-                        fontSize: size === 'small' ? '0.75rem' : '0.8125rem',
-                        '& .MuiChip-deleteIcon': {
-                          fontSize: size === 'small' ? '0.875rem' : '1rem',
-                        },
-                      }}
-                    />
-                  ))}
-                </Box>
-              </InputAdornment>
-            ) : (
+            startAdornment: (
               <InputAdornment position="start">
                 <TagIcon sx={{ 
                   color: hasError ? 'error.main' : 'text.secondary', 
@@ -566,7 +550,7 @@ export default function TagInput({
                       <IconButton
                         size="small"
                         onClick={() => addTag(inputValue)}
-                        disabled={disabled || !isValidTag(inputValue)}
+                        disabled={disabled || !isValidTagPure(inputValue)}
                         aria-label="Add tag"
                         color={validationError ? 'error' : 'primary'}
                       >
@@ -598,6 +582,36 @@ export default function TagInput({
           }}
         />
 
+        {/* Render tags below the input field */}
+        {tags.length > 0 && (
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: 0.5,
+            mt: 1,
+            p: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            backgroundColor: 'background.paper',
+          }}>
+            {tags.map((tag, index) => (
+              <Chip
+                key={`${tag}-${index}`}
+                label={tag}
+                size="small"
+                onDelete={() => removeTag(tag)}
+                disabled={disabled}
+                variant="filled"
+                sx={{
+                  height: size === 'small' ? 24 : 28,
+                  fontSize: size === 'small' ? '0.75rem' : '0.8125rem',
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
         {/* Tag count and limit display with error states */}
         {(maxTags || tags.length > 0) && (
           <Box sx={{ 
@@ -627,7 +641,7 @@ export default function TagInput({
         {/* Suggestions dropdown with enhanced error handling */}
         <Popper
           open={showSuggestions && (filteredSuggestions.length > 0 || loadingSuggestions || !!suggestionError)}
-          anchorEl={anchorRef.current}
+          anchorEl={anchorElement}
           placement="bottom-start"
           style={{ zIndex: 1300, width: anchorWidth }}
         >

@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
 import type { Inventory } from '../types';
 import apiClient from '../services/api';
 
@@ -28,17 +30,66 @@ interface InventoryProviderProps {
 /**
  * Inventory Context Provider
  * Manages current inventory selection and inventory list
+ * Only loads inventories when user is authenticated
  * Validates: Requirements 1.1
  */
 export function InventoryProvider({ children }: InventoryProviderProps) {
   const [currentInventory, setCurrentInventory] = useState<Inventory | null>(null);
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  // Load inventories on mount
+  // Check authentication status and listen for changes
   useEffect(() => {
-    loadInventories();
+    const checkAuth = async () => {
+      try {
+        // Try both getCurrentUser and fetchAuthSession for more reliable auth check
+        await Promise.all([
+          getCurrentUser(),
+          fetchAuthSession()
+        ]);
+        
+        setIsAuthenticated(true);
+      } catch (error) {
+        setIsAuthenticated(false);
+      }
+    };
+    
+    // Check auth on mount
+    checkAuth();
+    
+    // Listen for auth state changes
+    const hubListener = (data: any) => {
+      const { event } = data.payload;
+      
+      if (event === 'signedIn') {
+        setIsAuthenticated(true);
+      } else if (event === 'signedOut') {
+        setIsAuthenticated(false);
+      } else if (event === 'tokenRefresh') {
+        checkAuth();
+      }
+    };
+    
+    // Subscribe to auth events
+    const unsubscribe = Hub.listen('auth', hubListener);
+    
+    // Cleanup
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  // Load inventories only when authenticated
+  useEffect(() => {
+    if (isAuthenticated === true) {
+      loadInventories();
+    } else if (isAuthenticated === false) {
+      // Clear data when not authenticated
+      setInventories([]);
+      setCurrentInventory(null);
+    }
+  }, [isAuthenticated]);
 
   // Auto-select first inventory if none selected
   useEffect(() => {
@@ -48,6 +99,11 @@ export function InventoryProvider({ children }: InventoryProviderProps) {
   }, [inventories, currentInventory]);
 
   const loadInventories = async () => {
+    // Don't load if not authenticated
+    if (isAuthenticated !== true) {
+      return;
+    }
+
     try {
       setIsLoading(true);
       const data = await apiClient.getInventories();

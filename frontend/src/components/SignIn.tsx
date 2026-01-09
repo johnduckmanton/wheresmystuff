@@ -38,20 +38,13 @@ export default function SignIn() {
         password,
       });
 
-      console.log('Sign in result:', result);
-      console.log('Result type:', typeof result);
-      console.log('Result keys:', Object.keys(result));
-
       if (result.isSignedIn) {
         // User is fully signed in
-        console.log('User is fully signed in, navigating to home');
         navigate('/');
       } else if (result.nextStep) {
         // Handle different challenge types
-        console.log('Challenge required:', result.nextStep.signInStep);
         switch (result.nextStep.signInStep) {
           case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
-            console.log('Password change required');
             setChallengeName('NEW_PASSWORD_REQUIRED');
             break;
           case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
@@ -61,18 +54,12 @@ export default function SignIn() {
             setError('TOTP MFA is required but not implemented in this demo');
             break;
           default:
-            console.log('Unhandled sign-in step:', result.nextStep.signInStep);
             setError(`Unhandled sign-in step: ${result.nextStep.signInStep}`);
         }
       } else {
-        console.log('Unexpected result structure:', result);
         setError('Unexpected sign-in result. Please try again.');
       }
     } catch (err: any) {
-      console.error('Sign in error:', err);
-      console.error('Error type:', typeof err);
-      console.error('Error keys:', Object.keys(err));
-      
       // Handle specific error types
       if (err.name === 'NotAuthorizedException') {
         setError('Invalid email or password. Please check your credentials.');
