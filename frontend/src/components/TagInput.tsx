@@ -589,11 +589,7 @@ export default function TagInput({
             flexWrap: 'wrap', 
             gap: 0.5,
             mt: 1,
-            p: 1,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            backgroundColor: 'background.paper',
+            px: 0,
           }}>
             {tags.map((tag, index) => (
               <Chip
