@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -16,10 +16,17 @@ import {
   Chip,
   OutlinedInput,
   type SelectChangeEvent,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
+import {
+  Image as ImageIcon,
+} from '@mui/icons-material';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
-import ContainerPhotoUpload from './ContainerPhotoUpload';
+import PhotoUploadZone from './PhotoUploadZone';
+import PhotoPreviewGrid from './PhotoPreviewGrid';
+import S3Image from './S3Image';
 import apiClient from '../services/api';
 import type { 
   Container, 
@@ -78,6 +85,7 @@ interface FormData {
   name: string;
   type: ContainerType;
   size: string;
+  weight: string;
   color: string;
   description: string;
   contentsSummary: string;
@@ -92,6 +100,7 @@ interface FormErrors {
   name?: string;
   type?: string;
   size?: string;
+  weight?: string;
   color?: string;
   description?: string;
   contentsSummary?: string;
@@ -112,10 +121,12 @@ export default function ContainerFormDialog({
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     type: ContainerTypeEnum.Box,
     size: '',
+    weight: '',
     color: '',
     description: '',
     contentsSummary: '',
@@ -126,6 +137,8 @@ export default function ContainerFormDialog({
     storageRate: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const isEditing = !!container;
 
@@ -144,6 +157,7 @@ export default function ContainerFormDialog({
           name: container.name || '',
           type: container.type || ContainerTypeEnum.Box,
           size: container.size || '',
+          weight: container.weight?.toString() || '',
           color: container.color || '',
           description: container.description || '',
           contentsSummary: container.contentsSummary || '',
@@ -158,6 +172,7 @@ export default function ContainerFormDialog({
           name: '',
           type: ContainerTypeEnum.Box,
           size: '',
+          weight: '',
           color: '',
           description: '',
           contentsSummary: '',
@@ -199,6 +214,11 @@ export default function ContainerFormDialog({
     // Validate storage rate if provided
     if (formData.storageRate && isNaN(Number(formData.storageRate))) {
       newErrors.storageRate = 'Storage rate must be a valid number';
+    }
+
+    // Validate weight if provided
+    if (formData.weight && isNaN(Number(formData.weight))) {
+      newErrors.weight = 'Weight must be a valid number';
     }
 
     // Validate color format if provided (hex color)
@@ -253,6 +273,7 @@ export default function ContainerFormDialog({
         name: formData.name.trim(),
         type: formData.type,
         size: formData.size || undefined,
+        weight: formData.weight ? Number(formData.weight) : undefined,
         color: formData.color || undefined,
         description: formData.description || undefined,
         contentsSummary: formData.contentsSummary.trim() || undefined,
@@ -295,6 +316,7 @@ export default function ContainerFormDialog({
       name: '',
       type: ContainerTypeEnum.Box,
       size: '',
+      weight: '',
       color: '',
       description: '',
       contentsSummary: '',
@@ -308,6 +330,175 @@ export default function ContainerFormDialog({
     onClose();
   };
 
+  // Handle photo upload for new containers
+  const handlePhotoUpload = async (files: File[]) => {
+    if (!currentInventory) {
+      throw new Error('No inventory selected');
+    }
+
+    setIsUploadingPhotos(true);
+    try {
+      const uploadedKeys: string[] = [];
+
+      // For new containers, generate a temporary ID that will be used when creating the container
+      // For existing containers, use the existing ID
+      const entityId = container?.id || (() => {
+        // Generate a temporary ID for new containers
+        return crypto.randomUUID();
+      })();
+
+      // Upload each file
+      for (const file of files) {
+        // Generate presigned upload URL
+        const { uploadUrl, key } = await apiClient.generateUploadUrl(
+          file.name,
+          file.type,
+          currentInventory.id,
+          entityId
+        );
+
+        // Upload file to S3 using presigned URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        uploadedKeys.push(key);
+      }
+
+      // Add uploaded keys to form data
+      setFormData((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), ...uploadedKeys],
+      }));
+    } catch (err) {
+      console.error('Error uploading photos:', err);
+      throw err;
+    } finally {
+      setIsUploadingPhotos(false);
+    }
+  };
+
+  // Handle photo removal
+  const handlePhotoRemove = (key: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      photos: (prev.photos || []).filter((photoKey) => photoKey !== key),
+    }));
+  };
+
+  // Get primary image URL for display - memoized to prevent continuous refreshing
+  const getPrimaryImageUrl = useCallback(async (photoKey: string): Promise<string> => {
+    if (!currentInventory) return '';
+    try {
+      const response = await apiClient.generateDownloadUrl(photoKey);
+      return response.downloadUrl;
+    } catch (error) {
+      console.error('Error generating download URL:', error);
+      return '';
+    }
+  }, [currentInventory]);
+
+  // Primary image component - memoized to prevent continuous re-rendering
+  const PrimaryImageDisplay = useMemo(() => {
+    const Component = () => {
+      const [primaryImageUrl, setPrimaryImageUrl] = useState<string>('');
+      const [loading, setLoading] = useState(false);
+      
+      const primaryPhotoKey = formData.photos && formData.photos.length > 0 ? formData.photos[0] : null;
+
+      useEffect(() => {
+        if (primaryPhotoKey && currentInventory) {
+          setLoading(true);
+          getPrimaryImageUrl(primaryPhotoKey)
+            .then(url => {
+              setPrimaryImageUrl(url);
+              setLoading(false);
+            })
+            .catch(() => {
+              setLoading(false);
+            });
+        } else {
+          setPrimaryImageUrl('');
+          setLoading(false);
+        }
+      }, [primaryPhotoKey]);
+
+      const imageSize = isMobile ? 80 : 120;
+
+      if (loading) {
+        return (
+          <Box
+            sx={{
+              width: imageSize,
+              height: imageSize,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px dashed',
+              borderColor: 'grey.300',
+              borderRadius: 2,
+              bgcolor: 'grey.50',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Loading...
+            </Typography>
+          </Box>
+        );
+      }
+
+      if (primaryImageUrl) {
+        return (
+          <S3Image
+            src={primaryImageUrl}
+            alt={formData.name || 'Container image'}
+            maxWidth={imageSize}
+            maxHeight={imageSize}
+            style={{
+              borderRadius: '8px',
+              objectFit: 'cover',
+              width: `${imageSize}px`,
+              height: `${imageSize}px`,
+            }}
+          />
+        );
+      }
+
+      // Placeholder when no image
+      return (
+        <Box
+          sx={{
+            width: imageSize,
+            height: imageSize,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px dashed',
+            borderColor: 'grey.300',
+            borderRadius: 2,
+            bgcolor: 'grey.50',
+          }}
+        >
+          <ImageIcon sx={{ fontSize: isMobile ? 24 : 32, color: 'grey.400', mb: 0.5 }} />
+          <Typography variant="caption" color="text.secondary" align="center">
+            No Image
+          </Typography>
+        </Box>
+      );
+    };
+    
+    return <Component />;
+  }, [formData.photos, currentInventory, isMobile, formData.name, getPrimaryImageUrl]);
+
   return (
     <Dialog
       open={open}
@@ -317,7 +508,26 @@ export default function ContainerFormDialog({
       aria-labelledby="container-form-dialog-title"
     >
       <DialogTitle id="container-form-dialog-title">
-        {isEditing ? 'Edit Container' : 'Create New Container'}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start',
+          gap: 2 
+        }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" component="div" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+              {isEditing ? 'Edit Container' : 'Create New Container'}
+            </Typography>
+            {formData.name && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {formData.name}
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ flexShrink: 0 }}>
+            {PrimaryImageDisplay}
+          </Box>
+        </Box>
       </DialogTitle>
       <DialogContent>
         <Box
@@ -360,7 +570,7 @@ export default function ContainerFormDialog({
             {errors.type && <FormHelperText>{errors.type}</FormHelperText>}
           </FormControl>
 
-          {/* Size and Color Row */}
+          {/* Size, Weight, and Color Row */}
           <Box sx={{ display: 'flex', gap: 2 }}>
             <FormControl fullWidth error={!!errors.size}>
               <InputLabel>Size</InputLabel>
@@ -380,6 +590,18 @@ export default function ContainerFormDialog({
               </Select>
               {errors.size && <FormHelperText>{errors.size}</FormHelperText>}
             </FormControl>
+
+            <TextField
+              fullWidth
+              label="Weight (kg)"
+              type="number"
+              value={formData.weight}
+              onChange={(e) => handleFieldChange('weight', e.target.value)}
+              error={!!errors.weight}
+              helperText={errors.weight || 'Optional weight in kilograms'}
+              inputProps={{ min: 0, step: 0.1 }}
+              placeholder="0.0"
+            />
 
             <TextField
               fullWidth
@@ -494,20 +716,32 @@ export default function ContainerFormDialog({
           />
 
           {/* Container Photos */}
-          {isEditing && container && currentInventory && (
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Container Photos
-              </Typography>
-              <ContainerPhotoUpload
-                containerId={container.id}
-                inventoryId={currentInventory.id}
-                photos={formData.photos}
-                onPhotosUpdated={(photos) => handleFieldChange('photos', photos)}
-                disabled={loading}
-              />
-            </Box>
-          )}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Container Photos
+            </Typography>
+            
+            {/* Photo Preview Grid - Show existing photos */}
+            {formData.photos && formData.photos.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <PhotoPreviewGrid
+                  photoKeys={formData.photos}
+                  onRemove={handlePhotoRemove}
+                  disabled={isUploadingPhotos || loading}
+                />
+              </Box>
+            )}
+
+            {/* Photo Upload Zone */}
+            <PhotoUploadZone
+              onUpload={handlePhotoUpload}
+              disabled={isUploadingPhotos || loading}
+              currentPhotoCount={formData.photos.length}
+              maxPhotos={10}
+              label="Add Container Photos"
+              helperText="Add photos to help identify this container"
+            />
+          </Box>
 
           {/* Description */}
           <TextField

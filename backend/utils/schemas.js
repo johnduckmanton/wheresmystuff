@@ -362,6 +362,10 @@ const containerSchema = {
       type: 'string',
       maxLength: 50
     },
+    weight: {
+      type: 'number',
+      min: 0
+    },
     color: {
       type: 'string',
       maxLength: 7,

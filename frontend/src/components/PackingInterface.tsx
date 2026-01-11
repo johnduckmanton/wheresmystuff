@@ -646,7 +646,7 @@ function PackingItemCard({
               </Typography>
               {item.purchasePrice && (
                 <Typography variant="caption" color="text.secondary">
-                  💰 £${item.purchasePrice.toFixed(2)}
+                  💰 £{item.purchasePrice.toFixed(2)}
                 </Typography>
               )}
             </Box>

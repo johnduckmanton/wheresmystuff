@@ -382,7 +382,7 @@ export default function ContainerDetailDialog({
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <MoneyIcon color="action" />
                           <Typography variant="body2">
-                            <strong>£${updatedContainer.estimatedValue.toFixed(2)}</strong> total value
+                            <strong>£{updatedContainer.estimatedValue.toFixed(2)}</strong> total value
                           </Typography>
                         </Box>
 

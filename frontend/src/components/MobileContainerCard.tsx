@@ -29,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useSwipeGestures } from '../hooks/useSwipeGestures';
 import { useMobileDetection } from '../hooks/useMobileDetection';
+import ContainerPhotoThumbnail from './ContainerPhotoThumbnail';
 import HandlingFlagChip from './HandlingFlagChip';
 import type { Container, ContainerStatus } from '../types/entities';
 
@@ -205,30 +206,26 @@ export default function MobileContainerCard({
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <Avatar
-                  sx={{
-                    width: isMobile ? 32 : 40,
-                    height: isMobile ? 32 : 40,
-                    bgcolor: container.color || 'primary.main',
-                    fontSize: isMobile ? '0.875rem' : '1rem',
-                    border: container.color ? `2px solid ${container.color}` : 'none',
-                  }}
-                >
-                  {container.photos && container.photos.length > 0 ? (
-                    <img
-                      src={`${process.env.REACT_APP_API_URL}/photos/${container.photos[0]}`}
-                      alt="Container"
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        borderRadius: '50%',
-                      }}
-                    />
-                  ) : (
-                    getStatusIcon(container.status)
-                  )}
-                </Avatar>
+                {container.photos && container.photos.length > 0 ? (
+                  <ContainerPhotoThumbnail
+                    photoKey={container.photos[0]}
+                    altText={container.name}
+                    size={isMobile ? 32 : 40}
+                    color={container.color}
+                  />
+                ) : (
+                  <Avatar
+                    sx={{
+                      width: isMobile ? 32 : 40,
+                      height: isMobile ? 32 : 40,
+                      bgcolor: container.color || 'primary.main',
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      border: container.color ? `2px solid ${container.color}` : 'none',
+                    }}
+                  >
+                    {getStatusIcon(container.status)}
+                  </Avatar>
+                )}
                 <Typography
                   variant={isMobile ? 'subtitle1' : 'h6'}
                   sx={{
@@ -353,7 +350,7 @@ export default function MobileContainerCard({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <MoneyIcon fontSize="small" color="action" />
                 <Typography variant="body2" color="primary" fontWeight="medium">
-                  £${container.estimatedValue.toLocaleString()}
+                  £{container.estimatedValue.toLocaleString()}
                 </Typography>
               </Box>
             )}

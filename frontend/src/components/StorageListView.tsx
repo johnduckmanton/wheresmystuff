@@ -167,7 +167,7 @@ const StorageListView: React.FC<StorageListViewProps> = ({ inventoryId }) => {
                   <MoneyIcon color="primary" />
                   <Typography variant="h6">Total Cost</Typography>
                 </Box>
-                <Typography variant="h4">£${summary.totalCurrentCost.toFixed(2)}</Typography>
+                <Typography variant="h4">£{summary.totalCurrentCost.toFixed(2)}</Typography>
               </CardContent>
             </Card>
           </Box>
@@ -343,11 +343,11 @@ const StorageListView: React.FC<StorageListViewProps> = ({ inventoryId }) => {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    £${item.storageRecord.storageRate.toFixed(2)}
+                    £{item.storageRecord.storageRate.toFixed(2)}
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body1" fontWeight="bold">
-                      £${item.currentCost.toFixed(2)}
+                      £{item.currentCost.toFixed(2)}
                     </Typography>
                   </TableCell>
                   <TableCell>

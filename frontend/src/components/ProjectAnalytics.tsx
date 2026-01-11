@@ -262,7 +262,7 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
               </Box>
               <Box sx={{ textAlign: 'center', flex: '1 1 200px' }}>
                 <Typography variant="h4" color="secondary.main">
-                  £${packingMetrics.metrics.totalValue.toLocaleString()}
+                  £{packingMetrics.metrics.totalValue.toLocaleString()}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Total Value
@@ -374,7 +374,7 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({
                           Value
                         </Typography>
                         <Typography variant="h6">
-                          £${item.totalValue}
+                          £{item.totalValue}
                         </Typography>
                       </Box>
                     </Box>

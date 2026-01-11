@@ -365,7 +365,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
                   </Box>
                   <Box sx={{ textAlign: 'center', flex: '1 1 150px' }}>
                     <Typography variant="h4" color="secondary.main">
-                      £${progressData.statistics.totalValue.toLocaleString()}
+                      £{progressData.statistics.totalValue.toLocaleString()}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Total Value
@@ -503,7 +503,7 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
                                 •
                               </Typography>
                               <Typography variant="caption">
-                                £${container.estimatedValue.toLocaleString()}
+                                £{container.estimatedValue.toLocaleString()}
                               </Typography>
                             </Stack>
                           }

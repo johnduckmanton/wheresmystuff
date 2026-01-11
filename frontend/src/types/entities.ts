@@ -194,6 +194,7 @@ export interface Container {
   type: ContainerType;           // Box, Bag, Crate, etc.
   size?: string;                 // Small, Medium, Large, Custom
   color?: string;                // Visual identifier
+  weight?: number;               // Weight in kg
   description?: string;          // Additional notes
   contentsSummary?: string;      // Brief description of container contents (max 200 chars)
   photos?: string[];             // Array of S3 keys for container photos

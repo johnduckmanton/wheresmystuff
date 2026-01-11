@@ -37,6 +37,8 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 
 import { useContainerVoiceCommands } from '../hooks/useVoiceCommands';
+import ContainerPhotoThumbnail from './ContainerPhotoThumbnail';
+
 import { useAccessibility } from '../contexts/AccessibilityContext';
 
 import apiClient from '../services/api';
@@ -242,41 +244,14 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       flex: 1,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
-          {/* Color indicator and photo */}
+          {/* Photo thumbnail and color indicator */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {params.row.photos && params.row.photos.length > 0 ? (
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  border: params.row.color ? `2px solid ${params.row.color}` : '1px solid #ddd',
-                  flexShrink: 0,
-                }}
-              >
-                <img
-                  src={`${process.env.REACT_APP_API_URL}/photos/${params.row.photos[0]}`}
-                  alt="Container"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-              </Box>
-            ) : params.row.color ? (
-              <Box
-                sx={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  backgroundColor: params.row.color,
-                  border: '1px solid #ddd',
-                  flexShrink: 0,
-                }}
-              />
-            ) : null}
+            <ContainerPhotoThumbnail
+              photoKey={params.row.photos && params.row.photos.length > 0 ? params.row.photos[0] : undefined}
+              altText={params.value}
+              size={32}
+              color={params.row.color}
+            />
             <Typography variant="body2" fontWeight="medium" sx={{ lineHeight: 1.2 }}>
               {params.value}
             </Typography>

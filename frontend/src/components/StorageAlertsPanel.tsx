@@ -259,9 +259,9 @@ const StorageAlertsPanel: React.FC<StorageAlertsPanelProps> = ({
                   <MoneyIcon color="primary" />
                   <Typography variant="h6">Alert Cost</Typography>
                 </Box>
-                <Typography variant="h4">£${summary.totalAlertCost.toFixed(0)}</Typography>
+                <Typography variant="h4">£{summary.totalAlertCost.toFixed(0)}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  of £${summary.totalStorageCost.toFixed(0)} total
+                  of £{summary.totalStorageCost.toFixed(0)} total
                 </Typography>
               </CardContent>
             </Card>
@@ -389,7 +389,7 @@ const StorageAlertsPanel: React.FC<StorageAlertsPanelProps> = ({
                               </Typography>
                               {alert.costImpact && alert.costImpact > 0 && (
                                 <Typography variant="body2" color="error">
-                                  Cost Impact: £${alert.costImpact.toFixed(2)}
+                                  Cost Impact: £{alert.costImpact.toFixed(2)}
                                 </Typography>
                               )}
                               <Typography variant="caption" color="text.secondary">
@@ -481,7 +481,7 @@ const StorageAlertsPanel: React.FC<StorageAlertsPanelProps> = ({
                               </Typography>
                               {recommendation.estimatedSavings && recommendation.estimatedSavings > 0 && (
                                 <Typography variant="body2" color="success.main">
-                                  Potential Savings: £${recommendation.estimatedSavings.toFixed(2)}
+                                  Potential Savings: £{recommendation.estimatedSavings.toFixed(2)}
                                 </Typography>
                               )}
                               {recommendation.affectedContainers && (

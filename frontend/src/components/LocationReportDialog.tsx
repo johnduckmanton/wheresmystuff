@@ -241,7 +241,7 @@ export default function LocationReportDialog({
                 Total Value
               </Typography>
               <Typography variant="h6">
-                £${reportData.summary.totalValue.toFixed(2)}
+                £{reportData.summary.totalValue.toFixed(2)}
               </Typography>
             </Box>
             <Box textAlign="center">
@@ -275,7 +275,7 @@ export default function LocationReportDialog({
                     <TableRow key={category}>
                       <TableCell>{category}</TableCell>
                       <TableCell align="right">{data.count}</TableCell>
-                      <TableCell align="right">£${data.value.toFixed(2)}</TableCell>
+                      <TableCell align="right">£{data.value.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -310,7 +310,7 @@ export default function LocationReportDialog({
                       <TableCell>{containerReport.container.type}</TableCell>
                       <TableCell>{containerReport.container.status}</TableCell>
                       <TableCell align="right">{containerReport.itemCount}</TableCell>
-                      <TableCell align="right">£${containerReport.estimatedValue.toFixed(2)}</TableCell>
+                      <TableCell align="right">£{containerReport.estimatedValue.toFixed(2)}</TableCell>
                       <TableCell>
                         {containerReport.container.handlingFlags?.map((flag: string) => (
                           <Chip key={flag} label={flag} size="small" sx={{ mr: 0.5 }} />
@@ -349,7 +349,7 @@ export default function LocationReportDialog({
                             <TableCell>{containerReport.container.type}</TableCell>
                             <TableCell>{containerReport.container.status}</TableCell>
                             <TableCell align="right">{containerReport.itemCount}</TableCell>
-                            <TableCell align="right">£${containerReport.estimatedValue.toFixed(2)}</TableCell>
+                            <TableCell align="right">£{containerReport.estimatedValue.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
