@@ -87,6 +87,10 @@ const thingSchema = {
       type: 'string',
       maxLength: 100
     },
+    make: {
+      type: 'string',
+      maxLength: 100
+    },
     brand: {
       type: 'string',
       maxLength: 100

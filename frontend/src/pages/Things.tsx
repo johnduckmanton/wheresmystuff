@@ -2,12 +2,10 @@ import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogCont
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
 import AIPhotoUpload from '../components/AIPhotoUpload';
-import BulkTagOperationsDialog from '../components/BulkTagOperationsDialog';
 import type { SearchQuery } from '../components/SearchBar';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -206,7 +204,6 @@ export default function Things() {
   const [editingThing, setEditingThing] = useState<Thing | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [thingToDelete, setThingToDelete] = useState<ThingTableRow | null>(null);
-  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
   
   // AI Upload states
   const [showAIUpload, setShowAIUpload] = useState(false);
@@ -482,21 +479,6 @@ export default function Things() {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             variant="outlined" 
-            startIcon={<LocalOfferIcon />} 
-            onClick={() => setBulkTagDialogOpen(true)}
-            sx={{
-              color: 'text.primary',
-              borderColor: 'text.primary',
-              '&:hover': {
-                backgroundColor: 'primary.50',
-                borderColor: 'primary.main',
-              }
-            }}
-          >
-            Bulk Tags
-          </Button>
-          <Button 
-            variant="outlined" 
             startIcon={<AutoAwesomeIcon />} 
             onClick={() => setShowAIUpload(!showAIUpload)}
             color={showAIUpload ? 'primary' : 'primary'}
@@ -582,16 +564,6 @@ export default function Things() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Bulk Tag Operations Dialog */}
-      <BulkTagOperationsDialog
-        open={bulkTagDialogOpen}
-        onClose={() => setBulkTagDialogOpen(false)}
-        onSuccess={async () => {
-          // Refresh things data after bulk operation
-          await loadData();
-        }}
-      />
     </Box>
   );
 }

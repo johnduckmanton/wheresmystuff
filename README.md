@@ -113,7 +113,7 @@ A comprehensive full-stack serverless web application for tracking and managing 
 3. **Deploy Frontend**:
    ```bash
    cd frontend && npm install && npm run build && cd ..
-   ./scripts/deploy-frontend.sh
+   ./deploy-frontend.sh dev
    ```
 
 4. **Access Your Application**:

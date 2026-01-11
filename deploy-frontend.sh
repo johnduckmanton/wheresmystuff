@@ -1,35 +1,73 @@
 #!/bin/bash
 
-# Frontend deployment script using stored configuration
-# This avoids repeatedly looking up the same AWS resources
-
+# Frontend deployment script with environment support
 set -e
 
-# Load configuration
-CONFIG_FILE="deployment-config.json"
+# Parse command line arguments
+ENVIRONMENT=${1:-dev}
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "❌ Configuration file $CONFIG_FILE not found"
-    exit 1
-fi
-
-# Extract values from config (requires jq)
-if command -v jq >/dev/null 2>&1; then
-    S3_BUCKET=$(jq -r '.aws.s3.frontend' "$CONFIG_FILE")
-    CLOUDFRONT_ID=$(jq -r '.aws.cloudfront.distributionId' "$CONFIG_FILE")
-    CLOUDFRONT_DOMAIN=$(jq -r '.aws.cloudfront.domainName' "$CONFIG_FILE")
-else
-    # Fallback if jq is not available
-    S3_BUCKET="home-inv-frontend-982081071280-dev"
-    CLOUDFRONT_ID="E3G1KKV4TAIPFR"
-    CLOUDFRONT_DOMAIN="d24t9lc3ds7gry.cloudfront.net"
+# Show help if requested
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Frontend Deployment Script"
+    echo "=========================="
+    echo ""
+    echo "Usage: $0 [environment]"
+    echo ""
+    echo "Arguments:"
+    echo "  environment    Target environment (dev|prod). Defaults to 'dev'"
+    echo ""
+    echo "Examples:"
+    echo "  $0           # Deploy to dev environment"
+    echo "  $0 dev       # Deploy to dev environment"
+    echo "  $0 prod      # Deploy to prod environment"
+    echo ""
+    echo "This script will:"
+    echo "  1. Build the frontend application"
+    echo "  2. Upload files to the appropriate S3 bucket"
+    echo "  3. Invalidate the CloudFront cache"
+    echo ""
+    exit 0
 fi
 
 echo "🚀 Deploying Frontend"
 echo "===================="
+echo "Environment: $ENVIRONMENT"
+echo ""
+
+# Validate environment
+if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
+    echo "❌ Invalid environment: $ENVIRONMENT"
+    echo "Usage: $0 [dev|prod]"
+    echo "Example: $0 dev"
+    exit 1
+fi
+
+# Get values from CloudFormation stacks
+echo "📋 Getting deployment configuration..."
+
+S3_BUCKET=$(aws cloudformation describe-stacks --stack-name home-inventory-system-$ENVIRONMENT --region eu-west-1 --query "Stacks[0].Outputs[?OutputKey=='WebsiteBucket'].OutputValue" --output text)
+CLOUDFRONT_ID=$(aws cloudformation describe-stacks --stack-name home-inventory-cloudfront-$ENVIRONMENT --region us-east-1 --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" --output text)
+CLOUDFRONT_DOMAIN=$(aws cloudformation describe-stacks --stack-name home-inventory-cloudfront-$ENVIRONMENT --region us-east-1 --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" --output text)
+
+# Validate that we got the required values
+if [[ -z "$S3_BUCKET" || "$S3_BUCKET" == "None" ]]; then
+    echo "❌ Failed to get S3 bucket from stack home-inventory-system-$ENVIRONMENT"
+    exit 1
+fi
+
+if [[ -z "$CLOUDFRONT_ID" || "$CLOUDFRONT_ID" == "None" ]]; then
+    echo "❌ Failed to get CloudFront distribution ID from stack home-inventory-cloudfront-$ENVIRONMENT"
+    exit 1
+fi
+
+if [[ -z "$CLOUDFRONT_DOMAIN" || "$CLOUDFRONT_DOMAIN" == "None" ]]; then
+    echo "❌ Failed to get CloudFront domain from stack home-inventory-cloudfront-$ENVIRONMENT"
+    exit 1
+fi
+
 echo "S3 Bucket: $S3_BUCKET"
-echo "CloudFront: $CLOUDFRONT_ID"
-echo "Domain: $CLOUDFRONT_DOMAIN"
+echo "CloudFront ID: $CLOUDFRONT_ID"
+echo "CloudFront URL: $CLOUDFRONT_DOMAIN"
 echo ""
 
 # Build frontend
@@ -52,7 +90,7 @@ INVALIDATION_ID=$(aws cloudfront create-invalidation \
 
 echo "✅ Deployment complete!"
 echo "📋 Invalidation ID: $INVALIDATION_ID"
-echo "🌐 URL: https://$CLOUDFRONT_DOMAIN"
+echo "🌐 URL: $CLOUDFRONT_DOMAIN"
 echo ""
 echo "⏳ Cache invalidation in progress (usually takes 1-3 minutes)"
 echo "💡 You can check status with: aws cloudfront get-invalidation --distribution-id $CLOUDFRONT_ID --id $INVALIDATION_ID"

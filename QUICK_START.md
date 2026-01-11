@@ -24,7 +24,7 @@ aws cloudformation deploy \
     WebsiteBucketDomainName=YOUR_S3_BUCKET_DOMAIN
 
 # Deploy frontend
-./scripts/deploy-frontend.sh
+./deploy-frontend.sh dev  # defaults to dev if no environment specified
 ```
 
 This deployment includes:
@@ -48,7 +48,7 @@ After deployment (2-3 minutes), you'll get a URL like:
 To deploy changes:
 ```bash
 # Make your code changes, then:
-./scripts/deploy-frontend.sh
+./deploy-frontend.sh dev
 ```
 
 ## 🛠️ Manual Steps (if needed)
@@ -83,7 +83,7 @@ If the automated script doesn't work:
 
 4. **Deploy Frontend**:
    ```bash
-   ./scripts/deploy-frontend.sh
+   ./deploy-frontend.sh dev
    ```
 
 ## 🆘 Troubleshooting

@@ -11,6 +11,10 @@ import {
   Alert,
   IconButton,
   Fab,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Inventory as InventoryIcon,
@@ -19,6 +23,8 @@ import {
   LocalOffer as TagIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
+  MoreVert as MoreVertIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 
 import { useInventory } from '../contexts/InventoryContext';
@@ -26,6 +32,8 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
 import TagAnalytics from '../components/TagAnalytics';
+import BulkTagOperationsDialog from '../components/BulkTagOperationsDialog';
+import ExportDialog from '../components/ExportDialog';
 import MobileNavigation from '../components/MobileNavigation';
 import type { Thing, Category } from '../types';
 
@@ -347,6 +355,9 @@ export default function InventoryDashboard() {
   const [categoryStats, setCategoryStats] = useState<CategoryStatistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTagAnalytics, setShowTagAnalytics] = useState(false);
+  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
   // Load dashboard data
   const loadDashboardData = async () => {
@@ -447,6 +458,24 @@ export default function InventoryDashboard() {
     setShowTagAnalytics(true);
   };
 
+  const handleBulkTags = () => {
+    setBulkTagDialogOpen(true);
+    setMenuAnchorEl(null);
+  };
+
+  const handleExport = () => {
+    setExportDialogOpen(true);
+    setMenuAnchorEl(null);
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
   const handleRefresh = () => {
     loadDashboardData();
   };
@@ -536,14 +565,23 @@ export default function InventoryDashboard() {
             </Typography>
           </Box>
           {!isMobile && (
-            <IconButton 
-              onClick={handleRefresh} 
-              disabled={loading}
-              aria-label="Refresh dashboard data"
-              className="mobile-touch-icon-button"
-            >
-              <RefreshIcon />
-            </IconButton>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <IconButton 
+                onClick={handleRefresh} 
+                disabled={loading}
+                aria-label="Refresh dashboard data"
+                className="mobile-touch-icon-button"
+              >
+                <RefreshIcon />
+              </IconButton>
+              <IconButton
+                onClick={handleMenuOpen}
+                aria-label="More actions"
+                className="mobile-touch-icon-button"
+              >
+                <MoreVertIcon />
+              </IconButton>
+            </Box>
           )}
         </Box>
 
@@ -682,6 +720,62 @@ export default function InventoryDashboard() {
       <MobileNavigation 
         containerCount={0}
         unreadNotifications={0}
+      />
+
+      {/* Actions Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={handleViewThings}>
+          <ListItemIcon>
+            <InventoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View All Items</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleViewCategories}>
+          <ListItemIcon>
+            <CategoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Manage Categories</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleBulkTags}>
+          <ListItemIcon>
+            <TagIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Bulk Tag Operations</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleViewTagAnalytics}>
+          <ListItemIcon>
+            <AnalyticsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Tag Analytics</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleExport}>
+          <ListItemIcon>
+            <DownloadIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Export to CSV</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Bulk Tag Operations Dialog */}
+      <BulkTagOperationsDialog
+        open={bulkTagDialogOpen}
+        onClose={() => setBulkTagDialogOpen(false)}
+        onSuccess={async () => {
+          // Refresh dashboard data after bulk operation
+          await loadDashboardData();
+        }}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
       />
     </>
   );

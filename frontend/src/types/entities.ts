@@ -5,6 +5,8 @@ export interface Thing {
   inventoryId: string; // UUID reference to inventory
   name: string; // Required
   description?: string;
+  make?: string; // Optional make/brand
+  model?: string; // Optional model
   serialNumber?: string;
   locationId?: string; // UUID reference
   roomId?: string; // UUID reference

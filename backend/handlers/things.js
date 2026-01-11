@@ -52,6 +52,7 @@ function decodeThingFields(thing) {
   if (thing.notes) thing.notes = decodeHtmlEntities(thing.notes);
   if (thing.serialNumber) thing.serialNumber = decodeHtmlEntities(thing.serialNumber);
   if (thing.model) thing.model = decodeHtmlEntities(thing.model);
+  if (thing.make) thing.make = decodeHtmlEntities(thing.make);
   if (thing.brand) thing.brand = decodeHtmlEntities(thing.brand);
   if (thing.condition) thing.condition = decodeHtmlEntities(thing.condition);
   if (thing.purchasedFrom) thing.purchasedFrom = decodeHtmlEntities(thing.purchasedFrom);

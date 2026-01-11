@@ -127,7 +127,7 @@ aws cloudformation deploy \
     WebsiteBucketDomainName=YOUR_S3_DOMAIN
 
 # 3. Deploy frontend
-./scripts/deploy-frontend.sh
+./deploy-frontend.sh dev  # or ./deploy-frontend.sh prod
 ```
 
 ## 📝 Detailed Deployment Steps
@@ -350,7 +350,8 @@ ENVIRONMENT=staging ./scripts/deploy-full-stack.sh
 #### Frontend Only Deployment
 ```bash
 # Deploy frontend to S3 and invalidate CloudFront
-./scripts/deploy-frontend.sh
+./deploy-frontend.sh dev  # for development environment
+./deploy-frontend.sh prod # for production environment
 ```
 
 #### Single Function Update

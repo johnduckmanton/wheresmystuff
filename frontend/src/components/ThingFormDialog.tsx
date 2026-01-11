@@ -95,6 +95,8 @@ export default function ThingFormDialog({
         setFormData({
           name: '',
           description: '',
+          make: '',
+          model: '',
           serialNumber: '',
           inventoryId: currentInventory?.id || '',
           locationId: '',
@@ -139,11 +141,6 @@ export default function ThingFormDialog({
     // Name is required
     if (!formData.name || formData.name.trim() === '') {
       newErrors.name = 'Name is required';
-    }
-
-    // Inventory is required
-    if (!formData.inventoryId || formData.inventoryId.trim() === '') {
-      newErrors.inventoryId = 'Inventory is required';
     }
 
     setErrors(newErrors);
@@ -244,8 +241,8 @@ export default function ThingFormDialog({
     setCurrentTab(newValue);
   };
 
-  // Get primary image URL for display
-  const getPrimaryImageUrl = async (photoKey: string): Promise<string> => {
+  // Get primary image URL for display - memoized to prevent continuous refreshing
+  const getPrimaryImageUrl = useCallback(async (photoKey: string): Promise<string> => {
     if (!currentInventory) return '';
     try {
       const response = await apiClient.generateDownloadUrl(photoKey);
@@ -254,41 +251,82 @@ export default function ThingFormDialog({
       console.error('Error generating download URL:', error);
       return '';
     }
-  };
+  }, [currentInventory]);
 
-  // Primary image component
-  const PrimaryImageDisplay = () => {
-    const [primaryImageUrl, setPrimaryImageUrl] = useState<string>('');
-    const [loading, setLoading] = useState(false);
-    
-    const primaryPhotoKey = formData.photos && formData.photos.length > 0 ? formData.photos[0] : null;
+  // Primary image component - memoized to prevent continuous re-rendering
+  const PrimaryImageDisplay = useMemo(() => {
+    const Component = () => {
+      const [primaryImageUrl, setPrimaryImageUrl] = useState<string>('');
+      const [loading, setLoading] = useState(false);
+      
+      const primaryPhotoKey = formData.photos && formData.photos.length > 0 ? formData.photos[0] : null;
 
-    useEffect(() => {
-      if (primaryPhotoKey && currentInventory) {
-        setLoading(true);
-        getPrimaryImageUrl(primaryPhotoKey)
-          .then(url => {
-            setPrimaryImageUrl(url);
-            setLoading(false);
-          })
-          .catch(() => {
-            setLoading(false);
-          });
-      } else {
-        setPrimaryImageUrl('');
-        setLoading(false);
+      useEffect(() => {
+        if (primaryPhotoKey && currentInventory) {
+          setLoading(true);
+          getPrimaryImageUrl(primaryPhotoKey)
+            .then(url => {
+              setPrimaryImageUrl(url);
+              setLoading(false);
+            })
+            .catch(() => {
+              setLoading(false);
+            });
+        } else {
+          setPrimaryImageUrl('');
+          setLoading(false);
+        }
+      }, [primaryPhotoKey]);
+
+      const imageSize = isMobile ? 80 : 120;
+
+      if (loading) {
+        return (
+          <Box
+            sx={{
+              width: imageSize,
+              height: imageSize,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '2px dashed',
+              borderColor: 'grey.300',
+              borderRadius: 2,
+              bgcolor: 'grey.50',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Loading...
+            </Typography>
+          </Box>
+        );
       }
-    }, [primaryPhotoKey, currentInventory]);
 
-    const imageSize = isMobile ? 80 : 120;
+      if (primaryImageUrl) {
+        return (
+          <S3Image
+            src={primaryImageUrl}
+            alt={formData.name || 'Thing image'}
+            maxWidth={imageSize}
+            maxHeight={imageSize}
+            style={{
+              borderRadius: '8px',
+              objectFit: 'cover',
+              width: `${imageSize}px`,
+              height: `${imageSize}px`,
+            }}
+          />
+        );
+      }
 
-    if (loading) {
+      // Placeholder when no image
       return (
         <Box
           sx={{
             width: imageSize,
             height: imageSize,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             border: '2px dashed',
@@ -297,53 +335,16 @@ export default function ThingFormDialog({
             bgcolor: 'grey.50',
           }}
         >
-          <Typography variant="caption" color="text.secondary">
-            Loading...
+          <ImageIcon sx={{ fontSize: isMobile ? 24 : 32, color: 'grey.400', mb: 0.5 }} />
+          <Typography variant="caption" color="text.secondary" align="center">
+            No Image
           </Typography>
         </Box>
       );
-    }
-
-    if (primaryImageUrl) {
-      return (
-        <S3Image
-          src={primaryImageUrl}
-          alt={formData.name || 'Thing image'}
-          maxWidth={imageSize}
-          maxHeight={imageSize}
-          style={{
-            borderRadius: '8px',
-            objectFit: 'cover',
-            width: `${imageSize}px`,
-            height: `${imageSize}px`,
-          }}
-        />
-      );
-    }
-
-    // Placeholder when no image
-    return (
-      <Box
-        sx={{
-          width: imageSize,
-          height: imageSize,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '2px dashed',
-          borderColor: 'grey.300',
-          borderRadius: 2,
-          bgcolor: 'grey.50',
-        }}
-      >
-        <ImageIcon sx={{ fontSize: isMobile ? 24 : 32, color: 'grey.400', mb: 0.5 }} />
-        <Typography variant="caption" color="text.secondary" align="center">
-          No Image
-        </Typography>
-      </Box>
-    );
-  };
+    };
+    
+    return <Component />;
+  }, [formData.photos, currentInventory, isMobile, formData.name, getPrimaryImageUrl]);
 
   // Render basic information fields
   const renderBasicFields = () => (
@@ -382,23 +383,40 @@ export default function ThingFormDialog({
           }}
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 6 }}>
+      <Grid size={{ xs: 12 }}>
         <InventoryFormSelector
           value={formData.inventoryId || ''}
           onChange={(inventoryId) => handleFieldChange('inventoryId', inventoryId)}
           error={errors.inventoryId}
-          required
+          required={false}
         />
       </Grid>
-      <Grid size={{ xs: 12 }}>
-        <TagInput
-          tags={memoizedTags}
-          onTagsChange={handleTagsChange}
-          label="Tags"
-          placeholder="Add tags to categorize this item..."
-          enableApiSuggestions={true}
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Make/Brand"
+          value={formData.make || ''}
+          onChange={(e) => handleFieldChange('make', e.target.value)}
           size={isMobile ? 'medium' : 'small'}
-          maxTags={20}
+          slotProps={{
+            input: {
+              'aria-label': 'Make or brand',
+            },
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField
+          fullWidth
+          label="Model"
+          value={formData.model || ''}
+          onChange={(e) => handleFieldChange('model', e.target.value)}
+          size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              'aria-label': 'Model',
+            },
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -413,6 +431,17 @@ export default function ThingFormDialog({
               'aria-label': 'Serial number',
             },
           }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12 }}>
+        <TagInput
+          tags={memoizedTags}
+          onTagsChange={handleTagsChange}
+          label="Tags"
+          placeholder="Add tags to categorize this item..."
+          enableApiSuggestions={true}
+          size={isMobile ? 'medium' : 'small'}
+          maxTags={20}
         />
       </Grid>
     </Grid>
@@ -697,7 +726,7 @@ export default function ThingFormDialog({
             )}
           </Box>
           <Box sx={{ flexShrink: 0 }}>
-            <PrimaryImageDisplay />
+            {PrimaryImageDisplay}
           </Box>
         </Box>
       </DialogTitle>
