@@ -30,7 +30,7 @@ import {
   ViewColumn as ViewColumnIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material';
-import TagInput from './TagInput';
+import EnhancedTagInput from './EnhancedTagInput';
 import type { SearchQuery } from './SearchBar';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -456,7 +456,7 @@ export default function ExportDialog({ open, onClose }: ExportDialogProps) {
                     size="small"
                     sx={{ mb: 2 }}
                   />
-                  <TagInput
+                  <EnhancedTagInput
                     tags={filterOptions.searchQuery.tags || []}
                     onTagsChange={(tags) => setFilterOptions(prev => ({
                       ...prev,

@@ -22,7 +22,7 @@ import {
   Warning as WarningIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import TagInput from './TagInput';
+import EnhancedTagInput from './EnhancedTagInput';
 
 export interface SearchQuery {
   text?: string;
@@ -345,7 +345,7 @@ export default function SearchBar({
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
             {/* Tag input with error handling */}
             <Box sx={{ flex: 1 }}>
-              <TagInput
+              <EnhancedTagInput
                 tags={selectedTags}
                 onTagsChange={handleTagsChange}
                 placeholder="Add tags to search..."

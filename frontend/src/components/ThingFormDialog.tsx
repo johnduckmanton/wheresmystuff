@@ -36,7 +36,7 @@ import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
 import S3Image from './S3Image';
-import TagInput from './TagInput';
+import EnhancedTagInput from './EnhancedTagInput';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
@@ -434,7 +434,7 @@ export default function ThingFormDialog({
         />
       </Grid>
       <Grid size={{ xs: 12 }}>
-        <TagInput
+        <EnhancedTagInput
           tags={memoizedTags}
           onTagsChange={handleTagsChange}
           label="Tags"

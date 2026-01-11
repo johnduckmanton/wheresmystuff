@@ -26,7 +26,7 @@ import {
   Search as SearchIcon,
   LocalOffer as TagIcon,
 } from '@mui/icons-material';
-import TagInput from './TagInput';
+import EnhancedTagInput from './EnhancedTagInput';
 import apiClient from '../services/api';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -279,7 +279,7 @@ export default function BulkTagOperationsDialog({
 
             {/* Tag Selection */}
             <Box>
-              <TagInput
+              <EnhancedTagInput
                 tags={tags}
                 onTagsChange={setTags}
                 label="Tags"
