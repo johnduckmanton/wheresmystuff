@@ -1,11 +1,13 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
 import AIPhotoUpload from '../components/AIPhotoUpload';
+import QuickFilters from '../components/QuickFilters';
 import type { SearchQuery } from '../components/SearchBar';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -213,6 +215,11 @@ export default function Things() {
     tagMode: 'and',
   });
 
+  // Quick filter state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showQuickFilters, setShowQuickFilters] = useState(true);
+
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
@@ -302,16 +309,14 @@ export default function Things() {
     if (!currentInventory) return;
 
     setSearchQuery(query);
-    
+    applyFilters(query, selectedCategoryId, selectedTags);
+  };
+
+  // Apply all filters (search, category, tags)
+  const applyFilters = (query: SearchQuery, categoryId?: string, tags: string[] = []) => {
     try {
       setSearchLoading(true);
       
-      // If no search criteria, show all things
-      if (!query.text && (!query.tags || query.tags.length === 0)) {
-        setThings(allThings);
-        return;
-      }
-
       let filteredThings = [...allThings];
 
       // Apply text search
@@ -325,7 +330,7 @@ export default function Things() {
         );
       }
 
-      // Apply tag search
+      // Apply search bar tag search
       if (query.tags && query.tags.length > 0) {
         if (query.tagMode === 'and') {
           // AND mode: thing must have ALL specified tags
@@ -350,13 +355,54 @@ export default function Things() {
         }
       }
 
+      // Apply category filter
+      if (categoryId) {
+        if (categoryId === 'uncategorized') {
+          filteredThings = filteredThings.filter(thing => !thing.categoryId);
+        } else {
+          filteredThings = filteredThings.filter(thing => thing.categoryId === categoryId);
+        }
+      }
+
+      // Apply quick filter tags (AND mode - thing must have ALL selected tags)
+      if (tags.length > 0) {
+        filteredThings = filteredThings.filter(thing => {
+          if (!thing.tags || thing.tags.length === 0) return false;
+          return tags.every(selectedTag => 
+            thing.tags!.some(thingTag => 
+              thingTag.toLowerCase() === selectedTag.toLowerCase()
+            )
+          );
+        });
+      }
+
       setThings(filteredThings);
     } catch (error) {
-      console.error('Error searching things:', error);
-      showError('Failed to search things. Please try again.');
+      console.error('Error filtering things:', error);
+      showError('Failed to filter things. Please try again.');
     } finally {
       setSearchLoading(false);
     }
+  };
+
+  // Handle category filter
+  const handleCategoryFilter = (categoryId: string | undefined) => {
+    setSelectedCategoryId(categoryId);
+    applyFilters(searchQuery, categoryId, selectedTags);
+  };
+
+  // Handle tag filter
+  const handleTagFilter = (tags: string[]) => {
+    setSelectedTags(tags);
+    applyFilters(searchQuery, selectedCategoryId, tags);
+  };
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSelectedCategoryId(undefined);
+    setSelectedTags([]);
+    setSearchQuery({ tagMode: 'and' });
+    setThings(allThings);
   };
 
   // Create dropdown filter options
@@ -406,6 +452,7 @@ export default function Things() {
       // Refresh the table and reset search
       await loadData();
       setSearchQuery({ tagMode: 'and' });
+      handleClearFilters();
     } catch (error) {
       console.error('Error deleting thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to delete thing. Please try again.');
@@ -438,6 +485,7 @@ export default function Things() {
       // Refresh the table and reset search
       await loadData();
       setSearchQuery({ tagMode: 'and' });
+      handleClearFilters();
     } catch (error) {
       console.error('Error saving thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to save thing. Please try again.');
@@ -477,6 +525,22 @@ export default function Things() {
           Things - {currentInventory.name}
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
+            <IconButton
+              onClick={() => setShowQuickFilters(!showQuickFilters)}
+              color={showQuickFilters ? 'primary' : 'default'}
+              sx={{
+                border: '1px solid',
+                borderColor: showQuickFilters ? 'primary.main' : 'divider',
+                '&:hover': {
+                  backgroundColor: 'primary.50',
+                  borderColor: 'primary.main',
+                }
+              }}
+            >
+              <FilterListIcon />
+            </IconButton>
+          </Tooltip>
           <Button 
             variant="outlined" 
             startIcon={<AutoAwesomeIcon />} 
@@ -509,24 +573,53 @@ export default function Things() {
               await loadData();
               setShowAIUpload(false);
               setSearchQuery({ tagMode: 'and' });
+              handleClearFilters();
             }}
           />
         </Box>
       </Collapse>
 
-      <EntityTable
-        columns={columns}
-        data={tableData}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onRowClick={handleRowClick}
-        loading={loading || searchLoading}
-        dropdownFilters={dropdownFilters}
-        inventoryId={currentInventory.id}
-        enableTagSearch={true}
-        onTagSearch={handleTagSearch}
-        currentSearchQuery={searchQuery}
-      />
+      {/* Main Content with Filters */}
+      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        {/* Quick Filters Sidebar */}
+        <Box
+          sx={{
+            width: showQuickFilters ? 280 : 0,
+            overflow: 'hidden',
+            transition: 'width 0.3s ease-in-out',
+            flexShrink: 0,
+          }}
+        >
+          {showQuickFilters && (
+            <QuickFilters
+              things={allThings}
+              categories={categories}
+              selectedCategoryId={selectedCategoryId}
+              selectedTags={selectedTags}
+              onCategoryFilter={handleCategoryFilter}
+              onTagFilter={handleTagFilter}
+              onClearFilters={handleClearFilters}
+            />
+          )}
+        </Box>
+
+        {/* Main Table */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <EntityTable
+            columns={columns}
+            data={tableData}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRowClick={handleRowClick}
+            loading={loading || searchLoading}
+            dropdownFilters={dropdownFilters}
+            inventoryId={currentInventory.id}
+            enableTagSearch={true}
+            onTagSearch={handleTagSearch}
+            currentSearchQuery={searchQuery}
+          />
+        </Box>
+      </Box>
 
       {/* Thing Form Dialog */}
       <ThingFormDialog
