@@ -33,8 +33,9 @@ interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority?: 'low' | 'medium' | 'high';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  category?: 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other';
   dueDate?: string;
 }
 
@@ -53,39 +54,49 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
 }) => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [formData, setFormData] = useState({ title: '', description: '', priority: 'medium' });
+  const [formData, setFormData] = useState({ title: '', description: '', priority: 'medium', category: 'other' });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const handleAddTask = () => {
     setEditingTask(null);
-    setFormData({ title: '', description: '', priority: 'medium' });
+    setFormData({ title: '', description: '', priority: 'medium', category: 'other' });
     setFormOpen(true);
   };
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
-    setFormData({ title: task.title, description: task.description || '', priority: task.priority || 'medium' });
+    setFormData({ 
+      title: task.title, 
+      description: task.description || '', 
+      priority: task.priority || 'medium',
+      category: task.category || 'other'
+    });
     setFormOpen(true);
     setAnchorEl(null);
   };
 
   const handleSaveTask = async () => {
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim()) {
+      console.error('Validation failed: title is required');
+      return;
+    }
 
     try {
       if (editingTask) {
         await apiClient.updateTask(editingTask.id, {
           title: formData.title,
           description: formData.description,
-          priority: formData.priority as 'low' | 'medium' | 'high',
+          priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
+          category: formData.category as 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other',
           inventoryId
         });
       } else {
         await apiClient.createTask(projectId, {
           title: formData.title,
           description: formData.description,
-          priority: formData.priority as 'low' | 'medium' | 'high',
+          priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
+          category: formData.category as 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other',
           inventoryId
         });
       }
@@ -106,7 +117,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
   };
 
   const handleToggleTask = (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    const newStatus = task.status === 'completed' ? 'not_started' : 'completed';
     apiClient.updateTask(task.id, { status: newStatus }).catch((err: any) => console.error('Error updating task:', err));
   };
 
@@ -198,6 +209,34 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
               multiline
               rows={3}
             />
+            <TextField
+              select
+              label="Category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              fullWidth
+            >
+              <MenuItem value="planning">Planning</MenuItem>
+              <MenuItem value="packing">Packing</MenuItem>
+              <MenuItem value="logistics">Logistics</MenuItem>
+              <MenuItem value="moving_day">Moving Day</MenuItem>
+              <MenuItem value="unpacking">Unpacking</MenuItem>
+              <MenuItem value="setup">Setup</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="other">Other</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Priority"
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              fullWidth
+            >
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="urgent">Urgent</MenuItem>
+            </TextField>
           </Box>
         </DialogContent>
         <DialogActions>

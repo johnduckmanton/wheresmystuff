@@ -71,7 +71,7 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
 
   const handleAddItem = () => {
     setEditingItem(null);
-    setFormData({ category: '', description: '', estimatedCost: 0, actualCost: 0, status: 'pending' });
+    setFormData({ category: 'miscellaneous', description: '', estimatedCost: 0, actualCost: 0, status: 'pending' });
     setFormOpen(true);
   };
 
@@ -89,7 +89,10 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
   };
 
   const handleSaveItem = async () => {
-    if (!formData.category.trim()) return;
+    if (!formData.category.trim() || !formData.description.trim() || formData.estimatedCost <= 0) {
+      console.error('Validation failed:', { category: formData.category, description: formData.description, estimatedCost: formData.estimatedCost });
+      return;
+    }
 
     try {
       if (editingItem) {
@@ -230,12 +233,25 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
+              select
               label="Category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               fullWidth
-              required
-            />
+            >
+              <MenuItem value="moving_company">Moving Company</MenuItem>
+              <MenuItem value="truck_rental">Truck Rental</MenuItem>
+              <MenuItem value="packing_supplies">Packing Supplies</MenuItem>
+              <MenuItem value="utilities">Utilities</MenuItem>
+              <MenuItem value="deposits">Deposits</MenuItem>
+              <MenuItem value="travel">Travel</MenuItem>
+              <MenuItem value="accommodation">Accommodation</MenuItem>
+              <MenuItem value="insurance">Insurance</MenuItem>
+              <MenuItem value="permits">Permits</MenuItem>
+              <MenuItem value="repairs">Repairs</MenuItem>
+              <MenuItem value="furniture">Furniture</MenuItem>
+              <MenuItem value="miscellaneous">Miscellaneous</MenuItem>
+            </TextField>
             <TextField
               label="Description"
               value={formData.description}

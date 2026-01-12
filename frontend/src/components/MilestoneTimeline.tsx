@@ -38,10 +38,10 @@ import apiClient from '../services/api';
 
 interface Milestone {
   id: string;
-  title: string;
+  name: string;
   description?: string;
-  dueDate: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  date: string;
+  completed: boolean;
 }
 
 interface MilestoneTimelineProps {
@@ -59,47 +59,50 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
 }) => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
-  const [formData, setFormData] = useState({ title: '', description: '', dueDate: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', date: '' });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
 
   const sortedMilestones = [...milestones].sort((a, b) => 
-    new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
   const handleAddMilestone = () => {
     setEditingMilestone(null);
-    setFormData({ title: '', description: '', dueDate: '' });
+    setFormData({ name: '', description: '', date: '' });
     setFormOpen(true);
   };
 
   const handleEditMilestone = (milestone: Milestone) => {
     setEditingMilestone(milestone);
     setFormData({
-      title: milestone.title,
+      name: milestone.name,
       description: milestone.description || '',
-      dueDate: milestone.dueDate.split('T')[0]
+      date: milestone.date.split('T')[0]
     });
     setFormOpen(true);
     setAnchorEl(null);
   };
 
   const handleSaveMilestone = async () => {
-    if (!formData.title.trim() || !formData.dueDate) return;
+    if (!formData.name.trim() || !formData.date) {
+      console.error('Validation failed:', { name: formData.name, date: formData.date });
+      return;
+    }
 
     try {
       if (editingMilestone) {
         await apiClient.updateMilestone(editingMilestone.id, {
-          title: formData.title,
+          name: formData.name,
           description: formData.description,
-          dueDate: new Date(formData.dueDate).toISOString(),
+          date: new Date(formData.date).toISOString(),
           inventoryId
         });
       } else {
         await apiClient.createMilestone(projectId, {
-          title: formData.title,
+          name: formData.name,
           description: formData.description,
-          dueDate: new Date(formData.dueDate).toISOString(),
+          date: new Date(formData.date).toISOString(),
           inventoryId
         });
       }
@@ -123,15 +126,15 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
     try {
       await apiClient.completeMilestone(milestone.id, inventoryId);
       onMilestonesChange(milestones.map(m => 
-        m.id === milestone.id ? { ...m, status: 'completed' } : m
+        m.id === milestone.id ? { ...m, completed: true } : m
       ));
     } catch (err) {
       console.error('Error completing milestone:', err);
     }
   };
 
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date() && new Date().toDateString() !== new Date(dueDate).toDateString();
+  const isOverdue = (date: string) => {
+    return new Date(date) < new Date() && new Date().toDateString() !== new Date(date).toDateString();
   };
 
   return (
@@ -154,31 +157,31 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
           {sortedMilestones.map((milestone, index) => (
             <TimelineItem key={milestone.id}>
               <TimelineOppositeContent color="text.secondary" sx={{ flex: 0.3 }}>
-                {format(new Date(milestone.dueDate), 'MMM d, yyyy')}
+                {format(new Date(milestone.date), 'MMM d, yyyy')}
               </TimelineOppositeContent>
               <TimelineSeparator>
                 <TimelineDot
                   sx={{
-                    bgcolor: milestone.status === 'completed' ? 'success.main' : 'primary.main',
+                    bgcolor: milestone.completed ? 'success.main' : 'primary.main',
                     cursor: 'pointer'
                   }}
                   onClick={() => handleCompleteMilestone(milestone)}
                 >
-                  {milestone.status === 'completed' ? <CheckCircleIcon /> : <ScheduleIcon />}
+                  {milestone.completed ? <CheckCircleIcon /> : <ScheduleIcon />}
                 </TimelineDot>
                 {index < sortedMilestones.length - 1 && <TimelineConnector />}
               </TimelineSeparator>
               <TimelineContent sx={{ flex: 0.7 }}>
                 <Card
                   sx={{
-                    borderLeft: isOverdue(milestone.dueDate) ? '4px solid' : 'none',
+                    borderLeft: isOverdue(milestone.date) ? '4px solid' : 'none',
                     borderLeftColor: 'error.main'
                   }}
                 >
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle2">{milestone.title}</Typography>
+                        <Typography variant="subtitle2">{milestone.name}</Typography>
                         {milestone.description && (
                           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                             {milestone.description}
@@ -186,11 +189,11 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
                         )}
                         <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                           <Chip
-                            label={milestone.status}
+                            label={milestone.completed ? 'completed' : 'pending'}
                             size="small"
-                            color={milestone.status === 'completed' ? 'success' : 'default'}
+                            color={milestone.completed ? 'success' : 'default'}
                           />
-                          {isOverdue(milestone.dueDate) && milestone.status !== 'completed' && (
+                          {isOverdue(milestone.date) && !milestone.completed && (
                             <Chip label="Overdue" size="small" color="error" />
                           )}
                         </Stack>
@@ -219,9 +222,9 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Milestone Title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              label="Milestone Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               fullWidth
               required
             />
@@ -236,8 +239,8 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
             <TextField
               label="Due Date"
               type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               fullWidth
               required
               InputLabelProps={{ shrink: true }}

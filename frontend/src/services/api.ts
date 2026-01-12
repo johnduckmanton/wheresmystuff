@@ -933,9 +933,10 @@ class ApiClient {
     title: string;
     description?: string;
     dueDate?: string;
-    priority?: 'low' | 'medium' | 'high';
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    category?: 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other';
     assignedTo?: string;
-    status?: 'pending' | 'in_progress' | 'completed';
+    status?: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
     inventoryId: string;
   }): Promise<any> {
     return this.post<any>(`/projects/${projectId}/tasks`, data);
@@ -945,9 +946,10 @@ class ApiClient {
     title: string;
     description: string;
     dueDate: string;
-    priority: 'low' | 'medium' | 'high';
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    category: 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other';
     assignedTo: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
     inventoryId: string;
   }>): Promise<any> {
     return this.put<any>(`/tasks/${taskId}`, data);
@@ -968,20 +970,18 @@ class ApiClient {
   }
 
   async createMilestone(projectId: string, data: {
-    title: string;
+    name: string;
     description?: string;
-    dueDate: string;
-    status?: 'pending' | 'in_progress' | 'completed';
+    date: string;
     inventoryId: string;
   }): Promise<any> {
     return this.post<any>(`/projects/${projectId}/milestones`, data);
   }
 
   async updateMilestone(milestoneId: string, data: Partial<{
-    title: string;
+    name: string;
     description: string;
-    dueDate: string;
-    status: 'pending' | 'in_progress' | 'completed';
+    date: string;
     inventoryId: string;
   }>): Promise<any> {
     return this.put<any>(`/milestones/${milestoneId}`, data);
