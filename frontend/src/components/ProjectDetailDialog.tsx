@@ -482,10 +482,11 @@ const ProjectDetailDialog: React.FC<ProjectDetailDialogProps> = ({
       {/* Container Assignment Dialog */}
       <ContainerAssignmentDialog
         open={assignmentDialogOpen}
-        project={project}
         inventoryId={inventoryId}
         onClose={() => setAssignmentDialogOpen(false)}
-        onAssignmentChange={handleAssignmentChange}
+        onSave={async () => {
+          handleAssignmentChange();
+        }}
       />
 
       {/* Item Assignment Dialog */}

@@ -24,7 +24,6 @@ interface ThingAssignmentDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (thingIds: string[]) => Promise<void>;
-  projectId: string;
   inventoryId: string;
 }
 
@@ -32,7 +31,6 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
   open,
   onClose,
   onSave,
-  projectId,
   inventoryId
 }) => {
   const [things, setThings] = useState<Thing[]>([]);

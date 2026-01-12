@@ -79,7 +79,6 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
           title: formData.title,
           description: formData.description,
           priority: formData.priority as 'low' | 'medium' | 'high',
-          projectId,
           inventoryId
         });
       } else {

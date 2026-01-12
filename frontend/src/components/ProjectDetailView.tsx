@@ -232,7 +232,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           projectId={project.id}
           inventoryId={inventoryId}
           budgetItems={budgetItems}
-          onBudgetItemsChange={setBudgetItems}
+          onBudgetChange={setBudgetItems}
         />
       </TabPanel>
 
@@ -334,7 +334,6 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         open={thingAssignmentDialogOpen}
         onClose={() => setThingAssignmentDialogOpen(false)}
         onSave={handleAssignThings}
-        projectId={project.id}
         inventoryId={inventoryId}
       />
 
@@ -343,7 +342,6 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         open={containerAssignmentDialogOpen}
         onClose={() => setContainerAssignmentDialogOpen(false)}
         onSave={handleAssignContainers}
-        projectId={project.id}
         inventoryId={inventoryId}
       />
     </Box>

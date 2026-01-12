@@ -26,7 +26,6 @@ interface ContainerAssignmentDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (containerIds: string[]) => Promise<void>;
-  projectId: string;
   inventoryId: string;
 }
 
@@ -34,7 +33,6 @@ const ContainerAssignmentDialog: React.FC<ContainerAssignmentDialogProps> = ({
   open,
   onClose,
   onSave,
-  projectId,
   inventoryId
 }) => {
   const [containers, setContainers] = useState<Container[]>([]);
