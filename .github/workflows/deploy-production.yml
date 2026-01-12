@@ -718,8 +718,8 @@ jobs:
   update-backend-cors:
     name: Update Backend CORS Configuration
     runs-on: ubuntu-latest
-    needs: [deploy-backend, deploy-frontend]
-    if: needs.deploy-frontend.result == 'success'
+    needs: [validate-deployment, detect-changes, deploy-backend, deploy-frontend]
+    if: needs.deploy-frontend.result == 'success' && needs.detect-changes.outputs.backend_changed == 'true'
     environment: production
 
     steps:
@@ -784,6 +784,7 @@ jobs:
     name: Production Smoke Tests
     runs-on: ubuntu-latest
     needs: [deploy-backend, deploy-frontend, update-backend-cors]
+    if: always() && needs.deploy-frontend.result == 'success'
     environment: production
 
     steps:
