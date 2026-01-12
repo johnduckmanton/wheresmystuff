@@ -290,9 +290,9 @@ jobs:
     environment: development
     
     outputs:
-      api_url: ${{ steps.deploy_backend.outputs.api_url }}
-      frontend_bucket: ${{ steps.deploy_backend.outputs.frontend_bucket }}
-      cloudfront_url: ${{ steps.deploy_frontend.outputs.cloudfront_url }}
+      api_url: ${{ steps.deploy_backend.outputs.api_url || steps.retrieve_backend_outputs.outputs.api_url }}
+      frontend_bucket: ${{ steps.deploy_backend.outputs.frontend_bucket || steps.retrieve_backend_outputs.outputs.frontend_bucket }}
+      cloudfront_url: ${{ steps.deploy_frontend.outputs.cloudfront_url || steps.skip_frontend.outputs.cloudfront_url }}
     
     steps:
     - name: Checkout code
@@ -423,7 +423,7 @@ jobs:
     
     - name: Retrieve backend outputs (no backend changes)
       if: needs.detect-changes.outputs.backend_changed == 'false'
-      id: get_backend_outputs
+      id: retrieve_backend_outputs
       run: |
         echo "⏭️  Backend infrastructure unchanged, retrieving existing stack outputs..."
         
@@ -457,13 +457,6 @@ jobs:
         echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
         
         echo "✅ Retrieved backend outputs from existing stack"
-    
-    - name: Set backend outputs
-      id: deploy_backend
-      if: needs.detect-changes.outputs.backend_changed == 'false'
-      run: |
-        echo "api_url=${{ steps.get_backend_outputs.outputs.api_url }}" >> $GITHUB_OUTPUT
-        echo "frontend_bucket=${{ steps.get_backend_outputs.outputs.frontend_bucket }}" >> $GITHUB_OUTPUT
     
     - name: Run database migrations
       if: needs.detect-changes.outputs.backend_changed == 'true'
@@ -576,7 +569,7 @@ jobs:
     
     - name: Skip frontend deployment (no changes)
       if: needs.detect-changes.outputs.frontend_changed == 'false'
-      id: deploy_frontend
+      id: skip_frontend
       run: |
         echo "⏭️  Frontend files unchanged, skipping frontend deployment"
         
@@ -596,9 +589,14 @@ jobs:
         echo "✅ Frontend deployment skipped (no changes)"
     
     - name: Update backend CORS with CloudFront URL
-      if: needs.detect-changes.outputs.backend_changed == 'true' && needs.detect-changes.outputs.frontend_changed == 'true'
+      if: needs.detect-changes.outputs.backend_changed == 'true'
       run: |
-        CLOUDFRONT_URL="${{ steps.deploy_frontend.outputs.cloudfront_url }}"
+        # Get CloudFront URL from either deploy or skip step
+        if [[ "${{ needs.detect-changes.outputs.frontend_changed }}" == "true" ]]; then
+          CLOUDFRONT_URL="${{ steps.deploy_frontend.outputs.cloudfront_url }}"
+        else
+          CLOUDFRONT_URL="${{ steps.skip_frontend.outputs.cloudfront_url }}"
+        fi
         
         echo "Updating backend CORS configuration with CloudFront URL..."
         echo "CloudFront URL: $CLOUDFRONT_URL"
