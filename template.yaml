@@ -504,6 +504,21 @@ Resources:
         - Key: Purpose
           Value: FrontendWebsite
 
+  # S3 Bucket Policy to allow CloudFront access via OAC
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucketResource
+      PolicyText:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${WebsiteBucketResource.Arn}/*'
+
   # API Gateway HTTP API
   HttpApi:
     Type: AWS::Serverless::HttpApi
