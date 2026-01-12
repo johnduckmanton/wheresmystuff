@@ -233,10 +233,59 @@ jobs:
         echo "- Target environment: $TARGET_ENV"
         echo "- Deployment type: $DEPLOYMENT_TYPE"
 
+  detect-changes:
+    name: Detect Infrastructure Changes
+    runs-on: ubuntu-latest
+    needs: [determine-deployment]
+    if: needs.determine-deployment.outputs.should_deploy == 'true' && needs.determine-deployment.outputs.target_environment == 'dev'
+    
+    outputs:
+      backend_changed: ${{ steps.check_changes.outputs.backend_changed }}
+      frontend_changed: ${{ steps.check_changes.outputs.frontend_changed }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Detect file changes
+      id: check_changes
+      run: |
+        # Get the list of changed files
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          # For push events, compare with the previous commit
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git diff --name-only HEAD)
+        else
+          # For workflow_dispatch, assume all files might have changed
+          CHANGED_FILES=$(git ls-files)
+        fi
+        
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+        
+        # Check if backend infrastructure files changed
+        BACKEND_CHANGED="false"
+        if echo "$CHANGED_FILES" | grep -qE '(template\.yaml|samconfig|backend/handlers|backend/middleware|backend/models|backend/services|backend/utils|backend/package\.json)'; then
+          BACKEND_CHANGED="true"
+        fi
+        
+        # Check if frontend files changed
+        FRONTEND_CHANGED="false"
+        if echo "$CHANGED_FILES" | grep -qE '(frontend/|cloudfront-template\.yaml)'; then
+          FRONTEND_CHANGED="true"
+        fi
+        
+        echo "backend_changed=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+        echo "frontend_changed=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+        
+        echo "Backend infrastructure changed: $BACKEND_CHANGED"
+        echo "Frontend files changed: $FRONTEND_CHANGED"
+
   deploy-development:
     name: Deploy to Development
     runs-on: ubuntu-latest
-    needs: [determine-deployment]
+    needs: [determine-deployment, detect-changes]
     if: needs.determine-deployment.outputs.should_deploy == 'true' && needs.determine-deployment.outputs.target_environment == 'dev'
     environment: development
     
@@ -267,10 +316,12 @@ jobs:
         use-installer: true
     
     - name: Install backend dependencies
+      if: needs.detect-changes.outputs.backend_changed == 'true'
       working-directory: backend
       run: npm install --production
     
     - name: Build and deploy backend
+      if: needs.detect-changes.outputs.backend_changed == 'true'
       id: deploy_backend
       run: |
         # Debug: Show current directory and template file status
@@ -370,13 +421,59 @@ jobs:
         echo "✅ Backend deployed to development"
         echo "API URL: $API_URL"
     
+    - name: Retrieve backend outputs (no backend changes)
+      if: needs.detect-changes.outputs.backend_changed == 'false'
+      id: get_backend_outputs
+      run: |
+        echo "⏭️  Backend infrastructure unchanged, retrieving existing stack outputs..."
+        
+        # Get stack outputs from existing deployment
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+          --output text)
+        
+        FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' \
+          --output text)
+        
+        echo "API_URL: $API_URL"
+        echo "FRONTEND_BUCKET: $FRONTEND_BUCKET"
+        
+        if [ -z "$FRONTEND_BUCKET" ] || [ "$FRONTEND_BUCKET" = "None" ]; then
+          echo "❌ Frontend bucket name is empty! Stack outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-dev \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output json
+          exit 1
+        fi
+        
+        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+        echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+        
+        echo "✅ Retrieved backend outputs from existing stack"
+    
+    - name: Set backend outputs
+      id: deploy_backend
+      if: needs.detect-changes.outputs.backend_changed == 'false'
+      run: |
+        echo "api_url=${{ steps.get_backend_outputs.outputs.api_url }}" >> $GITHUB_OUTPUT
+        echo "frontend_bucket=${{ steps.get_backend_outputs.outputs.frontend_bucket }}" >> $GITHUB_OUTPUT
+    
     - name: Run database migrations
+      if: needs.detect-changes.outputs.backend_changed == 'true'
       working-directory: backend
       run: |
         node scripts/add-moving-storage-indexes.js --environment=dev || true
         node scripts/migrate-moving-storage-schema.js --environment=dev || true
     
     - name: Build and deploy frontend
+      if: needs.detect-changes.outputs.frontend_changed == 'true'
       id: deploy_frontend
       run: |
         # Get additional stack outputs for frontend configuration
@@ -477,7 +574,29 @@ jobs:
         echo "✅ Frontend deployed to development"
         echo "CloudFront URL: $CLOUDFRONT_URL"
     
+    - name: Skip frontend deployment (no changes)
+      if: needs.detect-changes.outputs.frontend_changed == 'false'
+      id: deploy_frontend
+      run: |
+        echo "⏭️  Frontend files unchanged, skipping frontend deployment"
+        
+        # Get existing CloudFront URL from stack
+        CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-cloudfront-dev \
+          --region ${{ env.CLOUDFRONT_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
+          --output text 2>/dev/null || echo "")
+        
+        if [ -z "$CLOUDFRONT_URL" ] || [ "$CLOUDFRONT_URL" = "None" ]; then
+          echo "⚠️  CloudFront URL not found, frontend may not be deployed yet"
+          CLOUDFRONT_URL="https://not-yet-deployed"
+        fi
+        
+        echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
+        echo "✅ Frontend deployment skipped (no changes)"
+    
     - name: Update backend CORS with CloudFront URL
+      if: needs.detect-changes.outputs.backend_changed == 'true' && needs.detect-changes.outputs.frontend_changed == 'true'
       run: |
         CLOUDFRONT_URL="${{ steps.deploy_frontend.outputs.cloudfront_url }}"
         
