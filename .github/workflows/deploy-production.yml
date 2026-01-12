@@ -331,6 +331,15 @@ jobs:
             echo "✅ S3 bucket already exists: $S3_BUCKET"
           fi
 
+          # Get CloudFront OAC ID from the CloudFront stack
+          CLOUDFRONT_OAC_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`OriginAccessControlId`].OutputValue' \
+            --output text 2>/dev/null || echo "")
+
+          echo "CloudFront OAC ID: $CLOUDFRONT_OAC_ID"
+
           # Deploy main backend stack
           sam deploy \
             --template-file build/template.yaml \
@@ -347,7 +356,8 @@ jobs:
               LogRetentionDays=7 \
               OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
               CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" 2>&1 | tee deploy.log
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" \
+              CloudFrontOACId="$CLOUDFRONT_OAC_ID" 2>&1 | tee deploy.log
 
           DEPLOY_EXIT_CODE=${PIPESTATUS[0]}
 
@@ -719,7 +729,7 @@ jobs:
     name: Update Backend CORS Configuration
     runs-on: ubuntu-latest
     needs: [validate-deployment, detect-changes, deploy-backend, deploy-frontend]
-    if: needs.deploy-frontend.result == 'success' && needs.detect-changes.outputs.backend_changed == 'true'
+    if: needs.deploy-frontend.result == 'success'
     environment: production
 
     steps:
@@ -760,6 +770,15 @@ jobs:
           echo "Updating backend CORS configuration with CloudFront URL..."
           echo "CloudFront URL: $CLOUDFRONT_URL"
 
+          # Get CloudFront OAC ID from the CloudFront stack
+          CLOUDFRONT_OAC_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region us-east-1 \
+            --query 'Stacks[0].Outputs[?OutputKey==`OriginAccessControlId`].OutputValue' \
+            --output text 2>/dev/null || echo "")
+
+          echo "CloudFront OAC ID: $CLOUDFRONT_OAC_ID"
+
           # Use SAM deploy with the built template
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
@@ -776,7 +795,8 @@ jobs:
               OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
               CloudFrontOrigin="$CLOUDFRONT_URL" \
               CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" \
+              CloudFrontOACId="$CLOUDFRONT_OAC_ID"
 
           echo "✅ Backend CORS configuration updated with CloudFront URL"
 
