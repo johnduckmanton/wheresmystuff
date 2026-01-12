@@ -74,10 +74,58 @@ jobs:
             git diff --name-only HEAD~5..HEAD | grep -E "(template\.yaml|samconfig.*\.toml)"
           fi
 
+  detect-changes:
+    name: Detect Infrastructure Changes
+    runs-on: ubuntu-latest
+    needs: validate-deployment
+
+    outputs:
+      backend_changed: ${{ steps.check_changes.outputs.backend_changed }}
+      frontend_changed: ${{ steps.check_changes.outputs.frontend_changed }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.validate-deployment.outputs.commit_sha }}
+        fetch-depth: 0
+
+    - name: Detect file changes
+      id: check_changes
+      run: |
+        # Get the list of changed files
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          # For workflow_dispatch, compare with main branch
+          CHANGED_FILES=$(git diff --name-only origin/main HEAD || git diff --name-only HEAD~5..HEAD || git ls-files)
+        else
+          CHANGED_FILES=$(git ls-files)
+        fi
+
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+
+        # Check if backend infrastructure files changed
+        BACKEND_CHANGED="false"
+        if echo "$CHANGED_FILES" | grep -qE '(template\.yaml|samconfig|backend/handlers|backend/middleware|backend/models|backend/services|backend/utils|backend/package\.json)'; then
+          BACKEND_CHANGED="true"
+        fi
+
+        # Check if frontend files changed
+        FRONTEND_CHANGED="false"
+        if echo "$CHANGED_FILES" | grep -qE '(frontend/|cloudfront-template\.yaml)'; then
+          FRONTEND_CHANGED="true"
+        fi
+
+        echo "backend_changed=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
+        echo "frontend_changed=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+
+        echo "Backend infrastructure changed: $BACKEND_CHANGED"
+        echo "Frontend files changed: $FRONTEND_CHANGED"
+
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    needs: validate-deployment
+    needs: [validate-deployment, detect-changes]
     if: ${{ github.event.inputs.skip_tests != 'true' }}
 
     strategy:
@@ -142,7 +190,7 @@ jobs:
   build-and-package:
     name: Build and Package
     runs-on: ubuntu-latest
-    needs: [validate-deployment, security-audit, test-backend]
+    needs: [validate-deployment, detect-changes, security-audit, test-backend]
     if: always() && needs.validate-deployment.result == 'success' && ((needs.security-audit.result == 'success' || needs.security-audit.result == 'skipped') && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped'))
 
     outputs:
@@ -229,15 +277,15 @@ jobs:
   deploy-backend:
     name: Deploy Backend to Production
     runs-on: ubuntu-latest
-    needs: [validate-deployment, build-and-package]
+    needs: [validate-deployment, detect-changes, build-and-package]
     if: needs.build-and-package.result == 'success'
     environment: production
 
     outputs:
-      api_url: ${{ steps.backend_outputs.outputs.api_url }}
-      frontend_bucket: ${{ steps.backend_outputs.outputs.frontend_bucket }}
-      user_pool_id: ${{ steps.backend_outputs.outputs.user_pool_id }}
-      user_pool_client_id: ${{ steps.backend_outputs.outputs.user_pool_client_id }}
+      api_url: ${{ steps.backend_deploy.outputs.api_url || steps.retrieve_backend_outputs.outputs.api_url }}
+      frontend_bucket: ${{ steps.backend_deploy.outputs.frontend_bucket || steps.retrieve_backend_outputs.outputs.frontend_bucket }}
+      user_pool_id: ${{ steps.backend_deploy.outputs.user_pool_id || steps.retrieve_backend_outputs.outputs.user_pool_id }}
+      user_pool_client_id: ${{ steps.backend_deploy.outputs.user_pool_client_id || steps.retrieve_backend_outputs.outputs.user_pool_client_id }}
 
     steps:
       - name: Download deployment artifacts
@@ -270,6 +318,8 @@ jobs:
           sam validate --template build/template.yaml --region ${{ env.AWS_REGION }} || true
 
       - name: Deploy backend infrastructure
+        if: needs.detect-changes.outputs.backend_changed == 'true'
+        id: deploy_backend
         working-directory: ./deployment
         run: |
           # Create S3 bucket for SAM deployment if it doesn't exist
@@ -323,27 +373,6 @@ jobs:
             exit 1
           fi
 
-      - name: Run database migrations
-        working-directory: ./deployment
-        run: |
-          # Check if migration scripts exist and run them
-          if [ -f "build/ContainerFunction/scripts/add-moving-storage-indexes.js" ]; then
-            echo "Running add-moving-storage-indexes migration..."
-            node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
-          else
-            echo "Migration script add-moving-storage-indexes.js not found, skipping..."
-          fi
-
-          if [ -f "build/ContainerFunction/scripts/migrate-moving-storage-schema.js" ]; then
-            echo "Running migrate-moving-storage-schema migration..."
-            node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
-          else
-            echo "Migration script migrate-moving-storage-schema.js not found, skipping..."
-          fi
-
-      - name: Get backend outputs
-        id: backend_outputs
-        run: |
           # Get stack outputs
           echo "Getting stack outputs..."
           aws cloudformation describe-stacks \
@@ -396,15 +425,87 @@ jobs:
           echo "API URL: $API_URL"
           echo "Frontend Bucket: $FRONTEND_BUCKET"
 
+      - name: Run database migrations
+        if: needs.detect-changes.outputs.backend_changed == 'true'
+        working-directory: ./deployment
+        run: |
+          # Check if migration scripts exist and run them
+          if [ -f "build/ContainerFunction/scripts/add-moving-storage-indexes.js" ]; then
+            echo "Running add-moving-storage-indexes migration..."
+            node build/ContainerFunction/scripts/add-moving-storage-indexes.js --environment=prod || true
+          else
+            echo "Migration script add-moving-storage-indexes.js not found, skipping..."
+          fi
+
+          if [ -f "build/ContainerFunction/scripts/migrate-moving-storage-schema.js" ]; then
+            echo "Running migrate-moving-storage-schema migration..."
+            node build/ContainerFunction/scripts/migrate-moving-storage-schema.js --environment=prod || true
+          else
+            echo "Migration script migrate-moving-storage-schema.js not found, skipping..."
+          fi
+
+      - name: Retrieve backend outputs (no backend changes)
+        if: needs.detect-changes.outputs.backend_changed == 'false'
+        id: retrieve_backend_outputs
+        run: |
+          echo "⏭️  Backend infrastructure unchanged, retrieving existing stack outputs..."
+
+          # Get stack outputs from existing deployment
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+            --output text)
+
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' \
+            --output text)
+
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+            --output text)
+
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+            --output text)
+
+          echo "API_URL: $API_URL"
+          echo "FRONTEND_BUCKET: $FRONTEND_BUCKET"
+          echo "USER_POOL_ID: $USER_POOL_ID"
+          echo "USER_POOL_CLIENT_ID: $USER_POOL_CLIENT_ID"
+
+          if [ -z "$FRONTEND_BUCKET" ] || [ "$FRONTEND_BUCKET" = "None" ]; then
+            echo "❌ Frontend bucket name is empty! Stack outputs:"
+            aws cloudformation describe-stacks \
+              --stack-name home-inventory-system-prod \
+              --region ${{ env.AWS_REGION }} \
+              --query 'Stacks[0].Outputs' \
+              --output json
+            exit 1
+          fi
+
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
+          echo "user_pool_id=$USER_POOL_ID" >> $GITHUB_OUTPUT
+          echo "user_pool_client_id=$USER_POOL_CLIENT_ID" >> $GITHUB_OUTPUT
+
+          echo "✅ Retrieved backend outputs from existing stack"
+
   deploy-frontend:
     name: Deploy Frontend to Production
     runs-on: ubuntu-latest
-    needs: [validate-deployment, build-and-package, deploy-backend]
+    needs: [validate-deployment, detect-changes, build-and-package, deploy-backend]
     if: needs.deploy-backend.result == 'success'
     environment: production
 
     outputs:
-      cloudfront_url: ${{ steps.deploy_cloudfront.outputs.cloudfront_url }}
+      cloudfront_url: ${{ steps.deploy_cloudfront.outputs.cloudfront_url || steps.skip_frontend_deployment.outputs.cloudfront_url }}
 
     steps:
       - name: Checkout code
@@ -431,6 +532,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Build frontend with production configuration
+        if: needs.detect-changes.outputs.frontend_changed == 'true'
         run: |
           # Get additional stack outputs for frontend configuration
           S3_BUCKET=$(aws cloudformation describe-stacks \
@@ -501,6 +603,7 @@ jobs:
           cp -r ./dist/* $GITHUB_WORKSPACE/deployment/frontend-build/
 
       - name: Deploy frontend to S3
+        if: needs.detect-changes.outputs.frontend_changed == 'true'
         run: |
           # Sync frontend build to S3
           aws s3 sync ./deployment/frontend-build/ \
@@ -518,6 +621,7 @@ jobs:
             --include "*.json"
 
       - name: Deploy CloudFront distribution
+        if: needs.detect-changes.outputs.frontend_changed == 'true'
         id: deploy_cloudfront
         run: |
           # Deploy CloudFront stack
@@ -547,7 +651,29 @@ jobs:
           echo "✅ CloudFront distribution deployed"
           echo "CloudFront URL: $CLOUDFRONT_URL"
 
+      - name: Skip frontend deployment (no changes)
+        if: needs.detect-changes.outputs.frontend_changed == 'false'
+        id: skip_frontend_deployment
+        run: |
+          echo "⏭️  Frontend files unchanged, skipping frontend deployment"
+
+          # Get existing CloudFront URL from stack
+          CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
+            --stack-name home-inventory-cloudfront-prod \
+            --region ${{ env.CLOUDFRONT_REGION }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$CLOUDFRONT_URL" ] || [ "$CLOUDFRONT_URL" = "None" ]; then
+            echo "⚠️  CloudFront URL not found, frontend may not be deployed yet"
+            CLOUDFRONT_URL="https://not-yet-deployed"
+          fi
+
+          echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
+          echo "✅ Frontend deployment skipped (no changes)"
+
       - name: Invalidate CloudFront cache
+        if: needs.detect-changes.outputs.frontend_changed == 'true'
         run: |
           # Get CloudFront distribution ID
           echo "Getting CloudFront distribution ID from stack: home-inventory-cloudfront-prod"
