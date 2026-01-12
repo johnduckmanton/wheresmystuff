@@ -475,6 +475,35 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # S3 Bucket for Frontend Website
+  WebsiteBucketResource:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      BucketName: !Sub home-inv-web-${AWS::AccountId}-${Environment}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: !If [IsProduction, Enabled, Suspended]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 30, 7]
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: FrontendWebsite
+
   # API Gateway HTTP API
   HttpApi:
     Type: AWS::Serverless::HttpApi
@@ -2384,7 +2413,7 @@ Outputs:
 
   WebsiteBucket:
     Description: S3 Bucket Name for Frontend Website
-    Value: !Sub home-inv-web-${AWS::AccountId}-${Environment}
+    Value: !Ref WebsiteBucketResource
     Export:
       Name: !Sub ${AWS::StackName}-WebsiteBucket
 

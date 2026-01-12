@@ -48,12 +48,16 @@ if [ $? -eq 0 ]; then
     echo "🎉 DEPLOYMENT SUCCESSFUL!"
     echo "======================="
     
-    # Get the outputs
+    # Get the outputs from main stack
     echo "Getting deployment outputs..."
     API_URL=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' --output text)
     USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' --output text)
     USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' --output text)
-    CLOUDFRONT_URL=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text)
+    WEBSITE_BUCKET=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucket`].OutputValue' --output text)
+    
+    # Try to get CloudFront URL from CloudFront stack (if it exists)
+    CLOUDFRONT_STACK_NAME="home-inventory-cloudfront-${ENVIRONMENT}"
+    CLOUDFRONT_URL=$(aws cloudformation describe-stacks --stack-name $CLOUDFRONT_STACK_NAME --region us-east-1 --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' --output text 2>/dev/null || echo "")
     
     echo ""
     echo "📋 DEPLOYMENT DETAILS:"
@@ -61,13 +65,20 @@ if [ $? -eq 0 ]; then
     echo "API URL: $API_URL"
     echo "User Pool ID: $USER_POOL_ID"
     echo "User Pool Client ID: $USER_POOL_CLIENT_ID"
-    echo "CloudFront URL: $CLOUDFRONT_URL"
+    echo "Website Bucket: $WEBSITE_BUCKET"
+    if [ -n "$CLOUDFRONT_URL" ] && [ "$CLOUDFRONT_URL" != "None" ]; then
+      echo "CloudFront URL: $CLOUDFRONT_URL"
+    else
+      echo "CloudFront URL: Not yet deployed (deploy cloudfront-template.yaml separately)"
+    fi
     echo ""
     echo "🔧 NEXT STEPS:"
-    echo "1. Update your frontend configuration with the above values"
-    echo "2. Create your first user in Cognito"
-    echo "3. Deploy your frontend to the S3 bucket"
-    echo "4. Test all functionality"
+    echo "1. Deploy CloudFront distribution (if not already deployed):"
+    echo "   aws cloudformation deploy --template-file cloudfront-template.yaml --stack-name $CLOUDFRONT_STACK_NAME --region us-east-1 --parameter-overrides Environment=$ENVIRONMENT WebsiteBucketDomainName=${WEBSITE_BUCKET}.s3.amazonaws.com ApiGatewayDomainName=\$(echo $API_URL | sed 's|https://||' | sed 's|/.*||')"
+    echo "2. Update your frontend configuration with the above values"
+    echo "3. Create your first user in Cognito"
+    echo "4. Deploy your frontend to the S3 bucket"
+    echo "5. Test all functionality"
     
 else
     echo ""
