@@ -13,7 +13,7 @@ import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
-import type { Thing, Location, Room, Category, Person } from '../types';
+import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
 
 // Component to handle photo thumbnail display with URL generation and hover popup
 function PhotoThumbnail({ photoKey, altText }: { photoKey?: string; altText: string }) {
@@ -198,6 +198,7 @@ export default function Things() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [projects, setProjects] = useState<MovingProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   
@@ -242,12 +243,13 @@ export default function Things() {
     try {
       setLoading(true);
       setGlobalLoading(true);
-      const [thingsData, locationsData, roomsData, categoriesData, peopleData] = await Promise.all([
+      const [thingsData, locationsData, roomsData, categoriesData, peopleData, projectsData] = await Promise.all([
         apiClient.getThings(currentInventory.id),
         apiClient.getLocations(currentInventory.id),
         apiClient.getRooms(undefined, currentInventory.id),
         apiClient.getCategories(currentInventory.id),
         apiClient.getPeople(currentInventory.id),
+        apiClient.getProjects(currentInventory.id),
       ]);
       
       // Ensure all data are arrays, fallback to empty arrays if not
@@ -258,6 +260,7 @@ export default function Things() {
       setRooms(Array.isArray(roomsData) ? roomsData : []);
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       setPeople(Array.isArray(peopleData) ? peopleData : []);
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
@@ -629,6 +632,7 @@ export default function Things() {
         rooms={rooms}
         categories={categories}
         people={people}
+        projects={projects}
         onSubmit={handleFormSubmit}
         onClose={handleFormClose}
       />

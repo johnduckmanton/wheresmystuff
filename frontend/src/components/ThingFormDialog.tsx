@@ -31,7 +31,7 @@ import {
   Photo as PhotoIcon,
   Image as ImageIcon,
 } from '@mui/icons-material';
-import type { Thing, Location, Room, Category, Person } from '../types';
+import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
@@ -47,6 +47,7 @@ export interface ThingFormDialogProps {
   rooms: Room[];
   categories: Category[];
   people: Person[];
+  projects?: MovingProject[]; // Optional projects for assignment
   onSubmit: (data: Partial<Thing>) => void;
   onClose: () => void;
 }
@@ -62,6 +63,7 @@ export default function ThingFormDialog({
   rooms,
   categories,
   people,
+  projects = [],
   onSubmit,
   onClose,
 }: ThingFormDialogProps) {
@@ -550,6 +552,28 @@ export default function ThingFormDialog({
               </MenuItem>
             ))}
           </Select>
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+          <InputLabel>Moving Project</InputLabel>
+          <Select
+            value={formData.projectId || ''}
+            label="Moving Project"
+            onChange={(e) => handleFieldChange('projectId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {projects.map((project) => (
+              <MenuItem key={project.id} value={project.id}>
+                {project.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            Optional: Assign this item to a moving project
+          </FormHelperText>
         </FormControl>
       </Grid>
     </Grid>

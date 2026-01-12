@@ -135,6 +135,11 @@ const thingSchema = {
       type: 'string',
       pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     },
+    // Moving Project reference field
+    projectId: {
+      type: 'string',
+      pattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    },
     dateAdded: {
       type: 'string'
     },

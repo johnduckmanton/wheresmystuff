@@ -907,6 +907,200 @@ class ApiClient {
     return this.delete<void>(`/projects/${id}`);
   }
 
+  async assignContainersToProject(projectId: string, data: { containerIds: string[]; inventoryId: string }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/containers`, data);
+  }
+
+  async removeContainersFromProject(projectId: string, data: { containerIds: string[]; inventoryId: string }): Promise<any> {
+    return this.client.delete(`/projects/${projectId}/containers`, { data });
+  }
+
+  async assignItemsToProject(projectId: string, data: { itemIds: string[]; inventoryId: string }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/items`, data);
+  }
+
+  async removeItemsFromProject(projectId: string, data: { itemIds: string[]; inventoryId: string }): Promise<any> {
+    return this.client.delete(`/projects/${projectId}/items`, { data });
+  }
+
+  // Project Tasks API
+  async getProjectTasks(projectId: string, inventoryId?: string): Promise<any[]> {
+    const params = inventoryId ? `?inventoryId=${inventoryId}` : '';
+    return this.get<any[]>(`/projects/${projectId}/tasks${params}`);
+  }
+
+  async createTask(projectId: string, data: {
+    title: string;
+    description?: string;
+    dueDate?: string;
+    priority?: 'low' | 'medium' | 'high';
+    assignedTo?: string;
+    status?: 'pending' | 'in_progress' | 'completed';
+    inventoryId: string;
+  }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/tasks`, data);
+  }
+
+  async updateTask(taskId: string, data: Partial<{
+    title: string;
+    description: string;
+    dueDate: string;
+    priority: 'low' | 'medium' | 'high';
+    assignedTo: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    inventoryId: string;
+  }>): Promise<any> {
+    return this.put<any>(`/tasks/${taskId}`, data);
+  }
+
+  async deleteTask(taskId: string): Promise<void> {
+    return this.delete<void>(`/tasks/${taskId}`);
+  }
+
+  async getOverdueTasks(inventoryId: string): Promise<any[]> {
+    return this.get<any[]>(`/tasks/overdue?inventoryId=${inventoryId}`);
+  }
+
+  // Project Milestones API
+  async getProjectMilestones(projectId: string, inventoryId?: string): Promise<any[]> {
+    const params = inventoryId ? `?inventoryId=${inventoryId}` : '';
+    return this.get<any[]>(`/projects/${projectId}/milestones${params}`);
+  }
+
+  async createMilestone(projectId: string, data: {
+    title: string;
+    description?: string;
+    dueDate: string;
+    status?: 'pending' | 'in_progress' | 'completed';
+    inventoryId: string;
+  }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/milestones`, data);
+  }
+
+  async updateMilestone(milestoneId: string, data: Partial<{
+    title: string;
+    description: string;
+    dueDate: string;
+    status: 'pending' | 'in_progress' | 'completed';
+    inventoryId: string;
+  }>): Promise<any> {
+    return this.put<any>(`/milestones/${milestoneId}`, data);
+  }
+
+  async completeMilestone(milestoneId: string, inventoryId: string): Promise<any> {
+    return this.put<any>(`/milestones/${milestoneId}/complete`, { inventoryId });
+  }
+
+  async deleteMilestone(milestoneId: string): Promise<void> {
+    return this.delete<void>(`/milestones/${milestoneId}`);
+  }
+
+  async getOverdueMilestones(inventoryId: string): Promise<any[]> {
+    return this.get<any[]>(`/milestones/overdue?inventoryId=${inventoryId}`);
+  }
+
+  async getUpcomingMilestones(inventoryId: string): Promise<any[]> {
+    return this.get<any[]>(`/milestones/upcoming?inventoryId=${inventoryId}`);
+  }
+
+  // Project Budget API
+  async getProjectBudget(projectId: string, inventoryId?: string): Promise<any[]> {
+    const params = inventoryId ? `?inventoryId=${inventoryId}` : '';
+    return this.get<any[]>(`/projects/${projectId}/budget${params}`);
+  }
+
+  async createBudgetItem(projectId: string, data: {
+    category: string;
+    description: string;
+    estimatedCost: number;
+    actualCost?: number;
+    status?: 'pending' | 'approved' | 'paid';
+    inventoryId: string;
+  }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/budget`, data);
+  }
+
+  async updateBudgetItem(budgetItemId: string, data: Partial<{
+    category: string;
+    description: string;
+    estimatedCost: number;
+    actualCost: number;
+    status: 'pending' | 'approved' | 'paid';
+    inventoryId: string;
+  }>): Promise<any> {
+    return this.put<any>(`/budget/${budgetItemId}`, data);
+  }
+
+  async deleteBudgetItem(budgetItemId: string): Promise<void> {
+    return this.delete<void>(`/budget/${budgetItemId}`);
+  }
+
+  async getBudgetStats(projectId: string, inventoryId: string): Promise<any> {
+    return this.get<any>(`/budget/stats?projectId=${projectId}&inventoryId=${inventoryId}`);
+  }
+
+  // Project Things API
+  async getProjectThings(projectId: string, inventoryId?: string): Promise<any[]> {
+    const params = inventoryId ? `?inventoryId=${inventoryId}` : '';
+    return this.get<any[]>(`/projects/${projectId}/things${params}`);
+  }
+
+  async assignThingsToProject(projectId: string, data: {
+    thingIds: string[];
+    inventoryId: string;
+  }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/things`, data);
+  }
+
+  async removeThingsFromProject(projectId: string, data: {
+    thingIds: string[];
+    inventoryId: string;
+  }): Promise<any> {
+    return this.post<any>(`/projects/${projectId}/things/remove`, data);
+  }
+
+  async getAvailableThingsForProject(inventoryId: string): Promise<any[]> {
+    return this.get<any[]>(`/things/available?inventoryId=${inventoryId}`);
+  }
+
+  // Project Progress API
+  async getProjectProgress(projectId: string, inventoryId: string): Promise<{
+    project: MovingProject;
+    statistics: {
+      totalContainers: number;
+      packedContainers: number;
+      emptyContainers: number;
+      totalThings: number;
+      totalValue: number;
+      completionPercentage: number;
+      containersByStatus: Record<string, number>;
+    };
+    containers: Array<{
+      id: string;
+      name: string;
+      type: string;
+      status: string;
+      itemCount: number;
+      estimatedValue: number;
+      locationId?: string;
+    }>;
+    tasks: Array<{
+      id: string;
+      title: string;
+      status: string;
+      dueDate?: string;
+      priority?: string;
+    }>;
+    milestones: Array<{
+      id: string;
+      title: string;
+      status: string;
+      dueDate: string;
+    }>;
+  }> {
+    return this.get<any>(`/projects/${projectId}/progress?inventoryId=${inventoryId}`);
+  }
+
   // Packing API - Container Contents Management
   async getContainerContents(containerId: string, inventoryId: string): Promise<{
     container: Container;

@@ -33,7 +33,8 @@ import type {
   ContainerType, 
   HandlingFlag, 
   ContainerStatus,
-  Location 
+  Location,
+  MovingProject
 } from '../types/entities';
 import { ContainerType as ContainerTypeEnum, HandlingFlag as HandlingFlagEnum, ContainerStatus as ContainerStatusEnum } from '../types/entities';
 
@@ -91,6 +92,7 @@ interface FormData {
   contentsSummary: string;
   photos: string[];
   locationId: string;
+  projectId: string;
   handlingFlags: HandlingFlag[];
   status: ContainerStatus;
   storageRate: string;
@@ -106,6 +108,7 @@ interface FormErrors {
   contentsSummary?: string;
   photos?: string;
   locationId?: string;
+  projectId?: string;
   handlingFlags?: string;
   status?: string;
   storageRate?: string;
@@ -121,6 +124,7 @@ export default function ContainerFormDialog({
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [projects, setProjects] = useState<MovingProject[]>([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -132,6 +136,7 @@ export default function ContainerFormDialog({
     contentsSummary: '',
     photos: [],
     locationId: '',
+    projectId: '',
     handlingFlags: [],
     status: ContainerStatusEnum.Empty,
     storageRate: '',
@@ -142,10 +147,11 @@ export default function ContainerFormDialog({
 
   const isEditing = !!container;
 
-  // Load locations when dialog opens
+  // Load locations and projects when dialog opens
   useEffect(() => {
     if (open && currentInventory) {
       loadLocations();
+      loadProjects();
     }
   }, [open, currentInventory]);
 
@@ -163,6 +169,7 @@ export default function ContainerFormDialog({
           contentsSummary: container.contentsSummary || '',
           photos: container.photos || [],
           locationId: container.locationId || '',
+          projectId: container.projectId || '',
           handlingFlags: container.handlingFlags || [],
           status: container.status || ContainerStatusEnum.Empty,
           storageRate: container.storageRate?.toString() || '',
@@ -178,6 +185,7 @@ export default function ContainerFormDialog({
           contentsSummary: '',
           photos: [],
           locationId: '',
+          projectId: '',
           handlingFlags: [],
           status: ContainerStatusEnum.Empty,
           storageRate: '',
@@ -196,6 +204,20 @@ export default function ContainerFormDialog({
     } catch (error) {
       console.error('Error loading locations:', error);
       showError('Failed to load locations');
+    }
+  };
+
+  const loadProjects = async () => {
+    if (!currentInventory) return;
+    
+    try {
+      const projectData = await apiClient.getProjects(currentInventory.id);
+      // Ensure we have an array, fallback to empty array if not
+      const safeData = Array.isArray(projectData) ? projectData : [];
+      setProjects(safeData);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      showError('Failed to load projects');
     }
   };
 
@@ -279,6 +301,7 @@ export default function ContainerFormDialog({
         contentsSummary: formData.contentsSummary.trim() || undefined,
         photos: formData.photos,
         locationId: formData.locationId || undefined,
+        projectId: formData.projectId || undefined,
         handlingFlags: formData.handlingFlags,
         status: formData.status,
         storageRate: formData.storageRate ? Number(formData.storageRate) : undefined,
@@ -322,6 +345,7 @@ export default function ContainerFormDialog({
       contentsSummary: '',
       photos: [],
       locationId: '',
+      projectId: '',
       handlingFlags: [],
       status: ContainerStatusEnum.Empty,
       storageRate: '',
@@ -652,6 +676,28 @@ export default function ContainerFormDialog({
               ))}
             </Select>
             {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
+          </FormControl>
+
+          {/* Project Assignment */}
+          <FormControl fullWidth error={!!errors.projectId}>
+            <InputLabel>Moving Project</InputLabel>
+            <Select
+              value={formData.projectId}
+              label="Moving Project"
+              onChange={(e) => handleFieldChange('projectId', e.target.value)}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {projects.map((project) => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.name}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>
+              {errors.projectId || 'Optional: Assign this container to a moving project'}
+            </FormHelperText>
           </FormControl>
 
           {/* Status */}

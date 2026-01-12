@@ -33,6 +33,8 @@ import ContainerDetailDialog from '../components/ContainerDetailDialog';
 import ContainerFormDialog from '../components/ContainerFormDialog';
 import ThingFormDialog from '../components/ThingFormDialog';
 import MobileNavigation from '../components/MobileNavigation';
+import ProjectFormDialog from '../components/ProjectFormDialog';
+import ProjectDetailDialog from '../components/ProjectDetailDialog';
 
 interface DashboardStats {
   totalContainers: number;
@@ -392,6 +394,11 @@ export default function MovingDashboard() {
   const [selectedThing, setSelectedThing] = useState<ThingWithContainer | null>(null);
   const [thingDetailOpen, setThingDetailOpen] = useState(false);
   
+  // New state for project form dialog
+  const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<MovingProject | null>(null);
+  const [projectDetailOpen, setProjectDetailOpen] = useState(false);
+  
   // Data for form dialogs
   const [locations, setLocations] = useState<Location[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -479,8 +486,8 @@ export default function MovingDashboard() {
   };
 
   const handleCreateProject = () => {
-    // TODO: Open project creation dialog
-    showSuccess('Project creation will be implemented in a future task');
+    setSelectedProject(null); // Clear any selected project for new creation
+    setProjectFormOpen(true);
   };
 
   const handleScanQR = () => {
@@ -539,8 +546,9 @@ export default function MovingDashboard() {
   };
 
   const handleProjectClick = (project: MovingProject) => {
-    // TODO: Navigate to project details
-    showSuccess(`Project details for "${project.name}" will be implemented in a future task`);
+    // Open project detail view
+    setSelectedProject(project);
+    setProjectDetailOpen(true);
   };
 
   const handleRefresh = () => {
@@ -565,6 +573,74 @@ export default function MovingDashboard() {
   const handleContainerFormClose = () => {
     setContainerFormOpen(false);
     setSelectedContainer(null);
+  };
+
+  const handleProjectFormSuccess = (project: MovingProject) => {
+    if (selectedProject) {
+      // Update existing project in the list
+      setProjects(prevProjects => 
+        prevProjects.map(p => p.id === project.id ? project : p)
+      );
+      showSuccess(`Project "${project.name}" updated successfully!`);
+    } else {
+      // Add new project to the list
+      setProjects(prevProjects => [project, ...prevProjects]);
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        activeProjects: prevStats.activeProjects + (project.status === 'active' || project.status === 'planning' ? 1 : 0),
+        completedProjects: prevStats.completedProjects + (project.status === 'completed' ? 1 : 0),
+      }));
+      
+      showSuccess(`Project "${project.name}" created successfully!`);
+    }
+    
+    setProjectFormOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleProjectFormClose = () => {
+    setProjectFormOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleProjectDetailClose = () => {
+    setProjectDetailOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleProjectEdit = (_project: MovingProject) => {
+    // Close detail dialog and open form dialog for editing
+    setProjectDetailOpen(false);
+    setProjectFormOpen(true);
+    // selectedProject is already set
+  };
+
+  const handleProjectDelete = async (projectId: string) => {
+    try {
+      await apiClient.deleteProject(projectId);
+      
+      // Remove project from the list
+      setProjects(prevProjects => prevProjects.filter(p => p.id !== projectId));
+      
+      // Update stats
+      const deletedProject = projects.find(p => p.id === projectId);
+      if (deletedProject) {
+        setStats(prevStats => ({
+          ...prevStats,
+          activeProjects: prevStats.activeProjects - (deletedProject.status === 'active' || deletedProject.status === 'planning' ? 1 : 0),
+          completedProjects: prevStats.completedProjects - (deletedProject.status === 'completed' ? 1 : 0),
+        }));
+      }
+      
+      setProjectDetailOpen(false);
+      setSelectedProject(null);
+      showSuccess('Project deleted successfully');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      showError('Failed to delete project');
+    }
   };
 
   if (!currentInventory) {
@@ -846,6 +922,28 @@ export default function MovingDashboard() {
         onSuccess={handleContainerFormSuccess}
       />
 
+      {/* Project Form Dialog */}
+      <ProjectFormDialog
+        open={projectFormOpen}
+        project={selectedProject}
+        inventoryId={currentInventory.id}
+        locations={locations}
+        onClose={handleProjectFormClose}
+        onSave={handleProjectFormSuccess}
+      />
+
+      {/* Project Detail Dialog */}
+      {selectedProject && (
+        <ProjectDetailDialog
+          open={projectDetailOpen}
+          project={selectedProject}
+          inventoryId={currentInventory.id}
+          onClose={handleProjectDetailClose}
+          onEdit={handleProjectEdit}
+          onDelete={handleProjectDelete}
+        />
+      )}
+
       {/* Container Detail Dialog */}
       {selectedContainer && (
         <ContainerDetailDialog
@@ -876,6 +974,7 @@ export default function MovingDashboard() {
           rooms={rooms}
           categories={categories}
           people={people}
+          projects={projects}
           onSubmit={() => {
             // This is view-only mode, so we close without saving
             setThingDetailOpen(false);

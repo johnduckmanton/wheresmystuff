@@ -504,6 +504,53 @@ describe('End-to-End Moving & Storage Workflows', () => {
         )
       ).rejects.toThrow('Invalid status transition');
     });
+
+    test('should assign and remove individual items from project', async () => {
+      const mockProjectId = 'project-789';
+      const mockItemIds = ['item-1', 'item-2', 'item-3'];
+      
+      // Mock project exists
+      const mockProject = {
+        id: mockProjectId,
+        name: 'Test Project',
+        status: 'planning',
+        itemCount: 0
+      };
+
+      // Test assigning items to project
+      mockDocClient.send
+        .mockResolvedValueOnce({ Item: mockProject }) // Get project
+        .mockResolvedValueOnce({ Items: mockItemIds.map(id => ({ id, name: `Item ${id}` })) }) // Get items
+        .mockResolvedValueOnce({}) // Update items with projectId
+        .mockResolvedValueOnce({}); // Update project stats
+
+      const assignResult = await projectService.assignItemsToProject(
+        mockProjectId,
+        mockInventoryId,
+        mockItemIds,
+        mockUserId
+      );
+
+      expect(assignResult.success).toBe(true);
+      expect(assignResult.assignedItems).toBe(3);
+
+      // Test removing items from project
+      mockDocClient.send
+        .mockResolvedValueOnce({ Item: mockProject }) // Get project
+        .mockResolvedValueOnce({ Items: mockItemIds.map(id => ({ id, name: `Item ${id}`, projectId: mockProjectId })) }) // Get items
+        .mockResolvedValueOnce({}) // Update items to remove projectId
+        .mockResolvedValueOnce({}); // Update project stats
+
+      const removeResult = await projectService.removeItemsFromProject(
+        mockProjectId,
+        mockInventoryId,
+        mockItemIds,
+        mockUserId
+      );
+
+      expect(removeResult.success).toBe(true);
+      expect(removeResult.removedItems).toBe(3);
+    });
   });
 
   describe('QR Code Generation and Scanning Flow', () => {

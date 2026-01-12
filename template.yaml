@@ -129,77 +129,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # S3 Bucket for Frontend Website Hosting
-  WebsiteBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: !If [IsProduction, Retain, Delete]
-    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
-    Properties:
-      BucketName: !Sub home-inv-web-${AWS::AccountId}-${Environment}
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      VersioningConfiguration:
-        Status: !If [IsProduction, Enabled, Suspended]
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-            BucketKeyEnabled: true
-      OwnershipControls:
-        Rules:
-          - ObjectOwnership: BucketOwnerPreferred
-      LoggingConfiguration: !If
-        - IsProduction
-        - DestinationBucketName: !Ref S3AccessLogsBucket
-          LogFilePrefix: website-access-logs/
-        - !Ref AWS::NoValue
-      LifecycleConfiguration:
-        Rules:
-          - Id: CostOptimization
-            Status: Enabled
-            Transitions:
-              - TransitionInDays: 30
-                StorageClass: STANDARD_IA
-              - TransitionInDays: 90
-                StorageClass: GLACIER
-          - Id: DeleteOldVersions
-            Status: Enabled
-            NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
-          - Id: DeleteIncompleteMultipartUploads
-            Status: Enabled
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 7
-          - Id: DeleteOldLogs
-            Status: Enabled
-            Prefix: logs/
-            ExpirationInDays: !Ref LogRetentionDays
-          - Id: DeleteOldReports
-            Status: Enabled
-            Prefix: reports/
-            ExpirationInDays: !If [IsProduction, 90, 30]
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: SecurityLevel
-          Value: !If [IsProduction, High, Standard]
 
-  # S3 Bucket Policy to allow CloudFront access
-  WebsiteBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref WebsiteBucket
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AllowCloudFrontServicePrincipal
-            Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
-            Resource: !Sub 'arn:aws:s3:::${WebsiteBucket}/*'
 
   # S3 Access Logs Bucket (Production only)
   S3AccessLogsBucket:
@@ -1555,6 +1485,150 @@ Resources:
             Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
+        AssignThingsToProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/things
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        RemoveThingsFromProject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/things
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProjectThings:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/things
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProjectContainers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/containers
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProjectMilestones:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/milestones
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateProjectMilestone:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/milestones
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateProjectMilestone:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/milestones
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteProjectMilestone:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/milestones
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProjectTasks:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/tasks
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateProjectTask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/tasks
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateProjectTask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/tasks
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteProjectTask:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/tasks
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetProjectBudget:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/budget
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetAvailableThings:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /things/available
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetAvailableContainers:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /containers/available
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CreateBudgetItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/budget
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UpdateBudgetItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/budget
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteBudgetItem:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/budget
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   # Storage Management Lambda
   StorageFunction:
@@ -2172,8 +2246,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [ "AWS/S3", "BucketSizeBytes", "BucketName", "${PhotoBucket}", "StorageType", "StandardStorage" ],
-                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ],
-                  [ ".", ".", ".", "${WebsiteBucket}", ".", "." ]
+                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -2191,8 +2264,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [ "AWS/S3", "NumberOfObjects", "BucketName", "${PhotoBucket}", "StorageType", "AllStorageTypes" ],
-                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ],
-                  [ ".", ".", ".", "${WebsiteBucket}", ".", "." ]
+                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -2297,12 +2369,6 @@ Outputs:
     Value: !Ref AlertTopic
     Export:
       Name: !Sub ${AWS::StackName}-AlertTopicArn
-
-  WebsiteBucket:
-    Description: S3 Bucket Name for Frontend Website
-    Value: !Ref WebsiteBucket
-    Export:
-      Name: !Sub ${AWS::StackName}-WebsiteBucket
 
   TableName:
     Description: DynamoDB Table Name

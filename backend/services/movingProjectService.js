@@ -285,7 +285,7 @@ class MovingProjectService {
     }
 
     // Check if project exists
-    await this.getProject(projectId, inventoryId, userId);
+    const existingProject = await this.getProject(projectId, inventoryId, userId);
 
     // Check if project has containers assigned
     const containersResult = await docClient.send(new QueryCommand({
@@ -336,7 +336,7 @@ class MovingProjectService {
     }
 
     // Validate project exists
-    await this.getProject(projectId, inventoryId, userId);
+    const project = await this.getProject(projectId, inventoryId, userId);
 
     // Validate containers exist and belong to the inventory
     const containerPromises = containerIds.map(async (containerId) => {
@@ -382,8 +382,8 @@ class MovingProjectService {
 
     // Log the assignment
     await logProjectOperation(userId, 'assign_containers', projectId, inventoryId, {
-      containerIds: validContainerIds,
-      containerCount: validContainerIds.length,
+      containerIds: containerIds,
+      containerCount: containerIds.length,
       projectName: project.name
     });
 
@@ -536,7 +536,192 @@ class MovingProjectService {
   }
 
   /**
-   * Update project progress based on current container statistics
+   * Assign items to a project
+   * @param {string} projectId - Project ID
+   * @param {string} inventoryId - Inventory ID
+   * @param {string[]} itemIds - Item IDs to assign
+   * @param {string} userId - User ID making the assignment
+   * @returns {Promise<object>} Assignment result
+   */
+  async assignItemsToProject(projectId, inventoryId, itemIds, userId) {
+    // Validate inventory access
+    const hasAccess = await hasInventoryAccess(userId, inventoryId);
+    if (!hasAccess) {
+      throw new Error('Access denied to inventory');
+    }
+
+    // Validate project exists
+    const project = await this.getProject(projectId, inventoryId, userId);
+
+    // Validate items exist and belong to the inventory
+    const itemPromises = itemIds.map(async (itemId) => {
+      const result = await docClient.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk = :sk',
+        ExpressionAttributeValues: {
+          ':pk': `INVENTORY#${inventoryId}#THINGS`,
+          ':sk': itemId
+        }
+      }));
+
+      if (!result.Items || result.Items.length === 0) {
+        throw new Error(`Item ${itemId} not found`);
+      }
+
+      return result.Items[0];
+    });
+
+    const items = await Promise.all(itemPromises);
+
+    // Update items with project assignment
+    const updatePromises = items.map(async (item) => {
+      return docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          pk: `INVENTORY#${inventoryId}#THINGS`,
+          sk: item.sk
+        },
+        UpdateExpression: 'SET projectId = :projectId, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':projectId': projectId,
+          ':updatedAt': new Date().toISOString()
+        },
+        ConditionExpression: 'attribute_exists(pk)'
+      }));
+    });
+
+    await Promise.all(updatePromises);
+
+    // Update project statistics
+    await this.updateProjectProgress(projectId, inventoryId, userId);
+
+    // Log the assignment
+    await logProjectOperation(userId, 'assign_items', projectId, inventoryId, {
+      itemIds: itemIds,
+      itemCount: itemIds.length,
+      projectName: project.name
+    });
+
+    return {
+      projectId,
+      assignedItems: itemIds.length,
+      items: items.map(item => ({
+        id: item.sk,
+        name: item.name,
+        description: item.description,
+        make: item.make,
+        model: item.model
+      }))
+    };
+  }
+
+  /**
+   * Remove items from a project
+   * @param {string} projectId - Project ID
+   * @param {string} inventoryId - Inventory ID
+   * @param {string[]} itemIds - Item IDs to remove
+   * @param {string} userId - User ID making the change
+   * @returns {Promise<object>} Removal result
+   */
+  async removeItemsFromProject(projectId, inventoryId, itemIds, userId) {
+    // Validate inventory access
+    const hasAccess = await hasInventoryAccess(userId, inventoryId);
+    if (!hasAccess) {
+      throw new Error('Access denied to inventory');
+    }
+
+    // Validate project exists
+    const project = await this.getProject(projectId, inventoryId, userId);
+
+    // Update items to remove project assignment
+    const updatePromises = itemIds.map(async (itemId) => {
+      return docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          pk: `INVENTORY#${inventoryId}#THINGS`,
+          sk: itemId
+        },
+        UpdateExpression: 'REMOVE projectId SET updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':updatedAt': new Date().toISOString()
+        },
+        ConditionExpression: 'attribute_exists(pk) AND projectId = :projectId',
+        ExpressionAttributeValues: {
+          ':updatedAt': new Date().toISOString(),
+          ':projectId': projectId
+        }
+      }));
+    });
+
+    await Promise.all(updatePromises);
+
+    // Update project statistics
+    await this.updateProjectProgress(projectId, inventoryId, userId);
+
+    // Log the removal
+    await logProjectOperation(userId, 'remove_items', projectId, inventoryId, {
+      itemIds: itemIds,
+      itemCount: itemIds.length,
+      projectName: project.name
+    });
+
+    return {
+      projectId,
+      removedItems: itemIds.length
+    };
+  }
+
+  /**
+   * Get items assigned to a project
+   * @param {string} projectId - Project ID
+   * @param {string} inventoryId - Inventory ID
+   * @param {string} userId - User ID requesting the items
+   * @returns {Promise<object[]>} List of assigned items
+   */
+  async getProjectItems(projectId, inventoryId, userId) {
+    // Validate inventory access
+    const hasAccess = await hasInventoryAccess(userId, inventoryId);
+    if (!hasAccess) {
+      throw new Error('Access denied to inventory');
+    }
+
+    // Validate project exists
+    await this.getProject(projectId, inventoryId, userId);
+
+    // Get items assigned to this project
+    const itemsResult = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      KeyConditionExpression: 'pk = :pk',
+      FilterExpression: 'projectId = :projectId',
+      ExpressionAttributeValues: {
+        ':pk': `INVENTORY#${inventoryId}#THINGS`,
+        ':projectId': projectId
+      }
+    }));
+
+    const items = itemsResult.Items || [];
+
+    // Log the access
+    await logDataAccess(userId, 'read', 'project_items', projectId, inventoryId);
+
+    return items.map(item => ({
+      id: item.sk,
+      name: item.name,
+      description: item.description,
+      make: item.make,
+      model: item.model,
+      serialNumber: item.serialNumber,
+      purchasePrice: item.purchasePrice,
+      containerId: item.containerId,
+      locationId: item.locationId,
+      categoryId: item.categoryId,
+      photos: item.photos || [],
+      tags: item.tags || []
+    }));
+  }
+
+  /**
+   * Update project progress based on current container and item statistics
    * @param {string} projectId - Project ID
    * @param {string} inventoryId - Inventory ID
    * @param {string} userId - User ID making the update
@@ -546,14 +731,20 @@ class MovingProjectService {
     // Get current progress data
     const progressData = await this.getProjectProgress(projectId, inventoryId, userId);
     
+    // Get items assigned to this project
+    const projectItems = await this.getProjectItems(projectId, inventoryId, userId);
+    
     // Update project with new statistics
     const project = await this.getProject(projectId, inventoryId, userId);
     
+    // Calculate total items (containers + individual items)
+    const totalItems = progressData.statistics.totalItems + projectItems.length;
+    
     project.updateProgress({
       containerCount: progressData.statistics.totalContainers,
-      itemCount: progressData.statistics.totalItems,
+      itemCount: totalItems,
       packedContainers: progressData.statistics.packedContainers,
-      packedItems: progressData.statistics.totalItems // All items in containers are considered packed
+      packedItems: progressData.statistics.totalItems // Items in containers are considered packed
     }, userId);
 
     // Update in database

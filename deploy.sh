@@ -10,7 +10,7 @@ if ! aws sts get-caller-identity > /dev/null 2>&1; then
 fi
 
 # Set default stack name
-STACK_NAME=${1:-home-inventory-system}
+STACK_NAME=${1:-home-inventory-system-dev}
 ENVIRONMENT=${2:-dev}
 REGION=${3:-eu-west-1}
 

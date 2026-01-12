@@ -25,7 +25,7 @@ import type { MovingProject, ProjectStatus, Location } from '../types';
 import apiClient from '../services/api';
 import ProjectList from '../components/ProjectList';
 import ProjectFormDialog from '../components/ProjectFormDialog';
-import ProjectDashboard from '../components/ProjectDashboard';
+import ProjectDetailView from '../components/ProjectDetailView';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -125,19 +125,26 @@ const Projects: React.FC = () => {
     setFormDialogOpen(true);
   };
 
-  const handleSaveProject = (project: MovingProject) => {
-    if (editingProject) {
-      // Update existing project
-      setProjects(prev => prev.map(p => p.id === project.id ? project : p));
-      showSuccess('Project updated successfully');
-    } else {
-      // Add new project
-      setProjects(prev => [project, ...prev]);
-      showSuccess('Project created successfully');
+  const handleSaveProject = async (project: MovingProject) => {
+    try {
+      if (editingProject) {
+        // Update existing project
+        const updatedProject = await apiClient.updateProject(project.id, project);
+        setProjects(prev => prev.map(p => p.id === project.id ? updatedProject : p));
+        showSuccess('Project updated successfully');
+      } else {
+        // Add new project
+        const createdProject = await apiClient.createProject(project);
+        setProjects(prev => [createdProject, ...prev]);
+        showSuccess('Project created successfully');
+      }
+      
+      setFormDialogOpen(false);
+      setEditingProject(null);
+    } catch (err) {
+      console.error('Error saving project:', err);
+      showError(err instanceof Error ? err.message : 'Failed to save project');
     }
-    
-    setFormDialogOpen(false);
-    setEditingProject(null);
   };
 
   const handleDeleteProject = async (project: MovingProject) => {
@@ -228,15 +235,14 @@ const Projects: React.FC = () => {
     );
   }
 
-  // Show project dashboard if a project is selected
+  // Show project detail view if a project is selected
   if (selectedProject) {
     return (
-      <ProjectDashboard
+      <ProjectDetailView
         project={selectedProject}
         inventoryId={currentInventory.id}
         onBack={handleBackFromProject}
         onEditProject={handleEditProject}
-        onUpdateProjectStatus={handleUpdateProjectStatus}
       />
     );
   }

@@ -848,6 +848,30 @@ class MockApiClient {
     console.log(`Mock: Deleting project ${id}`);
   }
 
+  async assignContainersToProject(projectId: string, data: { containerIds: string[]; inventoryId: string }): Promise<any> {
+    await mockDelay();
+    console.log(`Mock: Assigning containers ${data.containerIds.join(', ')} to project ${projectId}`);
+    return { success: true, assignedCount: data.containerIds.length };
+  }
+
+  async removeContainersFromProject(projectId: string, data: { containerIds: string[]; inventoryId: string }): Promise<any> {
+    await mockDelay();
+    console.log(`Mock: Removing containers ${data.containerIds.join(', ')} from project ${projectId}`);
+    return { success: true, removedCount: data.containerIds.length };
+  }
+
+  async assignItemsToProject(projectId: string, data: { itemIds: string[]; inventoryId: string }): Promise<any> {
+    await mockDelay();
+    console.log(`Mock: Assigning items ${data.itemIds.join(', ')} to project ${projectId}`);
+    return { success: true, assignedCount: data.itemIds.length };
+  }
+
+  async removeItemsFromProject(projectId: string, data: { itemIds: string[]; inventoryId: string }): Promise<any> {
+    await mockDelay();
+    console.log(`Mock: Removing items ${data.itemIds.join(', ')} from project ${projectId}`);
+    return { success: true, removedCount: data.itemIds.length };
+  }
+
   // Packing API - Container Contents Management
   async getContainerContents(containerId: string, _inventoryId: string): Promise<{
     container: Container;
@@ -2072,6 +2096,124 @@ class MockApiClient {
     }
 
     return results;
+  }
+
+  // Project Tasks API
+  async getProjectTasks(projectId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  async createTask(projectId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: this.generateId('task'), ...data };
+  }
+
+  async updateTask(taskId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: taskId, ...data };
+  }
+
+  async deleteTask(taskId: string): Promise<void> {
+    await mockDelay();
+  }
+
+  async getOverdueTasks(inventoryId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  // Project Milestones API
+  async getProjectMilestones(projectId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  async createMilestone(projectId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: this.generateId('milestone'), ...data };
+  }
+
+  async updateMilestone(milestoneId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: milestoneId, ...data };
+  }
+
+  async completeMilestone(milestoneId: string, inventoryId: string): Promise<any> {
+    await mockDelay();
+    return { id: milestoneId, status: 'completed' };
+  }
+
+  async deleteMilestone(milestoneId: string): Promise<void> {
+    await mockDelay();
+  }
+
+  async getOverdueMilestones(inventoryId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  async getUpcomingMilestones(inventoryId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  // Project Budget API
+  async getProjectBudget(projectId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  async createBudgetItem(projectId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: this.generateId('budget'), ...data };
+  }
+
+  async updateBudgetItem(budgetItemId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { id: budgetItemId, ...data };
+  }
+
+  async deleteBudgetItem(budgetItemId: string): Promise<void> {
+    await mockDelay();
+  }
+
+  async getBudgetStats(projectId: string, inventoryId: string): Promise<any> {
+    await mockDelay();
+    return { totalEstimated: 0, totalActual: 0 };
+  }
+
+  // Project Things API
+  async getProjectThings(projectId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  async assignThingsToProject(projectId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { projectId, ...data };
+  }
+
+  async removeThingsFromProject(projectId: string, data: any): Promise<any> {
+    await mockDelay();
+    return { projectId, ...data };
+  }
+
+  async getAvailableThingsForProject(inventoryId: string): Promise<any[]> {
+    await mockDelay();
+    return [];
+  }
+
+  // Project Progress API
+  async getProjectProgress(projectId: string, inventoryId: string): Promise<any> {
+    await mockDelay();
+    return {
+      project: {},
+      statistics: {},
+      containers: [],
+      tasks: [],
+      milestones: []
+    };
   }
 }
 

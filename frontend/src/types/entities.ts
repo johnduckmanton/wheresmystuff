@@ -13,6 +13,7 @@ export interface Thing {
   ownerId?: string; // UUID reference (Person)
   categoryId?: string; // UUID reference
   containerId?: string; // UUID reference to container (if packed)
+  projectId?: string; // UUID reference to moving project (if assigned)
   notes?: string;
   datePurchased?: string; // ISO date
   purchasedFrom?: string;

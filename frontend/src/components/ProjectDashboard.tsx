@@ -33,7 +33,7 @@ import {
 } from '@mui/icons-material';
 import type { MovingProject, ProjectStatus } from '../types';
 import { format, formatDistanceToNow } from 'date-fns';
-// import apiClient from '../services/api'; // Will be used when API is fully implemented
+import apiClient from '../services/api';
 import ProjectAnalytics from './ProjectAnalytics';
 
 interface ProjectDashboardProps {
@@ -114,33 +114,8 @@ const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
       setLoading(true);
       setError(null);
       
-      // For now, use mock progress data since the API might not support includeProgress yet
-      const data = {
-        project: {
-          id: project.id,
-          name: project.name,
-          status: project.status,
-          startDate: project.startDate,
-          targetDate: project.targetDate,
-          completionDate: project.completionDate,
-          completionPercentage: project.completionPercentage
-        },
-        statistics: {
-          totalContainers: 8,
-          packedContainers: 6,
-          emptyContainers: 2,
-          totalItems: 120,
-          totalValue: 4500,
-          completionPercentage: 75,
-          containersByStatus: { packed: 6, packing: 1, empty: 1 }
-        },
-        containers: [
-          { id: '1', name: 'Kitchen Box 1', type: 'box', status: 'packed', itemCount: 15, estimatedValue: 500 },
-          { id: '2', name: 'Living Room Box', type: 'box', status: 'packed', itemCount: 12, estimatedValue: 800 },
-          { id: '3', name: 'Bedroom Bag', type: 'bag', status: 'packing', itemCount: 8, estimatedValue: 300 }
-        ]
-      };
-      
+      // Fetch real project progress data from API
+      const data = await apiClient.getProjectProgress(project.id, inventoryId);
       setProgressData(data as ProjectProgress);
     } catch (err) {
       console.error('Error loading project progress:', err);
