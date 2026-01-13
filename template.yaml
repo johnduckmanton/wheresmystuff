@@ -92,6 +92,7 @@ Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
   EnableProtection: !Equals [!Ref EnableDeletionProtection, true]
   EnableMFA: !And [!Equals [!Ref EnableMFARequirement, true], !Condition IsProduction]
+  HasCloudFrontOAC: !Not [!Equals [!Ref CloudFrontOACId, '']]
   
 Resources:
 
@@ -512,6 +513,7 @@ Resources:
   # S3 Bucket Policy to allow CloudFront access via OAC
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: HasCloudFrontOAC
     Properties:
       Bucket: !Ref WebsiteBucketResource
       PolicyText:
