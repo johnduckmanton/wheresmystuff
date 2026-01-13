@@ -83,16 +83,10 @@ Parameters:
     AllowedPattern: ^(arn:aws:acm:.*)?$
     ConstraintDescription: Must be a valid ACM certificate ARN or empty
   
-  CloudFrontOACId:
-    Type: String
-    Default: ''
-    Description: CloudFront Origin Access Control ID for S3 bucket access (optional)
-  
 Conditions:
   IsProduction: !Equals [!Ref Environment, prod]
   EnableProtection: !Equals [!Ref EnableDeletionProtection, true]
   EnableMFA: !And [!Equals [!Ref EnableMFARequirement, true], !Condition IsProduction]
-  HasCloudFrontOAC: !Not [!Equals [!Ref CloudFrontOACId, '']]
   
 Resources:
 
@@ -510,10 +504,9 @@ Resources:
         - Key: Purpose
           Value: FrontendWebsite
 
-  # S3 Bucket Policy to allow CloudFront access via OAC
+  # S3 Bucket Policy to allow CloudFront access
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
-    Condition: HasCloudFrontOAC
     Properties:
       Bucket: !Ref WebsiteBucketResource
       PolicyDocument:
@@ -522,7 +515,7 @@ Resources:
           - Sid: AllowCloudFrontOAC
             Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Control ${CloudFrontOACId}'
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub '${WebsiteBucketResource.Arn}/*'
 
