@@ -776,8 +776,7 @@ jobs:
               OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
               CloudFrontOrigin="$CLOUDFRONT_URL" \
               CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}" \
-              CloudFrontOACId="$CLOUDFRONT_OAC_ID"
+              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
 
           echo "✅ Backend CORS configuration updated with CloudFront URL"
 
