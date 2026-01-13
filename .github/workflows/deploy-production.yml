@@ -718,7 +718,7 @@ jobs:
   update-backend-cors:
     name: Update Backend CORS Configuration
     runs-on: ubuntu-latest
-    needs: [validate-deployment, detect-changes, deploy-backend, deploy-frontend]
+    needs: [validate-deployment, deploy-backend, deploy-frontend]
     if: needs.deploy-frontend.result == 'success'
     environment: production
 
@@ -728,11 +728,6 @@ jobs:
         with:
           ref: ${{ needs.validate-deployment.outputs.commit_sha }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -740,43 +735,37 @@ jobs:
           role-session-name: GitHubActions-CORS-${{ github.run_id }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Install AWS SAM CLI
-        uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm install --production
-
-      - name: Build backend with SAM
-        run: sam build --template template.yaml --region ${{ env.AWS_REGION }}
-
       - name: Update backend CORS with CloudFront URL
         run: |
           CLOUDFRONT_URL="${{ needs.deploy-frontend.outputs.cloudfront_url }}"
-          S3_BUCKET="home-inventory-sam-deployment-prod-1766535400"
 
           echo "Updating backend CORS configuration with CloudFront URL..."
           echo "CloudFront URL: $CLOUDFRONT_URL"
 
-          # Use SAM deploy with the built template
-          sam deploy \
-            --template-file .aws-sam/build/template.yaml \
+          # Get the API Gateway ID from the stack
+          API_ID=$(aws cloudformation describe-stacks \
             --stack-name home-inventory-system-prod \
-            --s3-bucket "$S3_BUCKET" \
-            --capabilities CAPABILITY_IAM \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
             --region ${{ env.AWS_REGION }} \
-            --parameter-overrides \
-              Environment=prod \
-              EnableDeletionProtection=true \
-              LogRetentionDays=7 \
-              OpenAIAPIKey="${{ secrets.OPENAI_API_KEY }}" \
-              CloudFrontOrigin="$CLOUDFRONT_URL" \
-              CustomDomainName="${{ vars.CUSTOM_DOMAIN_NAME || 'wheresmystuff.johnduckmanton.co.uk' }}" \
-              ACMCertificateArn="${{ vars.ACM_CERTIFICATE_ARN || '' }}"
+            --query 'Stacks[0].Outputs[?OutputKey==`HttpApiId`].OutputValue' \
+            --output text)
+
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            echo "❌ Could not retrieve API Gateway ID"
+            exit 1
+          fi
+
+          echo "API Gateway ID: $API_ID"
+
+          # Update CORS configuration on the API Gateway
+          aws apigatewayv2 update-api \
+            --api-id "$API_ID" \
+            --cors-configuration \
+              AllowOrigins="$CLOUDFRONT_URL,https://wheresmystuff.johnduckmanton.co.uk,http://localhost:5173,http://localhost:3000" \
+              AllowHeaders="Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token" \
+              AllowMethods="GET,POST,PUT,DELETE,OPTIONS" \
+              MaxAge=600 \
+              AllowCredentials=true \
+            --region ${{ env.AWS_REGION }}
 
           echo "✅ Backend CORS configuration updated with CloudFront URL"
 
