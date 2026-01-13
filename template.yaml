@@ -516,7 +516,7 @@ Resources:
     Condition: HasCloudFrontOAC
     Properties:
       Bucket: !Ref WebsiteBucketResource
-      PolicyText:
+      PolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Sid: AllowCloudFrontOAC
