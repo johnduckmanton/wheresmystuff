@@ -475,7 +475,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # S3 Bucket for Frontend Website
+  # S3 Bucket for Frontend Website (with CloudFront OAC policy)
   WebsiteBucketResource:
     Type: AWS::S3::Bucket
     DeletionPolicy: !If [IsProduction, Retain, Delete]
