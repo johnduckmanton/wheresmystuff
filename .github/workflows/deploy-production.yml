@@ -776,15 +776,16 @@ jobs:
 
           echo "API Gateway ID: $API_ID"
 
-          # Update CORS configuration on the API Gateway
+          # Update CORS configuration on the API Gateway using JSON format
           aws apigatewayv2 update-api \
             --api-id "$API_ID" \
-            --cors-configuration \
-              AllowOrigins="$CLOUDFRONT_URL,https://wheresmystuff.johnduckmanton.co.uk,http://localhost:5173,http://localhost:3000" \
-              AllowHeaders="Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token" \
-              AllowMethods="GET,POST,PUT,DELETE,OPTIONS" \
-              MaxAge=600 \
-              AllowCredentials=true \
+            --cors-configuration '{
+              "AllowOrigins": ["'"$CLOUDFRONT_URL"'", "https://wheresmystuff.johnduckmanton.co.uk", "http://localhost:5173", "http://localhost:3000"],
+              "AllowHeaders": ["Content-Type", "Authorization", "X-Amz-Date", "X-Api-Key", "X-Amz-Security-Token"],
+              "AllowMethods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+              "MaxAge": 600,
+              "AllowCredentials": true
+            }' \
             --region ${{ env.AWS_REGION }}
 
           echo "✅ Backend CORS configuration updated with CloudFront URL"
