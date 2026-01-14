@@ -742,12 +742,32 @@ jobs:
           echo "Updating backend CORS configuration with CloudFront URL..."
           echo "CloudFront URL: $CLOUDFRONT_URL"
 
+          # Get all stack outputs for debugging
+          echo "Stack outputs:"
+          aws cloudformation describe-stacks \
+            --stack-name home-inventory-system-prod \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' \
+            --output table
+
           # Get the API Gateway ID from the stack
           API_ID=$(aws cloudformation describe-stacks \
             --stack-name home-inventory-system-prod \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs[?OutputKey==`HttpApiId`].OutputValue' \
             --output text)
+
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            echo "❌ HttpApiId output not found, trying alternative method..."
+            
+            # Try to get API ID from the HttpApi logical ID
+            API_ID=$(aws cloudformation describe-stack-resource \
+              --stack-name home-inventory-system-prod \
+              --logical-resource-id HttpApi \
+              --region ${{ env.AWS_REGION }} \
+              --query 'StackResourceDetail.PhysicalResourceId' \
+              --output text 2>/dev/null || echo "")
+          fi
 
           if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
             echo "❌ Could not retrieve API Gateway ID"
