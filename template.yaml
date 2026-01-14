@@ -2432,3 +2432,9 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-WebsiteBucket
 
+  HttpApiId:
+    Description: HTTP API ID
+    Value: !Ref HttpApi
+    Export:
+      Name: !Sub ${AWS::StackName}-HttpApiId
+
