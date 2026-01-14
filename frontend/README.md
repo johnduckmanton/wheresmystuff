@@ -1,6 +1,7 @@
 # Home Inventory System - Frontend
 
 React + TypeScript frontend application built with Vite and Material-UI v7+.
+Deployed via CloudFront with S3 origin.
 
 ## Tech Stack
 
