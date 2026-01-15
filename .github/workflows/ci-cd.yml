@@ -469,6 +469,9 @@ jobs:
       if: needs.detect-changes.outputs.frontend_changed == 'true'
       id: deploy_frontend
       run: |
+        # Get API URL from either deploy or retrieve step
+        API_URL="${{ steps.deploy_backend.outputs.api_url || steps.retrieve_backend_outputs.outputs.api_url }}"
+        
         # Get additional stack outputs for frontend configuration
         USER_POOL_ID=$(aws cloudformation describe-stacks \
           --stack-name home-inventory-system-dev \
@@ -504,13 +507,13 @@ jobs:
           exit 1
         fi
         
-        if [ -z "${{ steps.deploy_backend.outputs.api_url }}" ]; then
+        if [ -z "$API_URL" ]; then
           echo "❌ API_URL is missing from backend deployment"
           exit 1
         fi
         
         echo "Frontend Configuration:"
-        echo "API_URL: ${{ steps.deploy_backend.outputs.api_url }}"
+        echo "API_URL: $API_URL"
         echo "USER_POOL_ID: $USER_POOL_ID"
         echo "USER_POOL_CLIENT_ID: $USER_POOL_CLIENT_ID"
         echo "S3_BUCKET: $S3_BUCKET"
@@ -525,7 +528,7 @@ jobs:
         VITE_AWS_REGION=${{ env.AWS_REGION }}
         VITE_USER_POOL_ID=$USER_POOL_ID
         VITE_USER_POOL_CLIENT_ID=$USER_POOL_CLIENT_ID
-        VITE_API_URL=${{ steps.deploy_backend.outputs.api_url }}
+        VITE_API_URL=$API_URL
         VITE_S3_BUCKET=$S3_BUCKET
         VITE_ENVIRONMENT=production
         EOF
