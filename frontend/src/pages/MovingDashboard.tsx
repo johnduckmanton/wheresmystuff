@@ -31,6 +31,7 @@ import QRCodeScanner from '../components/QRCodeScanner';
 import QRScanResults from '../components/QRScanResults';
 import ContainerDetailDialog from '../components/ContainerDetailDialog';
 import ContainerFormDialog from '../components/ContainerFormDialog';
+import PackingDialog from '../components/PackingDialog';
 import ThingFormDialog from '../components/ThingFormDialog';
 import MobileNavigation from '../components/MobileNavigation';
 import ProjectFormDialog from '../components/ProjectFormDialog';
@@ -391,6 +392,7 @@ export default function MovingDashboard() {
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [containerDetailOpen, setContainerDetailOpen] = useState(false);
   const [containerFormOpen, setContainerFormOpen] = useState(false);
+  const [packingDialogOpen, setPackingDialogOpen] = useState(false);
   const [selectedThing, setSelectedThing] = useState<ThingWithContainer | null>(null);
   const [thingDetailOpen, setThingDetailOpen] = useState(false);
   
@@ -955,12 +957,52 @@ export default function MovingDashboard() {
             setSelectedContainer(null);
           }}
           onEdit={() => {
-            // TODO: Implement container editing
-            showSuccess('Container editing will be implemented in a future update');
+            setContainerDetailOpen(false);
+            setContainerFormOpen(true);
           }}
-          onDelete={() => {
-            // TODO: Implement container deletion
-            showSuccess('Container deletion will be implemented in a future update');
+          onDelete={async () => {
+            setContainerDetailOpen(false);
+            if (selectedContainer) {
+              try {
+                await apiClient.deleteContainer(selectedContainer.id, currentInventory.id);
+                setContainers(prev => prev.filter(c => c.id !== selectedContainer.id));
+                setSelectedContainer(null);
+                showSuccess(`Container "${selectedContainer.name}" deleted successfully`);
+              } catch (err) {
+                console.error('Error deleting container:', err);
+                showError('Failed to delete container');
+              }
+            }
+          }}
+          onPack={() => {
+            setContainerDetailOpen(false);
+            setPackingDialogOpen(true);
+          }}
+        />
+      )}
+
+      {/* Packing Dialog */}
+      {selectedContainer && (
+        <PackingDialog
+          open={packingDialogOpen}
+          container={selectedContainer}
+          onClose={() => {
+            setPackingDialogOpen(false);
+            setSelectedContainer(null);
+          }}
+          onItemsAdded={async () => {
+            // Refresh container data
+            try {
+              const refreshedContainer = await apiClient.getContainer(selectedContainer.id, currentInventory.id);
+              setContainers(prev => prev.map(c => c.id === selectedContainer.id ? refreshedContainer : c));
+              setSelectedContainer(refreshedContainer);
+            } catch (err) {
+              console.error('Error refreshing container:', err);
+            }
+          }}
+          onContainerUpdated={(updatedContainer) => {
+            setContainers(prev => prev.map(c => c.id === updatedContainer.id ? updatedContainer : c));
+            setSelectedContainer(updatedContainer);
           }}
         />
       )}

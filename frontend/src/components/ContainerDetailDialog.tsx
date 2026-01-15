@@ -45,6 +45,7 @@ interface ContainerDetailDialogProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onPack?: () => void;
 }
 
 export default function ContainerDetailDialog({
@@ -54,6 +55,7 @@ export default function ContainerDetailDialog({
   onClose,
   onEdit,
   onDelete,
+  onPack,
 }: ContainerDetailDialogProps) {
   const [location, setLocation] = useState<Location | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
@@ -183,6 +185,13 @@ export default function ContainerDetailDialog({
               <ShareIcon />
             </IconButton>
           </Tooltip>
+          {onPack && (
+            <Tooltip title="Pack Items">
+              <IconButton onClick={onPack} size="small" color="info">
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Edit Container">
             <IconButton onClick={onEdit} size="small">
               <EditIcon />
@@ -461,8 +470,17 @@ export default function ContainerDetailDialog({
         onClose={() => setQrCodeDialogOpen(false)}
         container={updatedContainer}
         inventoryId={inventoryId}
-        onQRCodeGenerated={() => {
-          // Optionally show success message or update container
+        onQRCodeGenerated={async () => {
+          // Refresh container data to show the new QR code
+          try {
+            const refreshedContainer = await apiClient.getContainer(container.id, inventoryId);
+            setUpdatedContainer(refreshedContainer);
+            if (onUpdate) {
+              onUpdate(refreshedContainer);
+            }
+          } catch (err) {
+            console.error('Error refreshing container after QR code generation:', err);
+          }
           setQrCodeDialogOpen(false);
         }}
       />

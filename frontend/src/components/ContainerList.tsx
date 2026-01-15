@@ -729,6 +729,10 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
             setDetailDialogOpen(false);
             handleDelete(selectedContainer);
           }}
+          onPack={() => {
+            setDetailDialogOpen(false);
+            setPackingDialogOpen(true);
+          }}
         />
       )}
 
