@@ -278,10 +278,10 @@ jobs:
     environment: production
 
     outputs:
-      api_url: ${{ steps.backend_deploy.outputs.api_url || steps.retrieve_backend_outputs.outputs.api_url }}
-      frontend_bucket: ${{ steps.backend_deploy.outputs.frontend_bucket || steps.retrieve_backend_outputs.outputs.frontend_bucket }}
-      user_pool_id: ${{ steps.backend_deploy.outputs.user_pool_id || steps.retrieve_backend_outputs.outputs.user_pool_id }}
-      user_pool_client_id: ${{ steps.backend_deploy.outputs.user_pool_client_id || steps.retrieve_backend_outputs.outputs.user_pool_client_id }}
+      api_url: ${{ steps.deploy_backend.outputs.api_url || steps.retrieve_backend_outputs.outputs.api_url }}
+      frontend_bucket: ${{ steps.deploy_backend.outputs.frontend_bucket || steps.retrieve_backend_outputs.outputs.frontend_bucket }}
+      user_pool_id: ${{ steps.deploy_backend.outputs.user_pool_id || steps.retrieve_backend_outputs.outputs.user_pool_id }}
+      user_pool_client_id: ${{ steps.deploy_backend.outputs.user_pool_client_id || steps.retrieve_backend_outputs.outputs.user_pool_client_id }}
 
     steps:
       - name: Download deployment artifacts
