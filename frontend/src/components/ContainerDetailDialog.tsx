@@ -27,6 +27,7 @@ import {
   ViewList as ContentsIcon,
   Info as InfoIcon,
   Share as ShareIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 
 
@@ -46,6 +47,7 @@ interface ContainerDetailDialogProps {
   onEdit: () => void;
   onDelete: () => void;
   onPack?: () => void;
+  onUpdate?: (container: Container) => void;
 }
 
 export default function ContainerDetailDialog({
@@ -56,6 +58,7 @@ export default function ContainerDetailDialog({
   onEdit,
   onDelete,
   onPack,
+  onUpdate,
 }: ContainerDetailDialogProps) {
   const [location, setLocation] = useState<Location | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
