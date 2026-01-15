@@ -96,16 +96,18 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
 
     try {
       if (editingItem) {
-        await apiClient.updateBudgetItem(editingItem.id, {
+        const updatedItem = await apiClient.updateBudgetItem(editingItem.id, {
           category: formData.category,
           description: formData.description,
           estimatedCost: formData.estimatedCost,
           actualCost: formData.actualCost,
           status: formData.status as 'pending' | 'approved' | 'paid',
+          projectId,
           inventoryId
         });
+        onBudgetChange(budgetItems.map(i => i.id === editingItem.id ? updatedItem : i));
       } else {
-        await apiClient.createBudgetItem(projectId, {
+        const newItem = await apiClient.createBudgetItem(projectId, {
           category: formData.category,
           description: formData.description,
           estimatedCost: formData.estimatedCost,
@@ -113,6 +115,7 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
           status: formData.status as 'pending' | 'approved' | 'paid',
           inventoryId
         });
+        onBudgetChange([...budgetItems, newItem]);
       }
       setFormOpen(false);
     } catch (err) {
@@ -122,7 +125,7 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
 
   const handleDeleteItem = async (item: BudgetItem) => {
     try {
-      await apiClient.deleteBudgetItem(item.id);
+      await apiClient.deleteBudgetItem(item.id, projectId, inventoryId);
       onBudgetChange(budgetItems.filter(i => i.id !== item.id));
       setAnchorEl(null);
     } catch (err) {

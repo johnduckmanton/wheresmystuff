@@ -139,10 +139,10 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   };
 
   // Determine current module based on path
-  const isInventoryModule = ['/things', '/locations', '/categories', '/people', '/inventories'].some(
+  const isInventoryModule = ['/inventory', '/things', '/locations', '/categories', '/people', '/inventories'].some(
     path => location.pathname.startsWith(path)
   );
-  const isMovingModule = ['/moving', '/containers'].some(
+  const isMovingModule = ['/moving', '/containers', '/projects', '/storage'].some(
     path => location.pathname.startsWith(path)
   );
 

@@ -84,21 +84,24 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
 
     try {
       if (editingTask) {
-        await apiClient.updateTask(editingTask.id, {
+        const updatedTask = await apiClient.updateTask(editingTask.id, {
           title: formData.title,
           description: formData.description,
           priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
           category: formData.category as 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other',
+          projectId,
           inventoryId
         });
+        onTasksChange(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
       } else {
-        await apiClient.createTask(projectId, {
+        const newTask = await apiClient.createTask(projectId, {
           title: formData.title,
           description: formData.description,
           priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
           category: formData.category as 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other',
           inventoryId
         });
+        onTasksChange([...tasks, newTask]);
       }
       setFormOpen(false);
     } catch (err) {
@@ -108,7 +111,7 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
 
   const handleDeleteTask = async (task: Task) => {
     try {
-      await apiClient.deleteTask(task.id);
+      await apiClient.deleteTask(task.id, projectId, inventoryId);
       onTasksChange(tasks.filter(t => t.id !== task.id));
       setAnchorEl(null);
     } catch (err) {
@@ -116,9 +119,18 @@ const TaskManagement: React.FC<TaskManagementProps> = ({
     }
   };
 
-  const handleToggleTask = (task: Task) => {
+  const handleToggleTask = async (task: Task) => {
     const newStatus = task.status === 'completed' ? 'not_started' : 'completed';
-    apiClient.updateTask(task.id, { status: newStatus }).catch((err: any) => console.error('Error updating task:', err));
+    try {
+      const updatedTask = await apiClient.updateTask(task.id, { 
+        status: newStatus,
+        projectId,
+        inventoryId
+      });
+      onTasksChange(tasks.map(t => t.id === task.id ? updatedTask : t));
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
   };
 
   const getPriorityColor = (priority?: string): 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success' => {

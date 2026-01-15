@@ -950,13 +950,14 @@ class ApiClient {
     category: 'planning' | 'packing' | 'logistics' | 'moving_day' | 'unpacking' | 'setup' | 'admin' | 'other';
     assignedTo: string;
     status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
+    projectId: string;
     inventoryId: string;
   }>): Promise<any> {
     return this.put<any>(`/tasks/${taskId}`, data);
   }
 
-  async deleteTask(taskId: string): Promise<void> {
-    return this.delete<void>(`/tasks/${taskId}`);
+  async deleteTask(taskId: string, projectId: string, inventoryId: string): Promise<void> {
+    return this.delete<void>(`/tasks/${taskId}?projectId=${projectId}&inventoryId=${inventoryId}`);
   }
 
   async getOverdueTasks(inventoryId: string): Promise<any[]> {
@@ -982,6 +983,7 @@ class ApiClient {
     name: string;
     description: string;
     date: string;
+    projectId: string;
     inventoryId: string;
   }>): Promise<any> {
     return this.put<any>(`/milestones/${milestoneId}`, data);
@@ -991,8 +993,8 @@ class ApiClient {
     return this.put<any>(`/milestones/${milestoneId}/complete`, { inventoryId });
   }
 
-  async deleteMilestone(milestoneId: string): Promise<void> {
-    return this.delete<void>(`/milestones/${milestoneId}`);
+  async deleteMilestone(milestoneId: string, projectId: string, inventoryId: string): Promise<void> {
+    return this.delete<void>(`/milestones/${milestoneId}?projectId=${projectId}&inventoryId=${inventoryId}`);
   }
 
   async getOverdueMilestones(inventoryId: string): Promise<any[]> {
@@ -1026,13 +1028,15 @@ class ApiClient {
     estimatedCost: number;
     actualCost: number;
     status: 'pending' | 'approved' | 'paid';
+    itemId: string;
+    projectId: string;
     inventoryId: string;
   }>): Promise<any> {
-    return this.put<any>(`/budget/${budgetItemId}`, data);
+    return this.put<any>(`/budget/${data.projectId}`, { ...data, itemId: budgetItemId });
   }
 
-  async deleteBudgetItem(budgetItemId: string): Promise<void> {
-    return this.delete<void>(`/budget/${budgetItemId}`);
+  async deleteBudgetItem(budgetItemId: string, projectId: string, inventoryId: string): Promise<void> {
+    return this.delete<void>(`/budget/${projectId}?itemId=${budgetItemId}&inventoryId=${inventoryId}`);
   }
 
   async getBudgetStats(projectId: string, inventoryId: string): Promise<any> {

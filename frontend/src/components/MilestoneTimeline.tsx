@@ -62,6 +62,7 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
   const [formData, setFormData] = useState({ name: '', description: '', date: '' });
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
+  const [validationError, setValidationError] = useState<string>('');
 
   const sortedMilestones = [...milestones].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -70,6 +71,7 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
   const handleAddMilestone = () => {
     setEditingMilestone(null);
     setFormData({ name: '', description: '', date: '' });
+    setValidationError('');
     setFormOpen(true);
   };
 
@@ -80,41 +82,53 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
       description: milestone.description || '',
       date: milestone.date.split('T')[0]
     });
+    setValidationError('');
     setFormOpen(true);
     setAnchorEl(null);
   };
 
   const handleSaveMilestone = async () => {
-    if (!formData.name.trim() || !formData.date) {
-      console.error('Validation failed:', { name: formData.name, date: formData.date });
+    if (!formData.name.trim()) {
+      setValidationError('Milestone name is required');
+      return;
+    }
+    
+    if (!formData.date) {
+      setValidationError('Due date is required');
       return;
     }
 
+    setValidationError('');
+
     try {
       if (editingMilestone) {
-        await apiClient.updateMilestone(editingMilestone.id, {
+        const updatedMilestone = await apiClient.updateMilestone(editingMilestone.id, {
           name: formData.name,
           description: formData.description,
           date: new Date(formData.date).toISOString(),
+          projectId,
           inventoryId
         });
+        onMilestonesChange(milestones.map(m => m.id === editingMilestone.id ? updatedMilestone : m));
       } else {
-        await apiClient.createMilestone(projectId, {
+        const newMilestone = await apiClient.createMilestone(projectId, {
           name: formData.name,
           description: formData.description,
           date: new Date(formData.date).toISOString(),
           inventoryId
         });
+        onMilestonesChange([...milestones, newMilestone]);
       }
       setFormOpen(false);
     } catch (err) {
       console.error('Error saving milestone:', err);
+      setValidationError('Failed to save milestone. Please try again.');
     }
   };
 
   const handleDeleteMilestone = async (milestone: Milestone) => {
     try {
-      await apiClient.deleteMilestone(milestone.id);
+      await apiClient.deleteMilestone(milestone.id, projectId, inventoryId);
       onMilestonesChange(milestones.filter(m => m.id !== milestone.id));
       setAnchorEl(null);
     } catch (err) {
@@ -221,12 +235,18 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
         <DialogTitle>{editingMilestone ? 'Edit Milestone' : 'Add Milestone'}</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {validationError && (
+              <Typography color="error" variant="body2">
+                {validationError}
+              </Typography>
+            )}
             <TextField
               label="Milestone Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               fullWidth
               required
+              error={validationError.includes('name')}
             />
             <TextField
               label="Description"
@@ -243,6 +263,7 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               fullWidth
               required
+              error={validationError.includes('date')}
               InputLabelProps={{ shrink: true }}
             />
           </Box>

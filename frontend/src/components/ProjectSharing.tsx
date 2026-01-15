@@ -96,7 +96,7 @@ const ProjectSharing: React.FC<ProjectSharingProps> = ({ project }) => {
         accessCount: 0
       };
 
-      setShareLinks([newLink, ...shareLinks]);
+      setShareLinks(prevLinks => [newLink, ...prevLinks]);
       setCreateDialogOpen(false);
       setExpirationDays(7);
     } catch (err) {
@@ -108,7 +108,7 @@ const ProjectSharing: React.FC<ProjectSharingProps> = ({ project }) => {
   const handleRevokeLink = async (linkId: string) => {
     try {
       // Real implementation would call API to revoke the link
-      setShareLinks(shareLinks.filter(link => link.id !== linkId));
+      setShareLinks(prevLinks => prevLinks.filter(link => link.id !== linkId));
     } catch (err) {
       console.error('Error revoking share link:', err);
       setError(err instanceof Error ? err.message : 'Failed to revoke share link');
