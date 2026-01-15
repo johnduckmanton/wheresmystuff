@@ -93,15 +93,11 @@ jobs:
     - name: Detect file changes
       id: check_changes
       run: |
-        # Get the list of changed files
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          # For workflow_dispatch, compare with main branch
-          CHANGED_FILES=$(git diff --name-only origin/main HEAD || git diff --name-only HEAD~5..HEAD || git ls-files)
-        else
-          CHANGED_FILES=$(git ls-files)
-        fi
+        # For production, we compare against the last 10 commits to detect any infrastructure changes
+        # This ensures we catch changes even when deploying from main
+        CHANGED_FILES=$(git diff --name-only HEAD~10..HEAD 2>/dev/null || git ls-files)
 
-        echo "Changed files:"
+        echo "Changed files in last 10 commits:"
         echo "$CHANGED_FILES"
 
         # Check if backend infrastructure files changed
