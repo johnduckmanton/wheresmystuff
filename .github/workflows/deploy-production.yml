@@ -625,7 +625,7 @@ jobs:
         id: deploy_cloudfront
         run: |
           # Deploy CloudFront stack
-          WEBSITE_BUCKET_DOMAIN="${{ needs.deploy-backend.outputs.frontend_bucket }}.s3.amazonaws.com"
+          WEBSITE_BUCKET_DOMAIN="${{ needs.deploy-backend.outputs.frontend_bucket }}.s3.eu-west-1.amazonaws.com"
           API_DOMAIN=$(echo "${{ needs.deploy-backend.outputs.api_url }}" | sed 's|https://||' | sed 's|/.*||')
 
           aws cloudformation deploy \
