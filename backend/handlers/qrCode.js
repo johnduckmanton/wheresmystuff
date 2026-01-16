@@ -47,10 +47,14 @@ exports.generateQRCode = async (event) => {
     const user = event.user;
     
     const { containerId } = event.pathParameters;
-    const { size = 'medium' } = event.queryStringParameters || {};
+    const { size = 'medium', inventoryId } = event.queryStringParameters || {};
 
     if (!containerId) {
       return error('Container ID is required');
+    }
+
+    if (!inventoryId) {
+      return error('Inventory ID is required');
     }
 
     // Validate size parameter
@@ -64,6 +68,22 @@ exports.generateQRCode = async (event) => {
 
     // Generate download URL for the QR code image
     const downloadUrl = await generateQRDownloadUrl(qrCodeData.s3Key, false);
+
+    // Update the container record with QR code information
+    const { updateEntity } = require('../services/dynamodb');
+    try {
+      await updateEntity('CONTAINERS', inventoryId, containerId, {
+        qrCode: qrCodeData.qrCodeId,
+        qrCodeUrl: qrCodeData.s3Key,
+        qrCodeGeneratedAt: qrCodeData.generatedAt,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.userId
+      });
+      console.log(`✅ Container ${containerId} updated with QR code: ${qrCodeData.qrCodeId}`);
+    } catch (updateErr) {
+      console.error('Error updating container with QR code:', updateErr);
+      // Don't fail the request if update fails - QR code is still generated
+    }
 
     // Log the QR code generation
     await logSecurityEvent('QR_CODE_GENERATED', {

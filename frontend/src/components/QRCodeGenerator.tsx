@@ -83,10 +83,11 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     try {
       console.log('🔍 QR Code Generation Debug:');
       console.log('- Container ID:', container.id);
+      console.log('- Inventory ID:', inventoryId);
       console.log('- Selected Size:', selectedSize);
       console.log('- API Client:', apiClient);
       
-      const result = await apiClient.generateQRCode(container.id, selectedSize);
+      const result = await apiClient.generateQRCode(container.id, inventoryId, selectedSize);
       
       console.log('✅ QR Code generation successful:', result);
       setQRCodeData(result);

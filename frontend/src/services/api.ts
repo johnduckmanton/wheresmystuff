@@ -1200,7 +1200,7 @@ class ApiClient {
   }
 
   // QR Code API
-  async generateQRCode(containerId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+  async generateQRCode(containerId: string, inventoryId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
     qrCodeId: string;
     s3Key: string;
     size: string;
@@ -1210,11 +1210,12 @@ class ApiClient {
   }> {
     console.log('🔍 API Client generateQRCode Debug:');
     console.log('- Container ID:', containerId);
+    console.log('- Inventory ID:', inventoryId);
     console.log('- Size:', size);
     console.log('- Base URL:', this.client.defaults.baseURL);
     
     try {
-      const result = await this.post<any>(`/containers/${containerId}/qr-code?size=${size}`, {});
+      const result = await this.post<any>(`/containers/${containerId}/qr-code?size=${size}&inventoryId=${inventoryId}`, {});
       console.log('✅ QR Code API call successful:', result);
       return result;
     } catch (error) {
