@@ -424,26 +424,60 @@ export default function ContainerDetailDialog({
                         )}
 
                         {/* QR Code */}
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 1,
-                            cursor: 'pointer',
-                            '&:hover': {
-                              backgroundColor: 'action.hover',
-                              borderRadius: 1,
-                              p: 0.5,
-                              m: -0.5
-                            }
-                          }}
-                          onClick={() => setQrCodeDialogOpen(true)}
-                        >
-                          <QrCodeIcon color="primary" />
-                          <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
-                            Generate QR Code
-                          </Typography>
-                        </Box>
+                        {updatedContainer.qrCode ? (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <QrCodeIcon color="action" />
+                              <Typography variant="body2">
+                                <strong>QR Code</strong>
+                              </Typography>
+                            </Box>
+                            <Box 
+                              sx={{ 
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                pl: 4,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  backgroundColor: 'action.hover',
+                                  borderRadius: 1,
+                                  p: 0.5,
+                                  ml: 3.5
+                                }
+                              }}
+                              onClick={() => setQrCodeDialogOpen(true)}
+                            >
+                              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                {updatedContainer.qrCode.substring(0, 20)}...
+                              </Typography>
+                              <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline', fontSize: '0.75rem' }}>
+                                View/Regenerate
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ) : (
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1,
+                              cursor: 'pointer',
+                              '&:hover': {
+                                backgroundColor: 'action.hover',
+                                borderRadius: 1,
+                                p: 0.5,
+                                m: -0.5
+                              }
+                            }}
+                            onClick={() => setQrCodeDialogOpen(true)}
+                          >
+                            <QrCodeIcon color="primary" />
+                            <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
+                              Generate QR Code
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
