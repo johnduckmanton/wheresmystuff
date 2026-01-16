@@ -435,6 +435,7 @@ export default function ContainerDetailDialog({
                             <Box 
                               sx={{ 
                                 display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
                                 gap: 1,
                                 pl: 4,
@@ -442,15 +443,28 @@ export default function ContainerDetailDialog({
                                 '&:hover': {
                                   backgroundColor: 'action.hover',
                                   borderRadius: 1,
-                                  p: 0.5,
-                                  ml: 3.5
+                                  p: 1
                                 }
                               }}
                               onClick={() => setQrCodeDialogOpen(true)}
                             >
-                              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-                                {updatedContainer.qrCode.substring(0, 20)}...
-                              </Typography>
+                              {updatedContainer.qrCodeUrl && (
+                                <Box
+                                  component="img"
+                                  src={`${import.meta.env.VITE_API_URL}/photo?key=${encodeURIComponent(updatedContainer.qrCodeUrl)}`}
+                                  alt="Container QR Code"
+                                  sx={{
+                                    width: 120,
+                                    height: 120,
+                                    objectFit: 'contain',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    p: 0.5,
+                                    bgcolor: 'white'
+                                  }}
+                                />
+                              )}
                               <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline', fontSize: '0.75rem' }}>
                                 View/Regenerate
                               </Typography>
