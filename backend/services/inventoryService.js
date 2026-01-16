@@ -213,23 +213,37 @@ class InventoryService {
     const tableName = process.env.TABLE_NAME || 'home-inventory-dev';
 
     try {
-      // Find all inventory memberships for this user
-      const membershipResult = await docClient.send(new ScanCommand({
-        TableName: tableName,
-        FilterExpression: 'begins_with(pk, :inventoryPrefix) AND sk = :memberSk',
-        ExpressionAttributeValues: {
-          ':inventoryPrefix': 'INVENTORY#',
-          ':memberSk': `MEMBER#${userId}`
-        }
-      }));
+      // Find all inventory memberships for this user with pagination
+      const allMemberships = [];
+      let lastEvaluatedKey = undefined;
+      
+      do {
+        const membershipResult = await docClient.send(new ScanCommand({
+          TableName: tableName,
+          FilterExpression: 'begins_with(pk, :inventoryPrefix) AND sk = :memberSk',
+          ExpressionAttributeValues: {
+            ':inventoryPrefix': 'INVENTORY#',
+            ':memberSk': `MEMBER#${userId}`
+          },
+          ExclusiveStartKey: lastEvaluatedKey
+        }));
 
-      if (!membershipResult.Items || membershipResult.Items.length === 0) {
+        if (membershipResult.Items && membershipResult.Items.length > 0) {
+          allMemberships.push(...membershipResult.Items);
+        }
+        
+        lastEvaluatedKey = membershipResult.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+
+      console.log(`Found ${allMemberships.length} inventory memberships for user ${userId}`);
+
+      if (allMemberships.length === 0) {
         return [];
       }
 
       // Get the inventory metadata for each membership
       const inventories = [];
-      for (const membership of membershipResult.Items) {
+      for (const membership of allMemberships) {
         const inventoryId = membership.inventoryId;
         
         try {
@@ -257,6 +271,7 @@ class InventoryService {
         }
       }
 
+      console.log(`Returning ${inventories.length} inventories for user ${userId}`);
       return inventories;
     } catch (error) {
       console.error('Error getting user inventories:', error);
