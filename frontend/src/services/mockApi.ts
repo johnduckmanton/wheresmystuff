@@ -1078,7 +1078,7 @@ class MockApiClient {
   }
 
   // QR Code API (Mock)
-  async generateQRCode(containerId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
+  async generateQRCode(containerId: string, _inventoryId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
     qrCodeId: string;
     s3Key: string;
     size: string;
