@@ -953,11 +953,14 @@ class ApiClient {
     projectId: string;
     inventoryId: string;
   }>): Promise<any> {
-    return this.put<any>(`/tasks/${taskId}`, data);
+    if (!data.projectId) {
+      throw new Error('projectId is required for updating task');
+    }
+    return this.put<any>(`/projects/${data.projectId}/tasks/${taskId}`, data);
   }
 
   async deleteTask(taskId: string, projectId: string, inventoryId: string): Promise<void> {
-    return this.delete<void>(`/tasks/${taskId}?projectId=${projectId}&inventoryId=${inventoryId}`);
+    return this.delete<void>(`/projects/${projectId}/tasks/${taskId}?inventoryId=${inventoryId}`);
   }
 
   async getOverdueTasks(inventoryId: string): Promise<any[]> {
@@ -986,15 +989,18 @@ class ApiClient {
     projectId: string;
     inventoryId: string;
   }>): Promise<any> {
-    return this.put<any>(`/milestones/${milestoneId}`, data);
+    if (!data.projectId) {
+      throw new Error('projectId is required for updating milestone');
+    }
+    return this.put<any>(`/projects/${data.projectId}/milestones/${milestoneId}`, data);
   }
 
-  async completeMilestone(milestoneId: string, inventoryId: string): Promise<any> {
-    return this.put<any>(`/milestones/${milestoneId}/complete`, { inventoryId });
+  async completeMilestone(milestoneId: string, projectId: string, inventoryId: string): Promise<any> {
+    return this.put<any>(`/projects/${projectId}/milestones/${milestoneId}/complete`, { inventoryId });
   }
 
   async deleteMilestone(milestoneId: string, projectId: string, inventoryId: string): Promise<void> {
-    return this.delete<void>(`/milestones/${milestoneId}?projectId=${projectId}&inventoryId=${inventoryId}`);
+    return this.delete<void>(`/projects/${projectId}/milestones/${milestoneId}?inventoryId=${inventoryId}`);
   }
 
   async getOverdueMilestones(inventoryId: string): Promise<any[]> {
@@ -1032,11 +1038,14 @@ class ApiClient {
     projectId: string;
     inventoryId: string;
   }>): Promise<any> {
-    return this.put<any>(`/budget/${data.projectId}`, { ...data, itemId: budgetItemId });
+    if (!data.projectId) {
+      throw new Error('projectId is required for updating budget item');
+    }
+    return this.put<any>(`/projects/${data.projectId}/budget/${budgetItemId}`, data);
   }
 
   async deleteBudgetItem(budgetItemId: string, projectId: string, inventoryId: string): Promise<void> {
-    return this.delete<void>(`/budget/${projectId}?itemId=${budgetItemId}&inventoryId=${inventoryId}`);
+    return this.delete<void>(`/projects/${projectId}/budget/${budgetItemId}?inventoryId=${inventoryId}`);
   }
 
   async getBudgetStats(projectId: string, inventoryId: string): Promise<any> {
