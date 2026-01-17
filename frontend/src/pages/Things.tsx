@@ -218,6 +218,8 @@ export default function Things() {
 
   // Quick filter state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showQuickFilters, setShowQuickFilters] = useState(true);
 
@@ -312,11 +314,11 @@ export default function Things() {
     if (!currentInventory) return;
 
     setSearchQuery(query);
-    applyFilters(query, selectedCategoryId, selectedTags);
+    applyFilters(query, selectedCategoryId, selectedLocationId, selectedOwnerId, selectedTags);
   };
 
-  // Apply all filters (search, category, tags)
-  const applyFilters = (query: SearchQuery, categoryId?: string, tags: string[] = []) => {
+  // Apply all filters (search, category, location, owner, tags)
+  const applyFilters = (query: SearchQuery, categoryId?: string, locationId?: string, ownerId?: string, tags: string[] = []) => {
     try {
       setSearchLoading(true);
       
@@ -367,6 +369,24 @@ export default function Things() {
         }
       }
 
+      // Apply location filter
+      if (locationId) {
+        if (locationId === 'unlocated') {
+          filteredThings = filteredThings.filter(thing => !thing.locationId);
+        } else {
+          filteredThings = filteredThings.filter(thing => thing.locationId === locationId);
+        }
+      }
+
+      // Apply owner filter
+      if (ownerId) {
+        if (ownerId === 'unowned') {
+          filteredThings = filteredThings.filter(thing => !thing.ownerId);
+        } else {
+          filteredThings = filteredThings.filter(thing => thing.ownerId === ownerId);
+        }
+      }
+
       // Apply quick filter tags (AND mode - thing must have ALL selected tags)
       if (tags.length > 0) {
         filteredThings = filteredThings.filter(thing => {
@@ -391,18 +411,32 @@ export default function Things() {
   // Handle category filter
   const handleCategoryFilter = (categoryId: string | undefined) => {
     setSelectedCategoryId(categoryId);
-    applyFilters(searchQuery, categoryId, selectedTags);
+    applyFilters(searchQuery, categoryId, selectedLocationId, selectedOwnerId, selectedTags);
+  };
+
+  // Handle location filter
+  const handleLocationFilter = (locationId: string | undefined) => {
+    setSelectedLocationId(locationId);
+    applyFilters(searchQuery, selectedCategoryId, locationId, selectedOwnerId, selectedTags);
+  };
+
+  // Handle owner filter
+  const handleOwnerFilter = (ownerId: string | undefined) => {
+    setSelectedOwnerId(ownerId);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, ownerId, selectedTags);
   };
 
   // Handle tag filter
   const handleTagFilter = (tags: string[]) => {
     setSelectedTags(tags);
-    applyFilters(searchQuery, selectedCategoryId, tags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedOwnerId, tags);
   };
 
   // Clear all filters
   const handleClearFilters = () => {
     setSelectedCategoryId(undefined);
+    setSelectedLocationId(undefined);
+    setSelectedOwnerId(undefined);
     setSelectedTags([]);
     setSearchQuery({ tagMode: 'and' });
     setThings(allThings);
@@ -597,9 +631,15 @@ export default function Things() {
             <QuickFilters
               things={allThings}
               categories={categories}
+              locations={locations}
+              people={people}
               selectedCategoryId={selectedCategoryId}
+              selectedLocationId={selectedLocationId}
+              selectedOwnerId={selectedOwnerId}
               selectedTags={selectedTags}
               onCategoryFilter={handleCategoryFilter}
+              onLocationFilter={handleLocationFilter}
+              onOwnerFilter={handleOwnerFilter}
               onTagFilter={handleTagFilter}
               onClearFilters={handleClearFilters}
             />
