@@ -88,14 +88,14 @@ const projectsHandler = async (event) => {
       case 'PUT':
         if (event.requestContext.http.path.includes('/status')) {
           return await handleUpdateProjectStatus(event, pathParameters.id, origin);
+        } else if (event.requestContext.http.path.includes('/milestones') && event.requestContext.http.path.includes('/complete')) {
+          return await handleCompleteMilestone(event, pathParameters.id, pathParameters.milestoneId, origin);
         } else if (event.requestContext.http.path.includes('/milestones')) {
-          return await handleUpdateMilestone(event, pathParameters.id, origin);
-        } else if (event.requestContext.http.path.includes('/complete')) {
-          return await handleCompleteMilestone(event, pathParameters.id, origin);
+          return await handleUpdateMilestone(event, pathParameters.id, pathParameters.milestoneId, origin);
         } else if (event.requestContext.http.path.includes('/tasks')) {
-          return await handleUpdateTask(event, pathParameters.id, origin);
+          return await handleUpdateTask(event, pathParameters.id, pathParameters.taskId, origin);
         } else if (event.requestContext.http.path.includes('/budget')) {
-          return await handleUpdateBudgetItem(event, pathParameters.id, origin);
+          return await handleUpdateBudgetItem(event, pathParameters.id, pathParameters.itemId, origin);
         } else {
           return await handleUpdateProject(event, pathParameters.id, origin);
         }
@@ -106,11 +106,11 @@ const projectsHandler = async (event) => {
         } else if (event.requestContext.http.path.includes('/things')) {
           return await handleRemoveThings(event, pathParameters.id, origin);
         } else if (event.requestContext.http.path.includes('/milestones')) {
-          return await handleDeleteMilestone(event, pathParameters.id, origin);
+          return await handleDeleteMilestone(event, pathParameters.id, pathParameters.milestoneId, origin);
         } else if (event.requestContext.http.path.includes('/tasks')) {
-          return await handleDeleteTask(event, pathParameters.id, origin);
+          return await handleDeleteTask(event, pathParameters.id, pathParameters.taskId, origin);
         } else if (event.requestContext.http.path.includes('/budget')) {
-          return await handleDeleteBudgetItem(event, pathParameters.id, origin);
+          return await handleDeleteBudgetItem(event, pathParameters.id, pathParameters.itemId, origin);
         } else {
           return await handleDeleteProject(event, pathParameters.id, origin);
         }
@@ -1022,8 +1022,13 @@ async function handleGetProjectTasks(event, projectId, origin) {
 /**
  * Handle PUT request - Update a task
  */
-async function handleUpdateTask(event, taskId, origin) {
+async function handleUpdateTask(event, projectId, taskId, origin) {
   try {
+    // Validate project ID parameter
+    if (!projectId || !validateUUID(projectId)) {
+      return error('Invalid project ID', 400, origin);
+    }
+
     // Validate task ID parameter
     if (!taskId || !validateUUID(taskId)) {
       return error('Invalid task ID', 400, origin);
@@ -1033,15 +1038,7 @@ async function handleUpdateTask(event, taskId, origin) {
       return error('Request body is required', 400, origin);
     }
 
-    const { projectId, inventoryId, ...updates } = JSON.parse(event.body);
-
-    if (!projectId) {
-      return error('projectId is required', 400, origin);
-    }
-
-    if (!validateUUID(projectId)) {
-      return error('Invalid projectId format', 400, origin);
-    }
+    const { inventoryId, ...updates } = JSON.parse(event.body);
 
     if (!inventoryId) {
       return error('inventoryId is required', 400, origin);
@@ -1101,24 +1098,20 @@ async function handleUpdateTask(event, taskId, origin) {
 /**
  * Handle DELETE request - Delete a task
  */
-async function handleDeleteTask(event, taskId, origin) {
+async function handleDeleteTask(event, projectId, taskId, origin) {
   try {
+    // Validate project ID parameter
+    if (!projectId || !validateUUID(projectId)) {
+      return error('Invalid project ID', 400, origin);
+    }
+
     // Validate task ID parameter
     if (!taskId || !validateUUID(taskId)) {
       return error('Invalid task ID', 400, origin);
     }
 
-    // Get projectId and inventoryId from query parameters
-    const projectId = event.queryStringParameters?.projectId;
+    // Get inventoryId from query parameters
     const inventoryId = event.queryStringParameters?.inventoryId;
-
-    if (!projectId) {
-      return error('projectId query parameter is required', 400, origin);
-    }
-
-    if (!validateUUID(projectId)) {
-      return error('Invalid projectId format', 400, origin);
-    }
 
     if (!inventoryId) {
       return error('inventoryId query parameter is required', 400, origin);
@@ -1310,8 +1303,13 @@ async function handleGetProjectMilestones(event, projectId, origin) {
 /**
  * Handle PUT request - Update a milestone
  */
-async function handleUpdateMilestone(event, milestoneId, origin) {
+async function handleUpdateMilestone(event, projectId, milestoneId, origin) {
   try {
+    // Validate project ID parameter
+    if (!projectId || !validateUUID(projectId)) {
+      return error('Invalid project ID', 400, origin);
+    }
+
     // Validate milestone ID parameter
     if (!milestoneId || !validateUUID(milestoneId)) {
       return error('Invalid milestone ID', 400, origin);
@@ -1321,15 +1319,7 @@ async function handleUpdateMilestone(event, milestoneId, origin) {
       return error('Request body is required', 400, origin);
     }
 
-    const { projectId, inventoryId, ...updates } = JSON.parse(event.body);
-
-    if (!projectId) {
-      return error('projectId is required', 400, origin);
-    }
-
-    if (!validateUUID(projectId)) {
-      return error('Invalid projectId format', 400, origin);
-    }
+    const { inventoryId, ...updates } = JSON.parse(event.body);
 
     if (!inventoryId) {
       return error('inventoryId is required', 400, origin);
@@ -1389,8 +1379,13 @@ async function handleUpdateMilestone(event, milestoneId, origin) {
 /**
  * Handle PUT request - Mark milestone as completed
  */
-async function handleCompleteMilestone(event, milestoneId, origin) {
+async function handleCompleteMilestone(event, projectId, milestoneId, origin) {
   try {
+    // Validate project ID parameter
+    if (!projectId || !validateUUID(projectId)) {
+      return error('Invalid project ID', 400, origin);
+    }
+
     // Validate milestone ID parameter
     if (!milestoneId || !validateUUID(milestoneId)) {
       return error('Invalid milestone ID', 400, origin);
@@ -1400,15 +1395,7 @@ async function handleCompleteMilestone(event, milestoneId, origin) {
       return error('Request body is required', 400, origin);
     }
 
-    const { projectId, inventoryId } = JSON.parse(event.body);
-
-    if (!projectId) {
-      return error('projectId is required', 400, origin);
-    }
-
-    if (!validateUUID(projectId)) {
-      return error('Invalid projectId format', 400, origin);
-    }
+    const { inventoryId } = JSON.parse(event.body);
 
     if (!inventoryId) {
       return error('inventoryId is required', 400, origin);
@@ -1449,24 +1436,20 @@ async function handleCompleteMilestone(event, milestoneId, origin) {
 /**
  * Handle DELETE request - Delete a milestone
  */
-async function handleDeleteMilestone(event, milestoneId, origin) {
+async function handleDeleteMilestone(event, projectId, milestoneId, origin) {
   try {
+    // Validate project ID parameter
+    if (!projectId || !validateUUID(projectId)) {
+      return error('Invalid project ID', 400, origin);
+    }
+
     // Validate milestone ID parameter
     if (!milestoneId || !validateUUID(milestoneId)) {
       return error('Invalid milestone ID', 400, origin);
     }
 
-    // Get projectId and inventoryId from query parameters
-    const projectId = event.queryStringParameters?.projectId;
+    // Get inventoryId from query parameters
     const inventoryId = event.queryStringParameters?.inventoryId;
-
-    if (!projectId) {
-      return error('projectId query parameter is required', 400, origin);
-    }
-
-    if (!validateUUID(projectId)) {
-      return error('Invalid projectId format', 400, origin);
-    }
 
     if (!inventoryId) {
       return error('inventoryId query parameter is required', 400, origin);
@@ -1692,11 +1675,16 @@ async function handleGetBudgetItems(event, projectId, origin) {
 /**
  * Handle PUT request - Update a budget item
  */
-async function handleUpdateBudgetItem(event, projectId, origin) {
+async function handleUpdateBudgetItem(event, projectId, itemId, origin) {
   try {
     // Validate project ID parameter
     if (!projectId || !validateUUID(projectId)) {
       return error('Invalid project ID', 400, origin);
+    }
+    
+    // Validate item ID parameter
+    if (!itemId || !validateUUID(itemId)) {
+      return error('Invalid item ID', 400, origin);
     }
     
     if (!event.body) {
@@ -1705,20 +1693,15 @@ async function handleUpdateBudgetItem(event, projectId, origin) {
     
     const updates = JSON.parse(event.body);
     
-    // Get inventoryId and itemId from body or query parameters
+    // Get inventoryId from body or query parameters
     const inventoryId = updates.inventoryId || event.queryStringParameters?.inventoryId;
-    const itemId = updates.itemId || event.queryStringParameters?.itemId;
     
     if (!inventoryId) {
       return error('inventoryId is required', 400, origin);
     }
     
-    if (!itemId) {
-      return error('itemId is required', 400, origin);
-    }
-    
-    if (!validateUUID(inventoryId) || !validateUUID(itemId)) {
-      return error('Invalid inventoryId or itemId format', 400, origin);
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400, origin);
     }
     
     // Sanitize update data
@@ -1763,27 +1746,27 @@ async function handleUpdateBudgetItem(event, projectId, origin) {
 /**
  * Handle DELETE request - Delete a budget item
  */
-async function handleDeleteBudgetItem(event, projectId, origin) {
+async function handleDeleteBudgetItem(event, projectId, itemId, origin) {
   try {
     // Validate project ID parameter
     if (!projectId || !validateUUID(projectId)) {
       return error('Invalid project ID', 400, origin);
     }
     
-    // Get inventoryId and itemId from query parameters
+    // Validate item ID parameter
+    if (!itemId || !validateUUID(itemId)) {
+      return error('Invalid item ID', 400, origin);
+    }
+    
+    // Get inventoryId from query parameters
     const inventoryId = event.queryStringParameters?.inventoryId;
-    const itemId = event.queryStringParameters?.itemId;
     
     if (!inventoryId) {
       return error('inventoryId query parameter is required', 400, origin);
     }
     
-    if (!itemId) {
-      return error('itemId query parameter is required', 400, origin);
-    }
-    
-    if (!validateUUID(inventoryId) || !validateUUID(itemId)) {
-      return error('Invalid inventoryId or itemId format', 400, origin);
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400, origin);
     }
     
     // Delete budget item

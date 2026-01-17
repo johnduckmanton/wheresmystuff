@@ -1584,7 +1584,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/milestones
+            Path: /projects/{id}/milestones/{milestoneId}
             Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
@@ -1592,8 +1592,16 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/milestones
+            Path: /projects/{id}/milestones/{milestoneId}
             Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+        CompleteMilestone:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /projects/{id}/milestones/{milestoneId}/complete
+            Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
         GetProjectTasks:
@@ -1616,7 +1624,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/tasks
+            Path: /projects/{id}/tasks/{taskId}
             Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
@@ -1624,7 +1632,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/tasks
+            Path: /projects/{id}/tasks/{taskId}
             Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
@@ -1664,7 +1672,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/budget
+            Path: /projects/{id}/budget/{itemId}
             Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
@@ -1672,7 +1680,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /projects/{id}/budget
+            Path: /projects/{id}/budget/{itemId}
             Method: DELETE
             Auth:
               Authorizer: CognitoAuthorizer
