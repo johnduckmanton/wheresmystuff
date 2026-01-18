@@ -26,7 +26,7 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
-import type { Container, MovingProject, ContainerStatus, ProjectStatus, ThingWithContainer, Location, Room, Category, Person } from '../types';
+import type { Container, MovingProject, ContainerStatus, ThingWithContainer, Location, Room, Category, Person } from '../types';
 import QRCodeScanner from '../components/QRCodeScanner';
 import QRScanResults from '../components/QRScanResults';
 import ContainerDetailDialog from '../components/ContainerDetailDialog';
@@ -44,118 +44,6 @@ interface DashboardStats {
   totalValue: number;
   activeProjects: number;
   completedProjects: number;
-}
-
-/**
- * Project Overview Card Component
- * Displays project information with progress indicators
- * Validates: Requirements 8.3, 8.4
- */
-interface ProjectOverviewCardProps {
-  project: MovingProject;
-  onClick: () => void;
-}
-
-function ProjectOverviewCard({ project, onClick }: ProjectOverviewCardProps) {
-  const getStatusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case 'planning': return 'default';
-      case 'active': return 'primary';
-      case 'paused': return 'warning';
-      case 'completed': return 'success';
-      case 'archived': return 'secondary';
-      default: return 'default';
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  return (
-    <Card 
-      sx={{ 
-        cursor: 'pointer',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 4,
-        },
-      }}
-      onClick={onClick}
-    >
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
-            {project.name}
-          </Typography>
-          <Chip 
-            label={project.status.charAt(0).toUpperCase() + project.status.slice(1)} 
-            color={getStatusColor(project.status)}
-            size="small"
-          />
-        </Box>
-        
-        {project.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {project.description}
-          </Typography>
-        )}
-        
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Progress
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {project.completionPercentage}%
-            </Typography>
-          </Box>
-          <LinearProgress 
-            variant="determinate" 
-            value={project.completionPercentage} 
-            sx={{ height: 8, borderRadius: 4 }}
-          />
-        </Box>
-        
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="body2" color="text.secondary">
-              Containers
-            </Typography>
-            <Typography variant="h6">
-              {project.containerCount}
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="body2" color="text.secondary">
-              Items
-            </Typography>
-            <Typography variant="h6">
-              {project.itemCount}
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="body2" color="text.secondary">
-              Start Date
-            </Typography>
-            <Typography variant="body2">
-              {formatDate(project.startDate)}
-            </Typography>
-          </Grid>
-          <Grid size={{ xs: 6 }}>
-            <Typography variant="body2" color="text.secondary">
-              Target Date
-            </Typography>
-            <Typography variant="body2">
-              {formatDate(project.targetDate)}
-            </Typography>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
-  );
 }
 
 /**
