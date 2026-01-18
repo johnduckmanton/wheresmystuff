@@ -25,8 +25,6 @@ import {
   Inventory as InventoryIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon,
   FilterList as FilterListIcon,
   SelectAll as SelectAllIcon,
   DeselectOutlined as DeselectIcon,
@@ -36,7 +34,6 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useLoading } from '../contexts/LoadingContext';
 import apiClient from '../services/api';
 import QuickFilters from './QuickFilters';
-import { useFavoriteItems } from './PackingItemSearch';
 import type { Container, Thing, Category, Location, Room, Person } from '../types/entities';
 
 interface PackingInterfaceProps {
@@ -74,9 +71,10 @@ export default function PackingInterface({
   const [locations, setLocations] = useState<Location[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [containers, setContainers] = useState<Container[]>([]);
 
   // Filter state
-  const [showQuickFilters, setShowQuickFilters] = useState(true);
+  const [showQuickFilters, setShowQuickFilters] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
   const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
@@ -86,9 +84,6 @@ export default function PackingInterface({
   // UI state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [loading, setLocalLoading] = useState(false);
-
-  // Favorites hook
-  const { toggleFavorite, isFavorite } = useFavoriteItems();
 
   // Load data when component mounts
   useEffect(() => {
@@ -102,12 +97,13 @@ export default function PackingInterface({
 
     setLocalLoading(true);
     try {
-      const [itemsData, categoriesData, locationsData, roomsData, peopleData] = await Promise.all([
+      const [itemsData, categoriesData, locationsData, roomsData, peopleData, containersData] = await Promise.all([
         apiClient.getThings(currentInventory.id),
         apiClient.getCategories(currentInventory.id),
         apiClient.getLocations(currentInventory.id),
         apiClient.getRooms(undefined, currentInventory.id),
         apiClient.getPeople(currentInventory.id),
+        apiClient.getContainers(currentInventory.id),
       ]);
 
       setAllItems(itemsData);
@@ -115,6 +111,9 @@ export default function PackingInterface({
       setLocations(locationsData);
       setRooms(roomsData);
       setPeople(peopleData);
+      // Handle containers response which might be paginated
+      const containersList = Array.isArray(containersData) ? containersData : containersData.containers;
+      setContainers(containersList);
 
       // Transform items for packing interface
       const packingItemsData: PackingItem[] = itemsData.map(item => {
@@ -144,6 +143,31 @@ export default function PackingInterface({
   useEffect(() => {
     applyFilters();
   }, [allItems, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags]);
+
+  // Create lookup maps
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, Category>();
+    categories.forEach(cat => map.set(cat.id, cat));
+    return map;
+  }, [categories]);
+
+  const locationMap = useMemo(() => {
+    const map = new Map<string, Location>();
+    locations.forEach(loc => map.set(loc.id, loc));
+    return map;
+  }, [locations]);
+
+  const roomMap = useMemo(() => {
+    const map = new Map<string, Room>();
+    rooms.forEach(room => map.set(room.id, room));
+    return map;
+  }, [rooms]);
+
+  const containerMap = useMemo(() => {
+    const map = new Map<string, Container>();
+    containers.forEach(cont => map.set(cont.id, cont));
+    return map;
+  }, [containers]);
 
   const applyFilters = () => {
     let filtered = [...allItems];
@@ -215,23 +239,6 @@ export default function PackingInterface({
     setSelectedTags([]);
     setSearchQuery('');
   };
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, Category>();
-    categories.forEach(cat => map.set(cat.id, cat));
-    return map;
-  }, [categories]);
-
-  const locationMap = useMemo(() => {
-    const map = new Map<string, Location>();
-    locations.forEach(loc => map.set(loc.id, loc));
-    return map;
-  }, [locations]);
-
-  const roomMap = useMemo(() => {
-    const map = new Map<string, Room>();
-    rooms.forEach(room => map.set(room.id, room));
-    return map;
-  }, [rooms]);
 
   // Transform filtered items to packing items
   const packingFilteredItems = useMemo(() => {
@@ -382,6 +389,10 @@ export default function PackingInterface({
   const getItemCategoryName = (item: Thing) => {
     if (!item.categoryId) return 'No category';
     return categoryMap.get(item.categoryId)?.name || 'Unknown';
+  };
+
+  const getContainerName = (containerId: string) => {
+    return containerMap.get(containerId)?.name || containerId;
   };
 
   return (
@@ -563,11 +574,10 @@ export default function PackingInterface({
                     item={item}
                     selected={selectedItems.has(item.id)}
                     onToggle={() => handleItemToggle(item.id)}
-                    onToggleFavorite={() => toggleFavorite(item.id)}
-                    isFavorite={isFavorite(item.id)}
                     locationName={getItemLocationName(item)}
                     categoryName={getItemCategoryName(item)}
                     containerName={container.name}
+                    currentContainerName={item.currentContainer ? getContainerName(item.currentContainer) : undefined}
                   />
                 ))}
               </Box>
@@ -652,22 +662,20 @@ interface PackingItemCardProps {
   item: PackingItem;
   selected: boolean;
   onToggle: () => void;
-  onToggleFavorite: () => void;
-  isFavorite: boolean;
   locationName: string;
   categoryName: string;
   containerName: string;
+  currentContainerName?: string;
 }
 
 function PackingItemCard({
   item,
   selected,
   onToggle,
-  onToggleFavorite,
-  isFavorite,
   locationName,
   categoryName,
   containerName,
+  currentContainerName,
 }: PackingItemCardProps) {
   const isDisabled = item.alreadyPacked && item.currentContainer !== containerName;
   const isInCurrentContainer = item.currentContainer === containerName;
@@ -702,22 +710,6 @@ function PackingItemCard({
               <Typography variant="subtitle2" sx={{ fontWeight: 'medium' }}>
                 {item.name}
               </Typography>
-              
-              {/* Favorite button */}
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite();
-                }}
-                sx={{ p: 0.5 }}
-              >
-                {isFavorite ? (
-                  <StarIcon fontSize="small" color="primary" />
-                ) : (
-                  <StarBorderIcon fontSize="small" />
-                )}
-              </IconButton>
               
               {/* Status indicators */}
               {isInCurrentContainer && (
@@ -758,9 +750,9 @@ function PackingItemCard({
               )}
             </Box>
 
-            {item.alreadyPacked && item.currentContainer && item.currentContainer !== containerName && (
+            {item.alreadyPacked && currentContainerName && currentContainerName !== containerName && (
               <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1 }}>
-                Currently in: {item.currentContainer}
+                Currently in: {currentContainerName}
               </Typography>
             )}
           </Box>

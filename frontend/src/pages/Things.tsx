@@ -222,7 +222,7 @@ export default function Things() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [showQuickFilters, setShowQuickFilters] = useState(true);
+  const [showQuickFilters, setShowQuickFilters] = useState(false);
 
   // Contexts
   const { setLoading: setGlobalLoading } = useLoading();
