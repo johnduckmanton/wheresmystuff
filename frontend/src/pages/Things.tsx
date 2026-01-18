@@ -331,7 +331,9 @@ export default function Things() {
           thing.name.toLowerCase().includes(searchLower) ||
           (thing.description && thing.description.toLowerCase().includes(searchLower)) ||
           (thing.notes && thing.notes.toLowerCase().includes(searchLower)) ||
-          (thing.serialNumber && thing.serialNumber.toLowerCase().includes(searchLower))
+          (thing.serialNumber && thing.serialNumber.toLowerCase().includes(searchLower)) ||
+          (thing.make && thing.make.toLowerCase().includes(searchLower)) ||
+          (thing.model && thing.model.toLowerCase().includes(searchLower))
         );
       }
 

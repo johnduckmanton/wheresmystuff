@@ -272,10 +272,6 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
         datePurchased: editedData.datePurchased || undefined,
         purchasedFrom: editedData.purchasedFrom || undefined,
         warrantyDetails: editedData.warrantyDetails || undefined,
-        disposalDate: editedData.disposalDate || undefined,
-        nextReviewDate: editedData.nextReviewDate || undefined,
-        disposalDate: editedData.disposalDate || undefined,
-        nextReviewDate: editedData.nextReviewDate || undefined,
         inventoryId: currentInventory.id,
         photos: [photoKey]
       };
