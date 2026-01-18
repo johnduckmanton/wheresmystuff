@@ -739,15 +739,88 @@ export default function MovingDashboard() {
                     <Typography variant="h6" component="h3" sx={{ mb: 3, fontWeight: 600 }}>
                       Active Projects
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       {Array.isArray(projects) && projects
                         .filter((p: MovingProject) => p.status === 'active' || p.status === 'planning')
                         .map((project) => (
-                          <ProjectOverviewCard
+                          <Box
                             key={project.id}
-                            project={project}
+                            sx={{
+                              cursor: 'pointer',
+                              p: 2,
+                              borderRadius: 1,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              transition: 'all 0.2s ease-in-out',
+                              '&:hover': {
+                                borderColor: 'primary.main',
+                                backgroundColor: 'action.hover',
+                              },
+                            }}
                             onClick={() => handleProjectClick(project)}
-                          />
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                {project.name}
+                              </Typography>
+                              <Chip 
+                                label={project.status.charAt(0).toUpperCase() + project.status.slice(1)} 
+                                color={project.status === 'active' ? 'primary' : 'default'}
+                                size="small"
+                              />
+                            </Box>
+                            
+                            <Box sx={{ mb: 2 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Progress
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {project.completionPercentage}%
+                                </Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={project.completionPercentage} 
+                                sx={{ height: 6, borderRadius: 3 }}
+                              />
+                            </Box>
+                            
+                            <Grid container spacing={2}>
+                              <Grid size={{ xs: 6 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Containers
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {project.containerCount}
+                                </Typography>
+                              </Grid>
+                              <Grid size={{ xs: 6 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Items
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {project.itemCount}
+                                </Typography>
+                              </Grid>
+                              <Grid size={{ xs: 6 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Start Date
+                                </Typography>
+                                <Typography variant="body2">
+                                  {new Date(project.startDate).toLocaleDateString()}
+                                </Typography>
+                              </Grid>
+                              <Grid size={{ xs: 6 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  Target Date
+                                </Typography>
+                                <Typography variant="body2">
+                                  {project.targetDate ? new Date(project.targetDate).toLocaleDateString() : 'Not set'}
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                          </Box>
                         ))}
                     </Box>
                   </CardContent>
