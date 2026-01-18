@@ -728,92 +728,59 @@ export default function MovingDashboard() {
 
           {/* Statistics and Overview */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid size={{ xs: 12, lg: 8 }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <ContainerStatsCard containers={containers} stats={stats} />
             </Grid>
-            <Grid size={{ xs: 12, lg: 4 }}>
-              <Card>
-                <CardContent>
+            <Grid size={{ xs: 12, md: 6 }}>
+              {/* Active Projects */}
+              {projects.length > 0 ? (
+                <Box>
                   <Typography variant="h6" component="h3" sx={{ mb: 3, fontWeight: 600 }}>
-                    Project Summary
+                    Active Projects
                   </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid size={{ xs: 6 }}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h3" color="primary" sx={{ fontWeight: 700 }}>
-                          {stats.activeProjects}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Active Projects
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid size={{ xs: 6 }}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h3" color="success.main" sx={{ fontWeight: 700 }}>
-                          {stats.completedProjects}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Completed
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                  
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {Array.isArray(projects) && projects
+                      .filter((p: MovingProject) => p.status === 'active' || p.status === 'planning')
+                      .map((project) => (
+                        <ProjectOverviewCard
+                          key={project.id}
+                          project={project}
+                          onClick={() => handleProjectClick(project)}
+                        />
+                      ))}
+                  </Box>
                   <Button
                     variant="outlined"
                     startIcon={<AssignmentIcon />}
                     onClick={handleCreateProject}
                     fullWidth
-                    sx={{ mt: 3 }}
+                    sx={{ mt: 2 }}
                   >
                     Create New Project
                   </Button>
-                </CardContent>
-              </Card>
+                </Box>
+              ) : (
+                <Card>
+                  <CardContent sx={{ textAlign: 'center', py: 6 }}>
+                    <StorageIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>
+                      No Moving Projects Yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Create your first moving project to start organizing containers and tracking progress.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={handleCreateProject}
+                    >
+                      Create First Project
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </Grid>
           </Grid>
-
-          {/* Active Projects */}
-          {projects.length > 0 ? (
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h5" component="h2" sx={{ mb: 3, fontWeight: 600 }}>
-                Active Projects
-              </Typography>
-              <Grid container spacing={3}>
-                {Array.isArray(projects) && projects
-                  .filter((p: MovingProject) => p.status === 'active' || p.status === 'planning')
-                  .map((project) => (
-                    <Grid size={{ xs: 12, md: 6, lg: 4 }} key={project.id}>
-                      <ProjectOverviewCard
-                        project={project}
-                        onClick={() => handleProjectClick(project)}
-                      />
-                    </Grid>
-                  ))}
-              </Grid>
-            </Box>
-          ) : (
-            <Card sx={{ mb: 4 }}>
-              <CardContent sx={{ textAlign: 'center', py: 6 }}>
-                <StorageIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  No Moving Projects Yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Create your first moving project to start organizing containers and tracking progress.
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={handleCreateProject}
-                >
-                  Create First Project
-                </Button>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Recent Containers */}
           {containers.length > 0 && (
