@@ -488,7 +488,8 @@ export default function QuickFilters({
                   if (count === 0) return null;
                   
                   const locationRooms = rooms.filter(r => r.locationId === location.id);
-                  const hasRooms = locationRooms.length > 0;
+                  const roomsWithItems = locationRooms.filter(r => (roomCounts.get(r.id) || 0) > 0);
+                  const hasRooms = roomsWithItems.length > 0;
                   const isLocationExpanded = expandedLocationIds.has(location.id);
                   
                   return (
@@ -496,7 +497,13 @@ export default function QuickFilters({
                       <ListItem disablePadding>
                         <ListItemButton
                           selected={selectedLocationId === location.id && !selectedRoomId}
-                          onClick={() => handleLocationClick(location.id)}
+                          onClick={(e) => {
+                            // If clicking the expand icon area, don't select location
+                            if (hasRooms && (e.target as HTMLElement).closest('.expand-icon')) {
+                              return;
+                            }
+                            handleLocationClick(location.id);
+                          }}
                           sx={{ 
                             py: 0.5,
                             borderRadius: 1,
@@ -509,9 +516,32 @@ export default function QuickFilters({
                             },
                           }}
                         >
+                          {hasRooms && (
+                            <Box
+                              className="expand-icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleLocationExpanded(location.id);
+                              }}
+                              sx={{ 
+                                mr: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                p: 0.25,
+                                borderRadius: 0.5,
+                                '&:hover': {
+                                  backgroundColor: 'action.hover',
+                                }
+                              }}
+                            >
+                              {isLocationExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                            </Box>
+                          )}
                           <ListItemText 
                             primary={location.name}
                             primaryTypographyProps={{ fontSize: '0.85rem' }}
+                            sx={{ ml: hasRooms ? 0 : 3 }}
                           />
                           <Badge 
                             badgeContent={count} 
@@ -524,36 +554,15 @@ export default function QuickFilters({
                               }
                             }}
                           />
-                          {hasRooms && (
-                            <Box
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleLocationExpanded(location.id);
-                              }}
-                              sx={{ 
-                                ml: 0.5,
-                                display: 'flex',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'action.hover',
-                                  borderRadius: 1,
-                                }
-                              }}
-                            >
-                              {isLocationExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                            </Box>
-                          )}
                         </ListItemButton>
                       </ListItem>
                       
                       {/* Rooms under this location */}
                       {hasRooms && (
                         <Collapse in={isLocationExpanded} timeout="auto" unmountOnExit>
-                          <List dense sx={{ pl: 3 }}>
-                            {locationRooms.map(room => {
+                          <List dense sx={{ pl: 4 }}>
+                            {roomsWithItems.map(room => {
                               const roomCount = roomCounts.get(room.id) || 0;
-                              if (roomCount === 0) return null;
                               
                               return (
                                 <ListItem key={room.id} disablePadding>
