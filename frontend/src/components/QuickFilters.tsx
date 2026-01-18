@@ -212,8 +212,7 @@ export default function QuickFilters({
     <Paper 
       sx={{ 
         width: 280, 
-        height: 'fit-content',
-        maxHeight: 'calc(100vh - 200px)',
+        height: '100%',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -497,13 +496,7 @@ export default function QuickFilters({
                       <ListItem disablePadding>
                         <ListItemButton
                           selected={selectedLocationId === location.id && !selectedRoomId}
-                          onClick={(e) => {
-                            // If clicking the expand icon area, don't select location
-                            if (hasRooms && (e.target as HTMLElement).closest('.expand-icon')) {
-                              return;
-                            }
-                            handleLocationClick(location.id);
-                          }}
+                          onClick={() => handleLocationClick(location.id)}
                           sx={{ 
                             py: 0.5,
                             borderRadius: 1,
@@ -518,7 +511,6 @@ export default function QuickFilters({
                         >
                           {hasRooms && (
                             <Box
-                              className="expand-icon"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleLocationExpanded(location.id);

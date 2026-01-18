@@ -303,52 +303,21 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
       maxWidth="lg" 
       fullWidth
       PaperProps={{
-        sx: { height: '80vh' }
+        sx: { height: '80vh', display: 'flex', flexDirection: 'column' }
       }}
     >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Assign Things to Project</Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
-              <IconButton
-                onClick={() => setShowQuickFilters(!showQuickFilters)}
-                color={showQuickFilters ? 'primary' : 'default'}
-                size="small"
-              >
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Select All Visible">
-              <IconButton
-                onClick={handleSelectAll}
-                disabled={filteredThings.length === 0}
-                size="small"
-              >
-                <SelectAllIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Deselect All">
-              <IconButton
-                onClick={handleDeselectAll}
-                disabled={selectedThings.size === 0}
-                size="small"
-              >
-                <DeselectIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
+      <DialogTitle sx={{ pb: 2 }}>
+        <Typography variant="h6">Assign Things to Project</Typography>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, display: 'flex', height: '100%' }}>
+      <DialogContent sx={{ p: 0, display: 'flex', flex: 1, overflow: 'hidden' }}>
         {error && (
           <Alert severity="error" sx={{ m: 2 }}>
             {error}
           </Alert>
         )}
 
-        <Box sx={{ display: 'flex', width: '100%', height: '100%' }}>
+        <Box sx={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
           {/* Quick Filters Sidebar */}
           <Box
             sx={{
@@ -358,60 +327,96 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
               flexShrink: 0,
               borderRight: showQuickFilters ? '1px solid' : 'none',
               borderColor: 'divider',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
             {showQuickFilters && (
-              <QuickFilters
-                things={allThings}
-                categories={categories}
-                locations={locations}
-                rooms={rooms}
-                people={people}
-                selectedCategoryId={selectedCategoryId}
-                selectedLocationId={selectedLocationId}
-                selectedRoomId={selectedRoomId}
-                selectedOwnerId={selectedOwnerId}
-                selectedTags={selectedTags}
-                onCategoryFilter={setSelectedCategoryId}
-                onLocationFilter={setSelectedLocationId}
-                onRoomFilter={setSelectedRoomId}
-                onOwnerFilter={setSelectedOwnerId}
-                onTagFilter={setSelectedTags}
-                onClearFilters={handleClearFilters}
-              />
+              <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <QuickFilters
+                  things={allThings}
+                  categories={categories}
+                  locations={locations}
+                  rooms={rooms}
+                  people={people}
+                  selectedCategoryId={selectedCategoryId}
+                  selectedLocationId={selectedLocationId}
+                  selectedRoomId={selectedRoomId}
+                  selectedOwnerId={selectedOwnerId}
+                  selectedTags={selectedTags}
+                  onCategoryFilter={setSelectedCategoryId}
+                  onLocationFilter={setSelectedLocationId}
+                  onRoomFilter={setSelectedRoomId}
+                  onOwnerFilter={setSelectedOwnerId}
+                  onTagFilter={setSelectedTags}
+                  onClearFilters={handleClearFilters}
+                />
+              </Box>
             )}
           </Box>
 
           {/* Things List */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            {/* Search Bar */}
-            <Box sx={{ p: 2, pb: 1 }}>
-              <TextField
-                placeholder="Search things..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                fullWidth
-                size="small"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-              {selectedThings.size > 0 && (
-                <Box sx={{ mt: 1 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+            {/* Search Bar and Controls */}
+            <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
+                  <IconButton
+                    onClick={() => setShowQuickFilters(!showQuickFilters)}
+                    color={showQuickFilters ? 'primary' : 'default'}
+                    size="small"
+                    sx={{ flexShrink: 0 }}
+                  >
+                    <FilterListIcon />
+                  </IconButton>
+                </Tooltip>
+                <TextField
+                  placeholder="Search things..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  fullWidth
+                  size="small"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {selectedThings.size > 0 ? (
                   <Chip
                     label={`${selectedThings.size} selected`}
                     color="primary"
                     size="small"
                     onDelete={handleDeselectAll}
                   />
+                ) : (
+                  <Box />
+                )}
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Button
+                    onClick={handleSelectAll}
+                    disabled={filteredThings.length === 0}
+                    size="small"
+                    startIcon={<SelectAllIcon />}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    onClick={handleDeselectAll}
+                    disabled={selectedThings.size === 0}
+                    size="small"
+                    startIcon={<DeselectIcon />}
+                  >
+                    Deselect
+                  </Button>
                 </Box>
-              )}
+              </Box>
             </Box>
 
             {/* Things List */}
