@@ -55,6 +55,14 @@ interface TagStatistic {
   lastUsed: string;
 }
 
+interface CategoryStatistic {
+  categoryId: string;
+  categoryName: string;
+  count: number;
+  percentage: number;
+  color?: string;
+}
+
 interface TagAnalyticsData {
   inventoryId: string;
   totalTags: number;
@@ -88,6 +96,7 @@ interface TagAnalyticsProps {
  */
 const TagAnalytics: React.FC<TagAnalyticsProps> = ({ inventoryId }) => {
   const [analyticsData, setAnalyticsData] = useState<TagAnalyticsData | null>(null);
+  const [categoryStats, setCategoryStats] = useState<CategoryStatistic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -117,15 +126,70 @@ const TagAnalytics: React.FC<TagAnalyticsProps> = ({ inventoryId }) => {
       setError(null);
 
       const offset = (currentPage - 1) * pageSize;
-      const data = await apiClient.getTagAnalytics(inventoryId, {
-        limit: pageSize,
-        offset,
-        sortBy,
-        sortOrder,
-        filter: filterText || undefined
+      
+      // Load tag analytics and category/thing data in parallel
+      const [tagData, categories, things] = await Promise.all([
+        apiClient.getTagAnalytics(inventoryId, {
+          limit: pageSize,
+          offset,
+          sortBy,
+          sortOrder,
+          filter: filterText || undefined
+        }),
+        apiClient.getCategories(inventoryId),
+        apiClient.getThings(inventoryId)
+      ]);
+      
+      setAnalyticsData(tagData);
+      
+      // Calculate category statistics
+      const totalThings = things.length;
+      const categoryMap = new Map<string, { name: string; count: number; color?: string }>();
+      let uncategorizedCount = 0;
+      
+      things.forEach(thing => {
+        if (thing.categoryId) {
+          const existing = categoryMap.get(thing.categoryId);
+          if (existing) {
+            existing.count++;
+          } else {
+            const category = categories.find(c => c.id === thing.categoryId);
+            if (category) {
+              categoryMap.set(thing.categoryId, {
+                name: category.name,
+                count: 1,
+                color: category.color
+              });
+            }
+          }
+        } else {
+          uncategorizedCount++;
+        }
       });
       
-      setAnalyticsData(data);
+      // Convert to array and calculate percentages
+      const stats: CategoryStatistic[] = Array.from(categoryMap.entries()).map(([id, data]) => ({
+        categoryId: id,
+        categoryName: data.name,
+        count: data.count,
+        percentage: totalThings > 0 ? Math.round((data.count / totalThings) * 100) : 0,
+        color: data.color
+      }));
+      
+      // Add uncategorized if there are any
+      if (uncategorizedCount > 0) {
+        stats.push({
+          categoryId: 'uncategorized',
+          categoryName: 'Uncategorized',
+          count: uncategorizedCount,
+          percentage: totalThings > 0 ? Math.round((uncategorizedCount / totalThings) * 100) : 0
+        });
+      }
+      
+      // Sort by count descending
+      stats.sort((a, b) => b.count - a.count);
+      
+      setCategoryStats(stats);
     } catch (err) {
       console.error('Error loading tag analytics:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tag analytics';
@@ -596,7 +660,7 @@ const TagAnalytics: React.FC<TagAnalyticsProps> = ({ inventoryId }) => {
       </Card>
 
       {/* Tag Distribution Chart */}
-      <Card>
+      <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Tag Distribution
@@ -635,6 +699,61 @@ const TagAnalytics: React.FC<TagAnalyticsProps> = ({ inventoryId }) => {
               <Assessment sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
               <Typography variant="body1" color="text.secondary">
                 No tag distribution data available
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Category Distribution Chart */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Category Distribution
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Items organized by category
+          </Typography>
+
+          {categoryStats.length > 0 ? (
+            <Box sx={{ mt: 2 }}>
+              {categoryStats.map((stat, index) => (
+                <Box key={stat.categoryId} sx={{ mb: 2 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      {stat.color && (
+                        <Box
+                          sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            backgroundColor: stat.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <Typography variant="body2">
+                        #{index + 1} {stat.categoryName}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" fontWeight="bold">
+                      {stat.count} items ({stat.percentage}%)
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={stat.percentage}
+                    sx={{ height: 8, borderRadius: 4 }}
+                    color={stat.categoryId === 'uncategorized' ? 'inherit' : 'primary'}
+                  />
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Assessment sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                No category distribution data available
               </Typography>
             </Box>
           )}
