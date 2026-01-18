@@ -31,6 +31,7 @@ import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Category, Thing, Location, Room, Person } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import EnhancedTagInput from './EnhancedTagInput';
 
 interface AIAnalysisResult {
   success: boolean;
@@ -84,13 +85,16 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
     locationId: '',
     roomId: '',
     ownerId: '',
+    make: '',
+    model: '',
     serialNumber: '',
+    tags: [] as string[],
     notes: '',
     purchasePrice: '',
     datePurchased: '',
     purchasedFrom: '',
     warrantyDetails: '',
-    estimatedValue: ''
+    estimatedValue: '',
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -222,13 +226,16 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
           locationId: '',
           roomId: '',
           ownerId: '',
+          make: result.analysis.extractedText.brandNames[0] || '',
+          model: result.analysis.extractedText.modelNumbers[0] || '',
           serialNumber: result.analysis.extractedText.serialNumbers[0] || '',
+          tags: [],
           notes: '',
           purchasePrice: '',
           datePurchased: '',
           purchasedFrom: '',
           warrantyDetails: '',
-          estimatedValue: result.analysis.estimatedValue?.toString() || ''
+          estimatedValue: result.analysis.estimatedValue?.toString() || '',
         });
 
         setShowAnalysisDialog(true);
@@ -256,12 +263,19 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
         locationId: editedData.locationId || undefined,
         roomId: editedData.roomId || undefined,
         ownerId: editedData.ownerId || undefined,
+        make: editedData.make || undefined,
+        model: editedData.model || undefined,
         serialNumber: editedData.serialNumber || undefined,
+        tags: editedData.tags.length > 0 ? editedData.tags : undefined,
         notes: editedData.notes || undefined,
         purchasePrice: editedData.purchasePrice ? parseFloat(editedData.purchasePrice) : undefined,
         datePurchased: editedData.datePurchased || undefined,
         purchasedFrom: editedData.purchasedFrom || undefined,
         warrantyDetails: editedData.warrantyDetails || undefined,
+        disposalDate: editedData.disposalDate || undefined,
+        nextReviewDate: editedData.nextReviewDate || undefined,
+        disposalDate: editedData.disposalDate || undefined,
+        nextReviewDate: editedData.nextReviewDate || undefined,
         inventoryId: currentInventory.id,
         photos: [photoKey]
       };
@@ -282,13 +296,16 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
         locationId: '',
         roomId: '',
         ownerId: '',
+        make: '',
+        model: '',
         serialNumber: '',
+        tags: [],
         notes: '',
         purchasePrice: '',
         datePurchased: '',
         purchasedFrom: '',
         warrantyDetails: '',
-        estimatedValue: ''
+        estimatedValue: '',
       });
 
     } catch (error) {
@@ -464,6 +481,43 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
                 margin="normal"
               />
 
+              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <TextField
+                  label="Make/Brand"
+                  value={editedData.make}
+                  onChange={(e) => setEditedData({...editedData, make: e.target.value})}
+                  fullWidth
+                  slotProps={{
+                    input: {
+                      endAdornment: analysisResult.analysis.extractedText.brandNames.length > 0 && (
+                        <Chip 
+                          label="AI Detected"
+                          size="small"
+                          color="info"
+                        />
+                      )
+                    }
+                  }}
+                />
+                <TextField
+                  label="Model"
+                  value={editedData.model}
+                  onChange={(e) => setEditedData({...editedData, model: e.target.value})}
+                  fullWidth
+                  slotProps={{
+                    input: {
+                      endAdornment: analysisResult.analysis.extractedText.modelNumbers.length > 0 && (
+                        <Chip 
+                          label="AI Detected"
+                          size="small"
+                          color="info"
+                        />
+                      )
+                    }
+                  }}
+                />
+              </Box>
+
               <FormControl fullWidth margin="normal">
                 <InputLabel>Category</InputLabel>
                 <Select
@@ -549,6 +603,18 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
                 fullWidth
                 margin="normal"
               />
+
+              <Box sx={{ mt: 2 }}>
+                <EnhancedTagInput
+                  tags={editedData.tags}
+                  onTagsChange={(tags) => setEditedData({...editedData, tags})}
+                  label="Tags"
+                  placeholder="Add tags to categorize this item..."
+                  enableApiSuggestions={true}
+                  size="small"
+                  maxTags={20}
+                />
+              </Box>
 
               <TextField
                 label="Notes"
