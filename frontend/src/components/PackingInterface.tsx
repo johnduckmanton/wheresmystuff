@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Checkbox,
-  FormControlLabel,
   Chip,
   LinearProgress,
   Alert,
@@ -15,6 +14,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
+  InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -25,15 +27,17 @@ import {
   CheckCircle as CheckCircleIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
+  FilterList as FilterListIcon,
+  SelectAll as SelectAllIcon,
+  DeselectOutlined as DeselectIcon,
 } from '@mui/icons-material';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useLoading } from '../contexts/LoadingContext';
-import { useMobileDetection } from '../hooks/useMobileDetection';
-import { useSwipeGestures } from '../hooks/useSwipeGestures';
 import apiClient from '../services/api';
-import PackingItemSearch, { useFavoriteItems } from './PackingItemSearch';
-import type { Container, Thing, Category, Location, Room } from '../types/entities';
+import QuickFilters from './QuickFilters';
+import { useFavoriteItems } from './PackingItemSearch';
+import type { Container, Thing, Category, Location, Room, Person } from '../types/entities';
 
 interface PackingInterfaceProps {
   container: Container;
@@ -57,18 +61,27 @@ export default function PackingInterface({
   const { currentInventory } = useInventory();
   const { showSuccess, showError } = useNotification();
   const { setLoading } = useLoading();
-  const { isMobile } = useMobileDetection();
 
   // State for items and filtering
   const [allItems, setAllItems] = useState<Thing[]>([]);
   const [packingItems, setPackingItems] = useState<PackingItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<Thing[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Reference data
   const [categories, setCategories] = useState<Category[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+
+  // Filter state
+  const [showQuickFilters, setShowQuickFilters] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // UI state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -89,17 +102,19 @@ export default function PackingInterface({
 
     setLocalLoading(true);
     try {
-      const [itemsData, categoriesData, locationsData, roomsData] = await Promise.all([
+      const [itemsData, categoriesData, locationsData, roomsData, peopleData] = await Promise.all([
         apiClient.getThings(currentInventory.id),
         apiClient.getCategories(currentInventory.id),
         apiClient.getLocations(currentInventory.id),
         apiClient.getRooms(undefined, currentInventory.id),
+        apiClient.getPeople(currentInventory.id),
       ]);
 
       setAllItems(itemsData);
       setCategories(categoriesData);
       setLocations(locationsData);
       setRooms(roomsData);
+      setPeople(peopleData);
 
       // Transform items for packing interface
       const packingItemsData: PackingItem[] = itemsData.map(item => {
@@ -116,6 +131,7 @@ export default function PackingInterface({
       });
 
       setPackingItems(packingItemsData);
+      setFilteredItems(itemsData); // Initialize filtered items
     } catch (error) {
       console.error('Error loading data:', error);
       showError('Failed to load items for packing');
@@ -124,7 +140,81 @@ export default function PackingInterface({
     }
   };
 
-  // Create lookup maps
+  // Apply filters
+  useEffect(() => {
+    applyFilters();
+  }, [allItems, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags]);
+
+  const applyFilters = () => {
+    let filtered = [...allItems];
+
+    // Apply text search
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter(thing =>
+        thing.name.toLowerCase().includes(searchLower) ||
+        (thing.description && thing.description.toLowerCase().includes(searchLower)) ||
+        (thing.make && thing.make.toLowerCase().includes(searchLower)) ||
+        (thing.model && thing.model.toLowerCase().includes(searchLower)) ||
+        (thing.serialNumber && thing.serialNumber.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategoryId) {
+      if (selectedCategoryId === 'uncategorized') {
+        filtered = filtered.filter(thing => !thing.categoryId);
+      } else {
+        filtered = filtered.filter(thing => thing.categoryId === selectedCategoryId);
+      }
+    }
+
+    // Apply location filter
+    if (selectedLocationId) {
+      if (selectedLocationId === 'unlocated') {
+        filtered = filtered.filter(thing => !thing.locationId);
+      } else {
+        filtered = filtered.filter(thing => thing.locationId === selectedLocationId);
+      }
+    }
+
+    // Apply room filter
+    if (selectedRoomId) {
+      filtered = filtered.filter(thing => thing.roomId === selectedRoomId);
+    }
+
+    // Apply owner filter
+    if (selectedOwnerId) {
+      if (selectedOwnerId === 'unowned') {
+        filtered = filtered.filter(thing => !thing.ownerId);
+      } else {
+        filtered = filtered.filter(thing => thing.ownerId === selectedOwnerId);
+      }
+    }
+
+    // Apply tag filter (AND mode)
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(thing => {
+        if (!thing.tags || thing.tags.length === 0) return false;
+        return selectedTags.every(selectedTag =>
+          thing.tags!.some(thingTag =>
+            thingTag.toLowerCase() === selectedTag.toLowerCase()
+          )
+        );
+      });
+    }
+
+    setFilteredItems(filtered);
+  };
+
+  const handleClearFilters = () => {
+    setSelectedCategoryId(undefined);
+    setSelectedLocationId(undefined);
+    setSelectedRoomId(undefined);
+    setSelectedOwnerId(undefined);
+    setSelectedTags([]);
+    setSearchQuery('');
+  };
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
     categories.forEach(cat => map.set(cat.id, cat));
@@ -174,19 +264,13 @@ export default function PackingInterface({
     const availableItems = packingFilteredItems.filter(item => 
       !item.alreadyPacked || item.currentContainer === container.id
     );
-    const allSelected = availableItems.every(item => selectedItems.has(item.id));
-    
-    if (allSelected) {
-      // Deselect all
-      const newSelected = new Set(selectedItems);
-      availableItems.forEach(item => newSelected.delete(item.id));
-      setSelectedItems(newSelected);
-    } else {
-      // Select all available
-      const newSelected = new Set(selectedItems);
-      availableItems.forEach(item => newSelected.add(item.id));
-      setSelectedItems(newSelected);
-    }
+    const newSelected = new Set(selectedItems);
+    availableItems.forEach(item => newSelected.add(item.id));
+    setSelectedItems(newSelected);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedItems(new Set());
   };
 
   // Handle packing items
@@ -305,148 +389,210 @@ export default function PackingInterface({
       height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
-      pb: isMobile ? 8 : 0, // Space for mobile action bar
+      overflow: 'hidden',
     }}>
-      {/* Header */}
-      <Box sx={{ 
-        p: isMobile ? 2 : 3, 
-        borderBottom: 1, 
-        borderColor: 'divider',
-        position: isMobile ? 'sticky' : 'static',
-        top: 0,
-        backgroundColor: 'background.paper',
-        zIndex: 100,
-      }}>
-        <Typography 
-          variant={isMobile ? 'h6' : 'h5'} 
-          gutterBottom
-          className={isMobile ? 'mobile-title' : ''}
+      {/* Main Content Area */}
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Quick Filters Sidebar */}
+        <Box
+          sx={{
+            width: showQuickFilters ? 280 : 0,
+            overflow: 'hidden',
+            transition: 'width 0.3s ease-in-out',
+            flexShrink: 0,
+            borderRight: showQuickFilters ? '1px solid' : 'none',
+            borderColor: 'divider',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
         >
-          Pack Items into {container.name}
-        </Typography>
-        
-        {/* Statistics */}
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <Chip
-            icon={<InventoryIcon />}
-            label={`${stats.packedInContainer} items in container`}
-            color="success"
-            variant="outlined"
-          />
-          <Chip
-            icon={<SearchIcon />}
-            label={`${stats.totalItems} items shown`}
-            color="info"
-            variant="outlined"
-          />
-          <Chip
-            icon={<CheckCircleIcon />}
-            label={`${stats.selectedCount} selected`}
-            color="primary"
-            variant={stats.selectedCount > 0 ? 'filled' : 'outlined'}
-          />
+          {showQuickFilters && (
+            <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <QuickFilters
+                things={allItems}
+                categories={categories}
+                locations={locations}
+                rooms={rooms}
+                people={people}
+                selectedCategoryId={selectedCategoryId}
+                selectedLocationId={selectedLocationId}
+                selectedRoomId={selectedRoomId}
+                selectedOwnerId={selectedOwnerId}
+                selectedTags={selectedTags}
+                onCategoryFilter={setSelectedCategoryId}
+                onLocationFilter={setSelectedLocationId}
+                onRoomFilter={setSelectedRoomId}
+                onOwnerFilter={setSelectedOwnerId}
+                onTagFilter={setSelectedTags}
+                onClearFilters={handleClearFilters}
+              />
+            </Box>
+          )}
         </Box>
 
-        {/* Progress indicator */}
-        {stats.availableForPacking > 0 && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Container capacity: {stats.packedInContainer} items
+        {/* Items List Area */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+          {/* Header with Stats */}
+          <Box sx={{ 
+            p: 3, 
+            borderBottom: 1, 
+            borderColor: 'divider',
+          }}>
+            <Typography variant="h5" gutterBottom>
+              Pack Items into {container.name}
             </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={Math.min((stats.packedInContainer / Math.max(stats.availableForPacking, 1)) * 100, 100)}
-              sx={{ height: 8, borderRadius: 4 }}
-            />
-          </Box>
-        )}
-      </Box>
-
-      {/* Advanced Search and Filters */}
-      <PackingItemSearch
-        items={allItems}
-        categories={categories}
-        locations={locations}
-        rooms={rooms}
-        onFilteredItemsChange={setFilteredItems}
-      />
-
-      {/* Items List */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <Typography>Loading items...</Typography>
-          </Box>
-        ) : packingFilteredItems.length === 0 ? (
-          <Alert severity="info">
-            No items found matching your filters. Try adjusting your search criteria.
-          </Alert>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* Select All/None */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={stats.selectedCount > 0}
-                    indeterminate={stats.selectedCount > 0 && stats.selectedCount < stats.availableForPacking}
-                    onChange={handleSelectAll}
-                  />
-                }
-                label={`Select All Available (${stats.availableForPacking} items)`}
+            
+            {/* Statistics */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+              <Chip
+                icon={<InventoryIcon />}
+                label={`${stats.packedInContainer} items in container`}
+                color="success"
+                variant="outlined"
+                size="small"
+              />
+              <Chip
+                icon={<SearchIcon />}
+                label={`${stats.totalItems} items shown`}
+                color="info"
+                variant="outlined"
+                size="small"
+              />
+              <Chip
+                icon={<CheckCircleIcon />}
+                label={`${stats.selectedCount} selected`}
+                color="primary"
+                variant={stats.selectedCount > 0 ? 'filled' : 'outlined'}
+                size="small"
               />
             </Box>
 
-            {/* Items */}
-            {packingFilteredItems.map((item) => (
-              <PackingItemCard
-                key={item.id}
-                item={item}
-                selected={selectedItems.has(item.id)}
-                onToggle={() => handleItemToggle(item.id)}
-                onToggleFavorite={() => toggleFavorite(item.id)}
-                isFavorite={isFavorite(item.id)}
-                locationName={getItemLocationName(item)}
-                categoryName={getItemCategoryName(item)}
-                containerName={container.name}
-              />
-            ))}
+            {/* Progress indicator */}
+            {stats.availableForPacking > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Container capacity: {stats.packedInContainer} items
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min((stats.packedInContainer / Math.max(stats.availableForPacking, 1)) * 100, 100)}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </Box>
+            )}
           </Box>
-        )}
+
+          {/* Search Bar and Controls */}
+          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+              <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
+                <IconButton
+                  onClick={() => setShowQuickFilters(!showQuickFilters)}
+                  color={showQuickFilters ? 'primary' : 'default'}
+                  size="small"
+                  sx={{ flexShrink: 0 }}
+                >
+                  <FilterListIcon />
+                </IconButton>
+              </Tooltip>
+              <TextField
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {selectedItems.size > 0 ? (
+                <Chip
+                  label={`${selectedItems.size} selected`}
+                  color="primary"
+                  size="small"
+                  onDelete={handleDeselectAll}
+                />
+              ) : (
+                <Box />
+              )}
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Button
+                  onClick={handleSelectAll}
+                  disabled={stats.availableForPacking === 0}
+                  size="small"
+                  startIcon={<SelectAllIcon />}
+                >
+                  Select All
+                </Button>
+                <Button
+                  onClick={handleDeselectAll}
+                  disabled={selectedItems.size === 0}
+                  size="small"
+                  startIcon={<DeselectIcon />}
+                >
+                  Deselect
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Items List */}
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <Typography>Loading items...</Typography>
+              </Box>
+            ) : packingFilteredItems.length === 0 ? (
+              <Alert severity="info">
+                No items found matching your filters. Try adjusting your search criteria.
+              </Alert>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {/* Items */}
+                {packingFilteredItems.map((item) => (
+                  <PackingItemCard
+                    key={item.id}
+                    item={item}
+                    selected={selectedItems.has(item.id)}
+                    onToggle={() => handleItemToggle(item.id)}
+                    onToggleFavorite={() => toggleFavorite(item.id)}
+                    isFavorite={isFavorite(item.id)}
+                    locationName={getItemLocationName(item)}
+                    categoryName={getItemCategoryName(item)}
+                    containerName={container.name}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        </Box>
       </Box>
 
       {/* Action Buttons */}
       <Box 
         sx={{ 
-          p: isMobile ? 2 : 3, 
+          p: 3, 
           borderTop: 1, 
           borderColor: 'divider', 
           display: 'flex', 
           gap: 2, 
           justifyContent: 'space-between',
-          flexDirection: isMobile ? 'column' : 'row',
-          position: isMobile ? 'fixed' : 'static',
-          bottom: isMobile ? 0 : 'auto',
-          left: isMobile ? 0 : 'auto',
-          right: isMobile ? 0 : 'auto',
           backgroundColor: 'background.paper',
-          zIndex: 1000,
-          boxShadow: isMobile ? '0 -2px 8px rgba(0,0,0,0.1)' : 'none',
         }}
-        className={isMobile ? 'mobile-action-bar' : ''}
       >
-        {!isMobile && (
-          <Button variant="outlined" onClick={onClose}>
-            Close
-          </Button>
-        )}
+        <Button variant="outlined" onClick={onClose}>
+          Close
+        </Button>
         
-        <Box sx={{ 
-          display: 'flex', 
-          gap: isMobile ? 1 : 2,
-          flexDirection: isMobile ? 'column' : 'row',
-          width: isMobile ? '100%' : 'auto',
-        }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           {stats.selectedCount > 0 && (
             <>
               <Button
@@ -458,8 +604,6 @@ export default function PackingInterface({
                   const item = packingItems.find(i => i.id === itemId);
                   return item?.currentContainer === container.id;
                 })}
-                fullWidth={isMobile}
-                className={isMobile ? 'mobile-action-button' : ''}
               >
                 Remove from Container
               </Button>
@@ -471,22 +615,10 @@ export default function PackingInterface({
                   const item = packingItems.find(i => i.id === itemId);
                   return !item?.alreadyPacked || item?.currentContainer === container.id;
                 })}
-                fullWidth={isMobile}
-                className={isMobile ? 'mobile-action-button' : ''}
               >
                 Pack Selected ({stats.selectedCount})
               </Button>
             </>
-          )}
-          {isMobile && (
-            <Button 
-              variant="outlined" 
-              onClick={onClose}
-              fullWidth
-              className="mobile-action-button"
-            >
-              Close
-            </Button>
           )}
         </Box>
       </Box>
@@ -537,56 +669,31 @@ function PackingItemCard({
   categoryName,
   containerName,
 }: PackingItemCardProps) {
-  const { isMobile } = useMobileDetection();
   const isDisabled = item.alreadyPacked && item.currentContainer !== containerName;
   const isInCurrentContainer = item.currentContainer === containerName;
 
-  // Swipe gesture for mobile quick actions
-  const swipeRef = useSwipeGestures({
-    onSwipeRight: () => {
-      if (!isDisabled) {
-        onToggle();
-      }
-    },
-    threshold: 50,
-  });
-
   return (
     <Card
-      ref={isMobile ? swipeRef as any : undefined}
       sx={{
         opacity: isDisabled ? 0.6 : 1,
         border: selected ? 2 : 1,
         borderColor: selected ? 'primary.main' : 'divider',
         cursor: isDisabled ? 'not-allowed' : 'pointer',
-        borderRadius: isMobile ? 2 : 1,
         '&:hover': isDisabled ? {} : {
           borderColor: 'primary.main',
           boxShadow: 1,
         },
-        '&:active': isMobile && !isDisabled ? {
-          transform: 'scale(0.98)',
-          transition: 'transform 0.1s ease',
-        } : {},
       }}
       onClick={isDisabled ? undefined : onToggle}
-      className={isMobile ? 'mobile-packing-item' : ''}
     >
-      <CardContent sx={{ py: isMobile ? 1.5 : 2, px: isMobile ? 2 : 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? 1.5 : 2 }}>
+      <CardContent sx={{ py: 2, px: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
           {/* Checkbox */}
           <Checkbox
             checked={selected}
             disabled={isDisabled}
             onChange={onToggle}
             onClick={(e) => e.stopPropagation()}
-            sx={{
-              p: isMobile ? 0.5 : 1,
-              '& .MuiSvgIcon-root': {
-                fontSize: isMobile ? 20 : 24,
-              },
-            }}
-            className={isMobile ? 'mobile-packing-item-checkbox' : ''}
           />
 
           {/* Item Info */}
