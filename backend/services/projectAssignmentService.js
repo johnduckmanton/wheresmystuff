@@ -281,7 +281,7 @@ class ProjectAssignmentService {
 
     const things = await Promise.all(thingPromises);
 
-    // Create ThingAssignment entities for each thing
+    // Create ThingAssignment entities for each thing AND update Thing records with projectId
     const assignmentPromises = things.map(async (thing) => {
       const assignment = new ThingAssignment({
         projectId,
@@ -296,11 +296,28 @@ class ProjectAssignmentService {
 
       const item = assignment.toDynamoDBItem();
 
-      return docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: item,
-        ConditionExpression: 'attribute_not_exists(pk)'
-      }));
+      // Create assignment and update thing's projectId in parallel
+      await Promise.all([
+        // Create the assignment entity
+        docClient.send(new PutCommand({
+          TableName: TABLE_NAME,
+          Item: item,
+          ConditionExpression: 'attribute_not_exists(pk)'
+        })),
+        // Update the thing's projectId field
+        docClient.send(new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            pk: `INVENTORY#${inventoryId}#THINGS`,
+            sk: thing.sk
+          },
+          UpdateExpression: 'SET projectId = :projectId, updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':projectId': projectId,
+            ':updatedAt': new Date().toISOString()
+          }
+        }))
+      ]);
     });
 
     await Promise.all(assignmentPromises);
@@ -359,21 +376,52 @@ class ProjectAssignmentService {
 
       const assignment = assignmentResult.Items[0];
 
-      // Mark as unassigned
-      return docClient.send(new UpdateCommand({
+      // Get the thing to find its sk
+      const thingResult = await docClient.send(new QueryCommand({
         TableName: TABLE_NAME,
-        Key: {
-          pk: `PROJECT#${projectId}#THINGS`,
-          sk: assignment.sk
-        },
-        UpdateExpression: 'SET unassignedAt = :unassignedAt, updatedAt = :updatedAt, isActive = :isActive',
+        KeyConditionExpression: 'pk = :pk AND sk = :sk',
         ExpressionAttributeValues: {
-          ':unassignedAt': new Date().toISOString(),
-          ':updatedAt': new Date().toISOString(),
-          ':isActive': false
-        },
-        ConditionExpression: 'attribute_exists(pk)'
+          ':pk': `INVENTORY#${inventoryId}#THINGS`,
+          ':sk': thingId
+        }
       }));
+
+      if (!thingResult.Items || thingResult.Items.length === 0) {
+        throw new Error(`Thing ${thingId} not found`);
+      }
+
+      const thing = thingResult.Items[0];
+
+      // Mark assignment as unassigned AND clear the thing's projectId field
+      return Promise.all([
+        // Mark assignment as unassigned
+        docClient.send(new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            pk: `PROJECT#${projectId}#THINGS`,
+            sk: assignment.sk
+          },
+          UpdateExpression: 'SET unassignedAt = :unassignedAt, updatedAt = :updatedAt, isActive = :isActive',
+          ExpressionAttributeValues: {
+            ':unassignedAt': new Date().toISOString(),
+            ':updatedAt': new Date().toISOString(),
+            ':isActive': false
+          },
+          ConditionExpression: 'attribute_exists(pk)'
+        })),
+        // Clear the thing's projectId field
+        docClient.send(new UpdateCommand({
+          TableName: TABLE_NAME,
+          Key: {
+            pk: `INVENTORY#${inventoryId}#THINGS`,
+            sk: thing.sk
+          },
+          UpdateExpression: 'REMOVE projectId SET updatedAt = :updatedAt',
+          ExpressionAttributeValues: {
+            ':updatedAt': new Date().toISOString()
+          }
+        }))
+      ]);
     });
 
     await Promise.all(updatePromises);
