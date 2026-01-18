@@ -219,6 +219,7 @@ export default function Things() {
   // Quick filter state
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
   const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showQuickFilters, setShowQuickFilters] = useState(true);
@@ -314,11 +315,11 @@ export default function Things() {
     if (!currentInventory) return;
 
     setSearchQuery(query);
-    applyFilters(query, selectedCategoryId, selectedLocationId, selectedOwnerId, selectedTags);
+    applyFilters(query, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags);
   };
 
-  // Apply all filters (search, category, location, owner, tags)
-  const applyFilters = (query: SearchQuery, categoryId?: string, locationId?: string, ownerId?: string, tags: string[] = []) => {
+  // Apply all filters (search, category, location, room, owner, tags)
+  const applyFilters = (query: SearchQuery, categoryId?: string, locationId?: string, roomId?: string, ownerId?: string, tags: string[] = []) => {
     try {
       setSearchLoading(true);
       
@@ -380,6 +381,11 @@ export default function Things() {
         }
       }
 
+      // Apply room filter
+      if (roomId) {
+        filteredThings = filteredThings.filter(thing => thing.roomId === roomId);
+      }
+
       // Apply owner filter
       if (ownerId) {
         if (ownerId === 'unowned') {
@@ -413,31 +419,38 @@ export default function Things() {
   // Handle category filter
   const handleCategoryFilter = (categoryId: string | undefined) => {
     setSelectedCategoryId(categoryId);
-    applyFilters(searchQuery, categoryId, selectedLocationId, selectedOwnerId, selectedTags);
+    applyFilters(searchQuery, categoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags);
   };
 
   // Handle location filter
   const handleLocationFilter = (locationId: string | undefined) => {
     setSelectedLocationId(locationId);
-    applyFilters(searchQuery, selectedCategoryId, locationId, selectedOwnerId, selectedTags);
+    applyFilters(searchQuery, selectedCategoryId, locationId, selectedRoomId, selectedOwnerId, selectedTags);
+  };
+
+  // Handle room filter
+  const handleRoomFilter = (roomId: string | undefined) => {
+    setSelectedRoomId(roomId);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, roomId, selectedOwnerId, selectedTags);
   };
 
   // Handle owner filter
   const handleOwnerFilter = (ownerId: string | undefined) => {
     setSelectedOwnerId(ownerId);
-    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, ownerId, selectedTags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, ownerId, selectedTags);
   };
 
   // Handle tag filter
   const handleTagFilter = (tags: string[]) => {
     setSelectedTags(tags);
-    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedOwnerId, tags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, tags);
   };
 
   // Clear all filters
   const handleClearFilters = () => {
     setSelectedCategoryId(undefined);
     setSelectedLocationId(undefined);
+    setSelectedRoomId(undefined);
     setSelectedOwnerId(undefined);
     setSelectedTags([]);
     setSearchQuery({ tagMode: 'and' });
@@ -634,13 +647,16 @@ export default function Things() {
               things={allThings}
               categories={categories}
               locations={locations}
+              rooms={rooms}
               people={people}
               selectedCategoryId={selectedCategoryId}
               selectedLocationId={selectedLocationId}
+              selectedRoomId={selectedRoomId}
               selectedOwnerId={selectedOwnerId}
               selectedTags={selectedTags}
               onCategoryFilter={handleCategoryFilter}
               onLocationFilter={handleLocationFilter}
+              onRoomFilter={handleRoomFilter}
               onOwnerFilter={handleOwnerFilter}
               onTagFilter={handleTagFilter}
               onClearFilters={handleClearFilters}

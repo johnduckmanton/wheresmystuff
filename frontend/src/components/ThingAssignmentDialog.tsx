@@ -14,10 +14,20 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
-  Box
+  Box,
+  IconButton,
+  Tooltip,
+  Typography,
+  Chip,
 } from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
-import type { Thing } from '../types';
+import { 
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  SelectAll as SelectAllIcon,
+  DeselectOutlined as DeselectIcon,
+} from '@mui/icons-material';
+import type { Thing, Category, Location, Room, Person } from '../types';
+import QuickFilters from './QuickFilters';
 import apiClient from '../services/api';
 
 interface ThingAssignmentDialogProps {
@@ -27,39 +37,221 @@ interface ThingAssignmentDialogProps {
   inventoryId: string;
 }
 
+// Component to handle photo thumbnail display
+function PhotoThumbnail({ photoKey, altText }: { photoKey?: string; altText: string }) {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!photoKey) {
+      setPhotoUrl(null);
+      setError(false);
+      return;
+    }
+
+    const loadPhoto = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+        const response = await apiClient.generateDownloadUrl(photoKey);
+        setPhotoUrl(response.downloadUrl);
+      } catch (error) {
+        console.warn('Failed to load photo:', error);
+        setPhotoUrl(null);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPhoto();
+  }, [photoKey]);
+
+  const hasImage = photoUrl && !error;
+
+  return (
+    <Box
+      sx={{
+        width: 40,
+        height: 40,
+        borderRadius: 1,
+        backgroundColor: '#f5f5f5',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        border: '1px solid #e0e0e0',
+        flexShrink: 0,
+        mr: 2,
+      }}
+    >
+      {loading ? (
+        <Box sx={{ fontSize: 12, color: '#999' }}>⋯</Box>
+      ) : hasImage ? (
+        <img
+          src={photoUrl}
+          alt={altText}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+          onError={() => setError(true)}
+        />
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#bbb',
+            textAlign: 'center',
+            width: '100%',
+            height: '100%',
+          }}
+        >
+          <Box
+            component="span"
+            className="material-icons"
+            sx={{ 
+              fontSize: 20, 
+              color: '#ddd',
+            }}
+          >
+            photo
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
   open,
   onClose,
   onSave,
   inventoryId
 }) => {
-  const [things, setThings] = useState<Thing[]>([]);
+  const [allThings, setAllThings] = useState<Thing[]>([]);
+  const [filteredThings, setFilteredThings] = useState<Thing[]>([]);
   const [selectedThings, setSelectedThings] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Filter-related state
+  const [showQuickFilters, setShowQuickFilters] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
   useEffect(() => {
     if (open) {
-      loadAvailableThings();
+      loadData();
     }
   }, [open]);
 
-  const loadAvailableThings = async () => {
+  // Apply filters whenever filter state changes
+  useEffect(() => {
+    applyFilters();
+  }, [allThings, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags]);
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Get available things for this project (things not assigned to any project)
-      const availableThings = await apiClient.getAvailableThingsForProject(inventoryId);
-      setThings(Array.isArray(availableThings) ? availableThings : []);
+      // Load all necessary data
+      const [availableThings, categoriesData, locationsData, roomsData, peopleData] = await Promise.all([
+        apiClient.getAvailableThingsForProject(inventoryId),
+        apiClient.getCategories(inventoryId),
+        apiClient.getLocations(inventoryId),
+        apiClient.getRooms(undefined, inventoryId),
+        apiClient.getPeople(inventoryId),
+      ]);
+
+      setAllThings(Array.isArray(availableThings) ? availableThings : []);
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setRooms(Array.isArray(roomsData) ? roomsData : []);
+      setPeople(Array.isArray(peopleData) ? peopleData : []);
     } catch (err) {
-      console.error('Error loading available things:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load available things');
+      console.error('Error loading data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...allThings];
+
+    // Apply text search
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter(thing =>
+        thing.name.toLowerCase().includes(searchLower) ||
+        (thing.description && thing.description.toLowerCase().includes(searchLower)) ||
+        (thing.make && thing.make.toLowerCase().includes(searchLower)) ||
+        (thing.model && thing.model.toLowerCase().includes(searchLower)) ||
+        (thing.serialNumber && thing.serialNumber.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategoryId) {
+      if (selectedCategoryId === 'uncategorized') {
+        filtered = filtered.filter(thing => !thing.categoryId);
+      } else {
+        filtered = filtered.filter(thing => thing.categoryId === selectedCategoryId);
+      }
+    }
+
+    // Apply location filter
+    if (selectedLocationId) {
+      if (selectedLocationId === 'unlocated') {
+        filtered = filtered.filter(thing => !thing.locationId);
+      } else {
+        filtered = filtered.filter(thing => thing.locationId === selectedLocationId);
+      }
+    }
+
+    // Apply room filter
+    if (selectedRoomId) {
+      filtered = filtered.filter(thing => thing.roomId === selectedRoomId);
+    }
+
+    // Apply owner filter
+    if (selectedOwnerId) {
+      if (selectedOwnerId === 'unowned') {
+        filtered = filtered.filter(thing => !thing.ownerId);
+      } else {
+        filtered = filtered.filter(thing => thing.ownerId === selectedOwnerId);
+      }
+    }
+
+    // Apply tag filter (AND mode)
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(thing => {
+        if (!thing.tags || thing.tags.length === 0) return false;
+        return selectedTags.every(selectedTag =>
+          thing.tags!.some(thingTag =>
+            thingTag.toLowerCase() === selectedTag.toLowerCase()
+          )
+        );
+      });
+    }
+
+    setFilteredThings(filtered);
   };
 
   const handleToggleThing = (thingId: string) => {
@@ -70,6 +262,15 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
       newSelected.add(thingId);
     }
     setSelectedThings(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredThings.map(t => t.id));
+    setSelectedThings(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedThings(new Set());
   };
 
   const handleSave = async () => {
@@ -86,76 +287,193 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
     }
   };
 
-  const filteredThings = things.filter(thing =>
-    thing.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (thing.description && thing.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleClearFilters = () => {
+    setSelectedCategoryId(undefined);
+    setSelectedLocationId(undefined);
+    setSelectedRoomId(undefined);
+    setSelectedOwnerId(undefined);
+    setSelectedTags([]);
+    setSearchQuery('');
+  };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Assign Things to Project</DialogTitle>
-      <DialogContent>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="lg" 
+      fullWidth
+      PaperProps={{
+        sx: { height: '80vh' }
+      }}
+    >
+      <DialogTitle>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Assign Things to Project</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
+              <IconButton
+                onClick={() => setShowQuickFilters(!showQuickFilters)}
+                color={showQuickFilters ? 'primary' : 'default'}
+                size="small"
+              >
+                <FilterListIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Select All Visible">
+              <IconButton
+                onClick={handleSelectAll}
+                disabled={filteredThings.length === 0}
+                size="small"
+              >
+                <SelectAllIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Deselect All">
+              <IconButton
+                onClick={handleDeselectAll}
+                disabled={selectedThings.size === 0}
+                size="small"
+              >
+                <DeselectIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 0, display: 'flex', height: '100%' }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ m: 2 }}>
             {error}
           </Alert>
         )}
 
-        <TextField
-          placeholder="Search things..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          fullWidth
-          size="small"
-          sx={{ mb: 2, mt: 1 }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress />
+        <Box sx={{ display: 'flex', width: '100%', height: '100%' }}>
+          {/* Quick Filters Sidebar */}
+          <Box
+            sx={{
+              width: showQuickFilters ? 280 : 0,
+              overflow: 'hidden',
+              transition: 'width 0.3s ease-in-out',
+              flexShrink: 0,
+              borderRight: showQuickFilters ? '1px solid' : 'none',
+              borderColor: 'divider',
+            }}
+          >
+            {showQuickFilters && (
+              <QuickFilters
+                things={allThings}
+                categories={categories}
+                locations={locations}
+                rooms={rooms}
+                people={people}
+                selectedCategoryId={selectedCategoryId}
+                selectedLocationId={selectedLocationId}
+                selectedRoomId={selectedRoomId}
+                selectedOwnerId={selectedOwnerId}
+                selectedTags={selectedTags}
+                onCategoryFilter={setSelectedCategoryId}
+                onLocationFilter={setSelectedLocationId}
+                onRoomFilter={setSelectedRoomId}
+                onOwnerFilter={setSelectedOwnerId}
+                onTagFilter={setSelectedTags}
+                onClearFilters={handleClearFilters}
+              />
+            )}
           </Box>
-        ) : filteredThings.length === 0 ? (
-          <Alert severity="info">
-            No available things to assign.
-          </Alert>
-        ) : (
-          <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-            {filteredThings.map((thing) => (
-              <ListItem
-                key={thing.id}
-                disablePadding
-                secondaryAction={
-                  <Checkbox
-                    edge="end"
-                    checked={selectedThings.has(thing.id)}
-                    onChange={() => handleToggleThing(thing.id)}
+
+          {/* Things List */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Search Bar */}
+            <Box sx={{ p: 2, pb: 1 }}>
+              <TextField
+                placeholder="Search things..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+                size="small"
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              {selectedThings.size > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <Chip
+                    label={`${selectedThings.size} selected`}
+                    color="primary"
+                    size="small"
+                    onDelete={handleDeselectAll}
                   />
-                }
-              >
-                <ListItemButton
-                  onClick={() => handleToggleThing(thing.id)}
-                  dense
-                >
-                  <ListItemText
-                    primary={thing.name}
-                    secondary={thing.description}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        )}
+                </Box>
+              )}
+            </Box>
+
+            {/* Things List */}
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : filteredThings.length === 0 ? (
+              <Alert severity="info" sx={{ m: 2 }}>
+                {allThings.length === 0 
+                  ? 'No available things to assign.'
+                  : 'No things match the current filters.'}
+              </Alert>
+            ) : (
+              <List sx={{ flex: 1, overflow: 'auto', px: 1 }}>
+                {filteredThings.map((thing) => (
+                  <ListItem
+                    key={thing.id}
+                    disablePadding
+                    sx={{ mb: 0.5 }}
+                  >
+                    <ListItemButton
+                      onClick={() => handleToggleThing(thing.id)}
+                      dense
+                      selected={selectedThings.has(thing.id)}
+                      sx={{
+                        borderRadius: 1,
+                        '&.Mui-selected': {
+                          backgroundColor: 'primary.50',
+                          '&:hover': {
+                            backgroundColor: 'primary.100',
+                          },
+                        },
+                      }}
+                    >
+                      <PhotoThumbnail
+                        photoKey={thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined}
+                        altText={thing.name}
+                      />
+                      <ListItemText
+                        primary={thing.name}
+                        secondary={thing.description}
+                        primaryTypographyProps={{
+                          sx: { fontWeight: selectedThings.has(thing.id) ? 600 : 400 }
+                        }}
+                      />
+                      <Checkbox
+                        edge="end"
+                        checked={selectedThings.has(thing.id)}
+                        tabIndex={-1}
+                        disableRipple
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </Box>
       </DialogContent>
-      <DialogActions>
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose}>Cancel</Button>
         <Button
           onClick={handleSave}

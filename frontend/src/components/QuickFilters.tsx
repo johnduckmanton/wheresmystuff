@@ -20,20 +20,24 @@ import {
   Clear as ClearIcon,
   LocationOn as LocationIcon,
   Person as PersonIcon,
+  MeetingRoom as RoomIcon,
 } from '@mui/icons-material';
-import type { Thing, Category, Location, Person } from '../types';
+import type { Thing, Category, Location, Person, Room } from '../types';
 
 interface QuickFiltersProps {
   things: Thing[];
   categories: Category[];
   locations: Location[];
+  rooms: Room[];
   people: Person[];
   selectedCategoryId?: string;
   selectedLocationId?: string;
+  selectedRoomId?: string;
   selectedOwnerId?: string;
   selectedTags: string[];
   onCategoryFilter: (categoryId: string | undefined) => void;
   onLocationFilter: (locationId: string | undefined) => void;
+  onRoomFilter: (roomId: string | undefined) => void;
   onOwnerFilter: (ownerId: string | undefined) => void;
   onTagFilter: (tags: string[]) => void;
   onClearFilters: () => void;
@@ -43,19 +47,23 @@ export default function QuickFilters({
   things,
   categories,
   locations,
+  rooms,
   people,
   selectedCategoryId,
   selectedLocationId,
+  selectedRoomId,
   selectedOwnerId,
   selectedTags,
   onCategoryFilter,
   onLocationFilter,
+  onRoomFilter,
   onOwnerFilter,
   onTagFilter,
   onClearFilters,
 }: QuickFiltersProps) {
   const [categoriesExpanded, setCategoriesExpanded] = useState(true);
   const [locationsExpanded, setLocationsExpanded] = useState(true);
+  const [expandedLocationIds, setExpandedLocationIds] = useState<Set<string>>(new Set());
   const [ownersExpanded, setOwnersExpanded] = useState(true);
   const [tagsExpanded, setTagsExpanded] = useState(true);
 
@@ -89,6 +97,19 @@ export default function QuickFilters({
     });
 
     return { counts, unlocatedCount };
+  }, [things]);
+
+  // Calculate room counts
+  const roomCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    things.forEach(thing => {
+      if (thing.roomId) {
+        counts.set(thing.roomId, (counts.get(thing.roomId) || 0) + 1);
+      }
+    });
+
+    return counts;
   }, [things]);
 
   // Calculate owner counts
@@ -140,9 +161,30 @@ export default function QuickFilters({
     if (selectedLocationId === locationId) {
       // Deselect if already selected
       onLocationFilter(undefined);
+      onRoomFilter(undefined); // Clear room filter when location is deselected
     } else {
       onLocationFilter(locationId);
+      onRoomFilter(undefined); // Clear room filter when changing location
     }
+  };
+
+  const handleRoomClick = (roomId: string | undefined) => {
+    if (selectedRoomId === roomId) {
+      // Deselect if already selected
+      onRoomFilter(undefined);
+    } else {
+      onRoomFilter(roomId);
+    }
+  };
+
+  const toggleLocationExpanded = (locationId: string) => {
+    const newExpanded = new Set(expandedLocationIds);
+    if (newExpanded.has(locationId)) {
+      newExpanded.delete(locationId);
+    } else {
+      newExpanded.add(locationId);
+    }
+    setExpandedLocationIds(newExpanded);
   };
 
   const handleOwnerClick = (ownerId: string | undefined) => {
@@ -164,7 +206,7 @@ export default function QuickFilters({
     }
   };
 
-  const hasActiveFilters = selectedCategoryId || selectedLocationId || selectedOwnerId || selectedTags.length > 0;
+  const hasActiveFilters = selectedCategoryId || selectedLocationId || selectedRoomId || selectedOwnerId || selectedTags.length > 0;
 
   return (
     <Paper 
@@ -445,40 +487,121 @@ export default function QuickFilters({
                   const count = locationCounts.counts.get(location.id) || 0;
                   if (count === 0) return null;
                   
+                  const locationRooms = rooms.filter(r => r.locationId === location.id);
+                  const hasRooms = locationRooms.length > 0;
+                  const isLocationExpanded = expandedLocationIds.has(location.id);
+                  
                   return (
-                    <ListItem key={location.id} disablePadding>
-                      <ListItemButton
-                        selected={selectedLocationId === location.id}
-                        onClick={() => handleLocationClick(location.id)}
-                        sx={{ 
-                          py: 0.5,
-                          borderRadius: 1,
-                          mx: 0.5,
-                          '&.Mui-selected': {
-                            backgroundColor: 'primary.50',
-                            '&:hover': {
-                              backgroundColor: 'primary.100',
+                    <Box key={location.id}>
+                      <ListItem disablePadding>
+                        <ListItemButton
+                          selected={selectedLocationId === location.id && !selectedRoomId}
+                          onClick={() => handleLocationClick(location.id)}
+                          sx={{ 
+                            py: 0.5,
+                            borderRadius: 1,
+                            mx: 0.5,
+                            '&.Mui-selected': {
+                              backgroundColor: 'primary.50',
+                              '&:hover': {
+                                backgroundColor: 'primary.100',
+                              },
                             },
-                          },
-                        }}
-                      >
-                        <ListItemText 
-                          primary={location.name}
-                          primaryTypographyProps={{ fontSize: '0.85rem' }}
-                        />
-                        <Badge 
-                          badgeContent={count} 
-                          color="primary"
-                          sx={{
-                            '& .MuiBadge-badge': {
-                              fontSize: '0.7rem',
-                              minWidth: 16,
-                              height: 16,
-                            }
                           }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
+                        >
+                          <ListItemText 
+                            primary={location.name}
+                            primaryTypographyProps={{ fontSize: '0.85rem' }}
+                          />
+                          <Badge 
+                            badgeContent={count} 
+                            color="primary"
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                fontSize: '0.7rem',
+                                minWidth: 16,
+                                height: 16,
+                              }
+                            }}
+                          />
+                          {hasRooms && (
+                            <Box
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleLocationExpanded(location.id);
+                              }}
+                              sx={{ 
+                                ml: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  backgroundColor: 'action.hover',
+                                  borderRadius: 1,
+                                }
+                              }}
+                            >
+                              {isLocationExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                            </Box>
+                          )}
+                        </ListItemButton>
+                      </ListItem>
+                      
+                      {/* Rooms under this location */}
+                      {hasRooms && (
+                        <Collapse in={isLocationExpanded} timeout="auto" unmountOnExit>
+                          <List dense sx={{ pl: 3 }}>
+                            {locationRooms.map(room => {
+                              const roomCount = roomCounts.get(room.id) || 0;
+                              if (roomCount === 0) return null;
+                              
+                              return (
+                                <ListItem key={room.id} disablePadding>
+                                  <ListItemButton
+                                    selected={selectedRoomId === room.id}
+                                    onClick={() => {
+                                      // Auto-select parent location when selecting room
+                                      if (selectedLocationId !== location.id) {
+                                        onLocationFilter(location.id);
+                                      }
+                                      handleRoomClick(room.id);
+                                    }}
+                                    sx={{ 
+                                      py: 0.5,
+                                      borderRadius: 1,
+                                      mx: 0.5,
+                                      '&.Mui-selected': {
+                                        backgroundColor: 'primary.50',
+                                        '&:hover': {
+                                          backgroundColor: 'primary.100',
+                                        },
+                                      },
+                                    }}
+                                  >
+                                    <RoomIcon sx={{ mr: 1, fontSize: 16, color: 'text.secondary' }} />
+                                    <ListItemText 
+                                      primary={room.name}
+                                      primaryTypographyProps={{ fontSize: '0.8rem' }}
+                                    />
+                                    <Badge 
+                                      badgeContent={roomCount} 
+                                      color="primary"
+                                      sx={{
+                                        '& .MuiBadge-badge': {
+                                          fontSize: '0.65rem',
+                                          minWidth: 14,
+                                          height: 14,
+                                        }
+                                      }}
+                                    />
+                                  </ListItemButton>
+                                </ListItem>
+                              );
+                            })}
+                          </List>
+                        </Collapse>
+                      )}
+                    </Box>
                   );
                 })
               )}
