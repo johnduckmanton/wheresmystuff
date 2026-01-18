@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -66,6 +66,20 @@ export default function QuickFilters({
   const [expandedLocationIds, setExpandedLocationIds] = useState<Set<string>>(new Set());
   const [ownersExpanded, setOwnersExpanded] = useState(true);
   const [tagsExpanded, setTagsExpanded] = useState(true);
+
+  // Auto-expand locations with rooms on initial load
+  useEffect(() => {
+    const locationsWithRooms = new Set<string>();
+    locations.forEach(location => {
+      const locationRooms = rooms.filter(r => r.locationId === location.id);
+      if (locationRooms.length > 0) {
+        locationsWithRooms.add(location.id);
+      }
+    });
+    if (locationsWithRooms.size > 0 && expandedLocationIds.size === 0) {
+      setExpandedLocationIds(locationsWithRooms);
+    }
+  }, [locations, rooms]);
 
   // Calculate category counts
   const categoryCounts = useMemo(() => {
