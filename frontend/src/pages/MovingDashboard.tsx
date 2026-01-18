@@ -734,31 +734,24 @@ export default function MovingDashboard() {
             <Grid size={{ xs: 12, md: 6 }}>
               {/* Active Projects */}
               {projects.length > 0 ? (
-                <Box>
-                  <Typography variant="h6" component="h3" sx={{ mb: 3, fontWeight: 600 }}>
-                    Active Projects
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {Array.isArray(projects) && projects
-                      .filter((p: MovingProject) => p.status === 'active' || p.status === 'planning')
-                      .map((project) => (
-                        <ProjectOverviewCard
-                          key={project.id}
-                          project={project}
-                          onClick={() => handleProjectClick(project)}
-                        />
-                      ))}
-                  </Box>
-                  <Button
-                    variant="outlined"
-                    startIcon={<AssignmentIcon />}
-                    onClick={handleCreateProject}
-                    fullWidth
-                    sx={{ mt: 2 }}
-                  >
-                    Create New Project
-                  </Button>
-                </Box>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" component="h3" sx={{ mb: 3, fontWeight: 600 }}>
+                      Active Projects
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {Array.isArray(projects) && projects
+                        .filter((p: MovingProject) => p.status === 'active' || p.status === 'planning')
+                        .map((project) => (
+                          <ProjectOverviewCard
+                            key={project.id}
+                            project={project}
+                            onClick={() => handleProjectClick(project)}
+                          />
+                        ))}
+                    </Box>
+                  </CardContent>
+                </Card>
               ) : (
                 <Card>
                   <CardContent sx={{ textAlign: 'center', py: 6 }}>
