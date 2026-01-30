@@ -255,10 +255,16 @@ jobs:
         # Get the list of changed files
         if [[ "${{ github.event_name }}" == "push" ]]; then
           # For push events, compare with the previous commit
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git diff --name-only HEAD)
+          # Use ${{ github.event.before }} if available, otherwise HEAD~1
+          if [[ "${{ github.event.before }}" != "" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} || git diff --name-only HEAD~1 HEAD || git ls-files)
+          else
+            # First push or no previous commit, check all files
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git ls-files)
+          fi
         else
-          # For workflow_dispatch, assume all files might have changed
-          CHANGED_FILES=$(git ls-files)
+          # For workflow_dispatch or other events, check recent changes (last 5 commits)
+          CHANGED_FILES=$(git diff --name-only HEAD~5..HEAD 2>/dev/null || git ls-files)
         fi
         
         echo "Changed files:"
