@@ -439,6 +439,35 @@ class MockApiClient {
     };
   }
 
+  // Document API (Receipts and Warranties) - Mock
+  async generateDocumentUploadUrl(
+    fileName: string, 
+    contentType: string, 
+    inventoryId: string, 
+    entityId: string,
+    documentType: 'receipt' | 'warranty'
+  ): Promise<{ uploadUrl: string; key: string }> {
+    await mockDelay();
+    console.log(`Mock: Generating document upload URL for ${fileName} (${documentType}) with type ${contentType} for inventory ${inventoryId} entity ${entityId}`);
+    const key = `documents/${documentType}/mock-user/${inventoryId}/${entityId}/${Date.now()}-${fileName}`;
+    return {
+      uploadUrl: `mock://upload/${key}`,
+      key
+    };
+  }
+
+  async generateDocumentDownloadUrl(key: string): Promise<{ downloadUrl: string }> {
+    await mockDelay();
+    return {
+      downloadUrl: `mock://download/${key}`
+    };
+  }
+
+  async deleteDocument(_key: string): Promise<void> {
+    await mockDelay();
+    console.log('Mock: Document deleted');
+  }
+
   // User Management API (Mock)
   async lookupUserByEmail(email: string): Promise<UserLookupResult> {
     await mockDelay();
