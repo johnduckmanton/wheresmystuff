@@ -63,6 +63,16 @@ function decodeThingFields(thing) {
     thing.photos = thing.photos.map(photoKey => decodeHtmlEntities(photoKey));
   }
   
+  // Decode receipt keys
+  if (thing.receipts && Array.isArray(thing.receipts)) {
+    thing.receipts = thing.receipts.map(receiptKey => decodeHtmlEntities(receiptKey));
+  }
+  
+  // Decode warranty keys
+  if (thing.warranties && Array.isArray(thing.warranties)) {
+    thing.warranties = thing.warranties.map(warrantyKey => decodeHtmlEntities(warrantyKey));
+  }
+  
   // Decode tags
   if (thing.tags && Array.isArray(thing.tags)) {
     thing.tags = thing.tags.map(tag => decodeHtmlEntities(tag));

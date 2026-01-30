@@ -678,6 +678,49 @@ class ApiClient {
     return this.get<{ downloadUrl: string }>(`/photo?key=${encodedKey}`);
   }
 
+  // Document API (Receipts and Warranties)
+  async generateDocumentUploadUrl(
+    fileName: string, 
+    contentType: string, 
+    inventoryId: string, 
+    entityId: string,
+    documentType: 'receipt' | 'warranty'
+  ): Promise<{ uploadUrl: string; key: string }> {
+    console.log('🔍 API Client generateDocumentUploadUrl Debug:');
+    console.log('- fileName:', fileName);
+    console.log('- contentType:', contentType);
+    console.log('- inventoryId:', inventoryId);
+    console.log('- entityId:', entityId);
+    console.log('- documentType:', documentType);
+    
+    // Validate parameters
+    if (!inventoryId) {
+      throw new Error(`generateDocumentUploadUrl: inventoryId is required but got: ${inventoryId}`);
+    }
+    if (!entityId) {
+      throw new Error(`generateDocumentUploadUrl: entityId is required but got: ${entityId}`);
+    }
+    if (!documentType || !['receipt', 'warranty'].includes(documentType)) {
+      throw new Error(`generateDocumentUploadUrl: documentType must be 'receipt' or 'warranty' but got: ${documentType}`);
+    }
+    
+    const requestData = { fileName, contentType, inventoryId, entityId, documentType };
+    console.log('🚀 Making POST request to /document/upload with:', requestData);
+    
+    return this.post<{ uploadUrl: string; key: string }>('/document/upload', requestData);
+  }
+
+  async generateDocumentDownloadUrl(key: string): Promise<{ downloadUrl: string }> {
+    // Use query parameter to handle complex keys with forward slashes
+    const encodedKey = encodeURIComponent(key);
+    return this.get<{ downloadUrl: string }>(`/document?key=${encodedKey}`);
+  }
+
+  async deleteDocument(key: string): Promise<void> {
+    const encodedKey = encodeURIComponent(key);
+    return this.delete<void>(`/document/${encodedKey}`);
+  }
+
   // AI Analysis API
   async analyzePhoto(photoKey: string, inventoryId: string): Promise<any> {
     return this.post<any>('/ai/analyze-photo', { photoKey, inventoryId });

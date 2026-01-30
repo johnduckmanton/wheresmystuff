@@ -943,6 +943,49 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Document Lambda (Receipts and Warranties)
+  DocumentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/document.handler
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref PhotoBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        GenerateDocumentUploadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /document/upload
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GenerateDocumentDownloadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /document
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
+        DeleteDocument:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /document/{key+}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # AI Analysis Lambda
   AIAnalysisFunction:
     Type: AWS::Serverless::Function

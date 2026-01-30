@@ -22,6 +22,8 @@ export interface Thing {
   disposalDate?: string; // ISO date
   nextReviewDate?: string; // ISO date
   photos?: string[]; // Array of S3 keys
+  receipts?: string[]; // Array of S3 keys for receipt documents
+  warranties?: string[]; // Array of S3 keys for warranty documents
   tags?: string[]; // Array of tag names for categorization and search
   dateAdded: string; // ISO date, auto-generated
 }

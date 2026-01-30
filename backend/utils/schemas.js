@@ -112,6 +112,24 @@ const thingSchema = {
         noSanitize: true
       }
     },
+    receipts: {
+      type: 'array',
+      maxItems: 5,
+      items: {
+        type: 'string',
+        maxLength: 500,
+        noSanitize: true
+      }
+    },
+    warranties: {
+      type: 'array',
+      maxItems: 5,
+      items: {
+        type: 'string',
+        maxLength: 500,
+        noSanitize: true
+      }
+    },
     tags: {
       type: 'array',
       maxItems: 20,

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="#1976d2"
+     stroke-width="0.75"
+     stroke-linecap="round"
+     stroke-linejoin="round">
+
+  <!-- Roof (centred, slightly wider than house) -->
+  <path d="M4 11.25L12 4.25L20 11.25"/>
+
+  <!-- House body (slightly smaller, centred) -->
+  <!-- <path d="M6.75 11.25V18.25H16.25V11.25"/> -->
+    <path d="M8 11.25V18.5H16V11"/>
+
+  <!-- Internal items (precisely centred) -->
+  <!-- Bottom row -->
+  <rect x="9" y="13.25" width="2.5" height="2.5" rx="0.4"/>
+  <rect x="12.5" y="13.25" width="2.5" height="2.5" rx="0.4"/>
+
+  <!-- Top item (centred between bottom two) -->
+  <rect x="10.75" y="9.75" width="2.5" height="2.5" rx="0.4"/>
+
+  <!-- Map marker (moved right, no overlap) -->
+  <path d="M21.25 14.5
+           C19.9 14.5 18.75 15.65 18.75 17.1
+           C18.75 19.1 21.25 22.25 21.25 22.25
+           C21.25 22.25 23.75 19.1 23.75 17.1
+           C23.75 15.65 22.6 14.5 21.25 14.5Z"/>
+
+  <circle cx="21.25" cy="17.1" r="0.55" fill="#1976d2"/>
+
+</svg>

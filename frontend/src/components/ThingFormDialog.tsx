@@ -34,6 +34,8 @@ import {
 import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
+import DocumentUploadZone from './DocumentUploadZone';
+import DocumentPreviewGrid from './DocumentPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
 import S3Image from './S3Image';
 import EnhancedTagInput from './EnhancedTagInput';
@@ -70,6 +72,7 @@ export default function ThingFormDialog({
   const [formData, setFormData] = useState<ThingFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
   const [currentTab, setCurrentTab] = useState(0);
   const { currentInventory } = useInventory();
   const theme = useTheme();
@@ -113,6 +116,8 @@ export default function ThingFormDialog({
           disposalDate: '',
           nextReviewDate: '',
           photos: [],
+          receipts: [],
+          warranties: [],
         });
       }
       setErrors({});
@@ -231,6 +236,84 @@ export default function ThingFormDialog({
     setFormData((prev) => ({
       ...prev,
       photos: (prev.photos || []).filter((photoKey) => photoKey !== key),
+    }));
+  };
+
+  // Handle document upload (receipts or warranties)
+  const handleDocumentUpload = async (files: File[], documentType: 'receipt' | 'warranty') => {
+    if (!currentInventory) {
+      throw new Error('No inventory selected');
+    }
+
+    setIsUploadingDocuments(true);
+    try {
+      const uploadedKeys: string[] = [];
+
+      // For new things, generate a temporary ID that will be used when creating the thing
+      // For existing things, use the existing ID
+      const entityId = thing?.id || formData.tempId || (() => {
+        const tempId = crypto.randomUUID();
+        setFormData(prev => ({ ...prev, tempId }));
+        return tempId;
+      })();
+
+      // Upload each file
+      for (const file of files) {
+        // Generate presigned upload URL
+        const { uploadUrl, key } = await apiClient.generateDocumentUploadUrl(
+          file.name,
+          file.type,
+          currentInventory.id,
+          entityId,
+          documentType
+        );
+
+        // Upload file to S3 using presigned URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        uploadedKeys.push(key);
+      }
+
+      // Add uploaded keys to form data
+      const fieldName = documentType === 'receipt' ? 'receipts' : 'warranties';
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: [...(prev[fieldName] || []), ...uploadedKeys],
+      }));
+    } catch (err) {
+      console.error('Error uploading documents:', err);
+      throw err;
+    } finally {
+      setIsUploadingDocuments(false);
+    }
+  };
+
+  // Handle receipt upload
+  const handleReceiptUpload = async (files: File[]) => {
+    return handleDocumentUpload(files, 'receipt');
+  };
+
+  // Handle warranty upload
+  const handleWarrantyUpload = async (files: File[]) => {
+    return handleDocumentUpload(files, 'warranty');
+  };
+
+  // Handle document removal
+  const handleDocumentRemove = (key: string, documentType: 'receipt' | 'warranty') => {
+    const fieldName = documentType === 'receipt' ? 'receipts' : 'warranties';
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: (prev[fieldName] || []).filter((docKey) => docKey !== key),
     }));
   };
 
@@ -687,25 +770,84 @@ export default function ThingFormDialog({
     </Grid>
   );
 
-  // Render photo section
-  const renderPhotoSection = () => (
-    <Box>
-      {/* Photo Preview Grid - Show existing photos */}
-      {formData.photos && formData.photos.length > 0 && (
-        <Box sx={{ mb: 2 }}>
-          <PhotoPreviewGrid
-            photoKeys={formData.photos}
-            onRemove={handlePhotoRemove}
-            disabled={isUploadingPhotos}
-          />
-        </Box>
-      )}
+  // Render photo and document section
+  const renderPhotoAndDocumentSection = () => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* Photos */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
+          Photos
+        </Typography>
+        {/* Photo Preview Grid - Show existing photos */}
+        {formData.photos && formData.photos.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <PhotoPreviewGrid
+              photoKeys={formData.photos}
+              onRemove={handlePhotoRemove}
+              disabled={isUploadingPhotos}
+            />
+          </Box>
+        )}
 
-      {/* Photo Upload Zone */}
-      <PhotoUploadZone
-        onUpload={handlePhotoUpload}
-        disabled={isUploadingPhotos}
-      />
+        {/* Photo Upload Zone */}
+        <PhotoUploadZone
+          onUpload={handlePhotoUpload}
+          disabled={isUploadingPhotos || isUploadingDocuments}
+          currentPhotoCount={formData.photos?.length || 0}
+        />
+      </Box>
+
+      {/* Receipts */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
+          Receipts
+        </Typography>
+        {/* Receipt Preview Grid */}
+        {formData.receipts && formData.receipts.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <DocumentPreviewGrid
+              documentKeys={formData.receipts}
+              onRemove={(key) => handleDocumentRemove(key, 'receipt')}
+              disabled={isUploadingDocuments}
+              documentType="receipt"
+            />
+          </Box>
+        )}
+
+        {/* Receipt Upload Zone */}
+        <DocumentUploadZone
+          onUpload={handleReceiptUpload}
+          disabled={isUploadingPhotos || isUploadingDocuments}
+          currentDocumentCount={formData.receipts?.length || 0}
+          documentType="receipt"
+        />
+      </Box>
+
+      {/* Warranties */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, mb: 1.5 }}>
+          Warranties
+        </Typography>
+        {/* Warranty Preview Grid */}
+        {formData.warranties && formData.warranties.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <DocumentPreviewGrid
+              documentKeys={formData.warranties}
+              onRemove={(key) => handleDocumentRemove(key, 'warranty')}
+              disabled={isUploadingDocuments}
+              documentType="warranty"
+            />
+          </Box>
+        )}
+
+        {/* Warranty Upload Zone */}
+        <DocumentUploadZone
+          onUpload={handleWarrantyUpload}
+          disabled={isUploadingPhotos || isUploadingDocuments}
+          currentDocumentCount={formData.warranties?.length || 0}
+          documentType="warranty"
+        />
+      </Box>
     </Box>
   );
 
@@ -786,7 +928,7 @@ export default function ThingFormDialog({
               />
               <Tab 
                 icon={<PhotoIcon />} 
-                label="Photos" 
+                label="Media" 
                 iconPosition="start"
                 sx={{ minHeight: 48 }}
               />
@@ -811,7 +953,7 @@ export default function ThingFormDialog({
             )}
             {currentTab === 3 && (
               <Box sx={{ pt: 1 }}>
-                {renderPhotoSection()}
+                {renderPhotoAndDocumentSection()}
                 <Box sx={{ mt: 2 }}>
                   {renderAdditionalFields()}
                 </Box>
@@ -879,12 +1021,12 @@ export default function ThingFormDialog({
                 }}
               >
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Photos & Additional Info
+                  Photos, Receipts & Warranties
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 1.5, pb: 1.5, px: 2 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {renderPhotoSection()}
+                  {renderPhotoAndDocumentSection()}
                   <Divider sx={{ my: 1 }} />
                   {renderAdditionalFields()}
                 </Box>
