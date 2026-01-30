@@ -476,7 +476,7 @@ Resources:
           Value: !Ref Environment
 
   # S3 Bucket for Frontend Website (with CloudFront OAC policy)
-  WebsiteBucketResource:
+  WebsiteBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: !If [IsProduction, Retain, Delete]
     UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
@@ -508,7 +508,7 @@ Resources:
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref WebsiteBucketResource
+      Bucket: !Ref WebsiteBucket
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -517,7 +517,7 @@ Resources:
             Principal:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
-            Resource: !Sub '${WebsiteBucketResource.Arn}/*'
+            Resource: !Sub '${WebsiteBucket.Arn}/*'
             Condition:
               StringEquals:
                 'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/E2NPTW4L5DCUT8'
@@ -2482,7 +2482,7 @@ Outputs:
 
   WebsiteBucket:
     Description: S3 Bucket Name for Frontend Website
-    Value: !Ref WebsiteBucketResource
+    Value: !Ref WebsiteBucket
     Export:
       Name: !Sub ${AWS::StackName}-WebsiteBucket
 
