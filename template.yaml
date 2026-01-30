@@ -518,9 +518,6 @@ Resources:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub '${WebsiteBucket.Arn}/*'
-            Condition:
-              StringEquals:
-                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/E2NPTW4L5DCUT8'
 
   # API Gateway HTTP API
   HttpApi:
