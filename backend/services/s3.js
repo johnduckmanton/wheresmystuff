@@ -18,6 +18,19 @@ const ALLOWED_IMAGE_TYPES = [
   'image/svg+xml'
 ];
 
+// Allowed document MIME types (for receipts and warranties)
+const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
 /**
  * Validate if the content type is an allowed image type
  * @param {string} contentType - MIME type to validate
@@ -28,17 +41,33 @@ function isValidImageType(contentType) {
 }
 
 /**
+ * Validate if the content type is an allowed document type
+ * @param {string} contentType - MIME type to validate
+ * @returns {boolean} True if valid document type
+ */
+function isValidDocumentType(contentType) {
+  return ALLOWED_DOCUMENT_TYPES.includes(contentType.toLowerCase());
+}
+
+/**
  * Generate a presigned URL for uploading a file to S3
  * @param {string} key - S3 object key (file path)
  * @param {string} contentType - MIME type of the file
  * @param {boolean} secure - Whether to use secure (short) expiration time
+ * @param {boolean} allowDocuments - Whether to allow document types (not just images)
  * @returns {Promise<string>} Presigned upload URL
- * @throws {Error} If content type is not a valid image type
+ * @throws {Error} If content type is not valid
  */
-async function generateUploadUrl(key, contentType, secure = true) {
+async function generateUploadUrl(key, contentType, secure = true, allowDocuments = false) {
   // Validate file type
-  if (!isValidImageType(contentType)) {
-    throw new Error(`Invalid file type. Only images are allowed. Received: ${contentType}`);
+  if (allowDocuments) {
+    if (!isValidDocumentType(contentType)) {
+      throw new Error(`Invalid file type. Allowed types: PDF, images, Word documents. Received: ${contentType}`);
+    }
+  } else {
+    if (!isValidImageType(contentType)) {
+      throw new Error(`Invalid file type. Only images are allowed. Received: ${contentType}`);
+    }
   }
   
   const command = new PutObjectCommand({
@@ -96,6 +125,8 @@ module.exports = {
   generateDownloadUrl,
   deleteObject,
   isValidImageType,
+  isValidDocumentType,
   ALLOWED_IMAGE_TYPES,
+  ALLOWED_DOCUMENT_TYPES,
   SECURE_URL_EXPIRATION
 };

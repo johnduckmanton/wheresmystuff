@@ -125,7 +125,7 @@ async function handleGenerateUploadUrl(event) {
     const key = `documents/${body.documentType}/${userId}/${body.inventoryId}/${body.entityId}/${timestamp}-${sanitizedFileName}`;
     
     // Generate presigned upload URL with secure expiration (15 minutes)
-    const uploadUrl = await generateUploadUrl(key, body.contentType, true);
+    const uploadUrl = await generateUploadUrl(key, body.contentType, true, true); // allowDocuments = true
     
     // Log data access
     await logDataAccess(event.user.userId, 'create', `documents-${body.documentType}`, key, body.inventoryId);
