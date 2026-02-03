@@ -178,7 +178,7 @@ export default function ContainerDetailDialog({
           gap: 0.5, // Smaller gap between buttons
           flexShrink: 0, // Don't shrink the buttons
         }}>
-          <Tooltip title="Generate QR Code">
+          <Tooltip title="Print Label">
             <IconButton onClick={() => setQrCodeDialogOpen(true)} size="small" color="secondary">
               <QrCodeIcon />
             </IconButton>
@@ -424,14 +424,14 @@ export default function ContainerDetailDialog({
                         )}
 
                         {/* QR Code */}
-                        {updatedContainer.qrCode ? (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <QrCodeIcon color="action" />
-                              <Typography variant="body2">
-                                <strong>QR Code</strong>
-                              </Typography>
-                            </Box>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <QrCodeIcon color="action" />
+                            <Typography variant="body2">
+                              <strong>QR Code</strong>
+                            </Typography>
+                          </Box>
+                          {updatedContainer.qrCodeUrl ? (
                             <Box 
                               sx={{ 
                                 display: 'flex',
@@ -448,50 +448,49 @@ export default function ContainerDetailDialog({
                               }}
                               onClick={() => setQrCodeDialogOpen(true)}
                             >
-                              {updatedContainer.qrCodeUrl && (
-                                <Box
-                                  component="img"
-                                  src={`${import.meta.env.VITE_API_URL}/photo?key=${encodeURIComponent(updatedContainer.qrCodeUrl)}`}
-                                  alt="Container QR Code"
-                                  sx={{
-                                    width: 120,
-                                    height: 120,
-                                    objectFit: 'contain',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: 1,
-                                    p: 0.5,
-                                    bgcolor: 'white'
-                                  }}
-                                />
-                              )}
+                              <Box
+                                component="img"
+                                src={`${import.meta.env.VITE_API_URL}/photo?key=${encodeURIComponent(updatedContainer.qrCodeUrl)}`}
+                                alt="Container QR Code"
+                                sx={{
+                                  width: 120,
+                                  height: 120,
+                                  objectFit: 'contain',
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: 1,
+                                  p: 0.5,
+                                  bgcolor: 'white'
+                                }}
+                              />
                               <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline', fontSize: '0.75rem' }}>
-                                View/Regenerate
+                                Print Label
                               </Typography>
                             </Box>
-                          </Box>
-                        ) : (
-                          <Box 
-                            sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 1,
-                              cursor: 'pointer',
-                              '&:hover': {
-                                backgroundColor: 'action.hover',
-                                borderRadius: 1,
-                                p: 0.5,
-                                m: -0.5
-                              }
-                            }}
-                            onClick={() => setQrCodeDialogOpen(true)}
-                          >
-                            <QrCodeIcon color="primary" />
-                            <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
-                              Generate QR Code
-                            </Typography>
-                          </Box>
-                        )}
+                          ) : (
+                            <Box 
+                              sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 1,
+                                pl: 4,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  backgroundColor: 'action.hover',
+                                  borderRadius: 1,
+                                  p: 0.5,
+                                  m: -0.5
+                                }
+                              }}
+                              onClick={() => setQrCodeDialogOpen(true)}
+                            >
+                              <QrCodeIcon color="primary" />
+                              <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
+                                Generate QR Code
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                       </Box>
                     </CardContent>
                   </Card>

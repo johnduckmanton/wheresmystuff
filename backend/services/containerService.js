@@ -49,6 +49,31 @@ class ContainerService {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
+    // Generate QR code image automatically
+    try {
+      console.log('🔄 Attempting to generate QR code for container:', container.id);
+      const QRCodeService = require('./qrCodeService');
+      const qrCodeService = new QRCodeService();
+      const qrCodeData = await qrCodeService.generateContainerQRCode(container.id, 'medium');
+      
+      console.log('✅ QR code generated successfully:', {
+        containerId: container.id,
+        s3Key: qrCodeData.s3Key,
+        qrCodeId: qrCodeData.qrCodeId
+      });
+      
+      // Update container with QR code URL
+      container.qrCodeUrl = qrCodeData.s3Key;
+    } catch (error) {
+      console.error('❌ Failed to generate QR code during container creation:', {
+        containerId: container.id,
+        error: error.message,
+        stack: error.stack
+      });
+      // Don't fail container creation if QR code generation fails
+      // The QR code can be generated later
+    }
+
     // Save to DynamoDB
     await docClient.send(new PutCommand({
       TableName: TABLE_NAME,

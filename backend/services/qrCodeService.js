@@ -6,6 +6,8 @@ const cacheService = require('./cacheService');
 const s3Client = new S3Client({});
 const BUCKET_NAME = process.env.QR_REPORT_BUCKET_NAME;
 
+console.log('🪣 QR Code Service initialized with bucket:', BUCKET_NAME);
+
 /**
  * QR Code Service for generating and managing QR codes for containers
  */
@@ -91,9 +93,19 @@ class QRCodeService {
    * @returns {Promise<Object>} QR code data including ID, S3 key, and URL
    */
   async generateContainerQRCode(containerId, size = 'medium') {
+    console.log('🎯 generateContainerQRCode called:', { containerId, size, bucketName: BUCKET_NAME });
+    
+    // Check if bucket name is configured
+    if (!BUCKET_NAME) {
+      const error = new Error('QR_REPORT_BUCKET_NAME environment variable is not set');
+      console.error('❌ Bucket name not configured:', error.message);
+      throw error;
+    }
+    
     // Check cache first
     const cachedQRCode = await cacheService.getCachedQRCodeImage(containerId, size);
     if (cachedQRCode) {
+      console.log('✅ Returning cached QR code for container:', containerId);
       return {
         ...cachedQRCode,
         fromCache: true
