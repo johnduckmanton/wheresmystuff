@@ -13,6 +13,9 @@ const { logDataAccess } = require('../services/auditLogService');
  * Handles POST /upload and GET /photo/{key} requests
  */
 const photoHandler = async (event) => {
+  // Extract origin for CORS headers
+  const origin = event.headers?.origin || event.headers?.Origin || '';
+  
   const context = {
     endpoint: '/photo',
     method: event.requestContext.http.method,
@@ -36,13 +39,13 @@ const photoHandler = async (event) => {
     // Route to appropriate handler based on HTTP method and path
     switch (httpMethod) {
       case 'POST':
-        return await handleGenerateUploadUrl(event);
+        return await handleGenerateUploadUrl(event, origin);
       case 'GET':
-        return await handleGenerateDownloadUrl(event, event.queryStringParameters?.key);
+        return await handleGenerateDownloadUrl(event, event.queryStringParameters?.key, origin);
       case 'DELETE':
-        return await handleDeletePhoto(event, pathParameters.key);
+        return await handleDeletePhoto(event, pathParameters.key, origin);
       default:
-        return error('Method not allowed', 405);
+        return error('Method not allowed', 405, origin);
     }
   } catch (err) {
     // Use secure error handling
@@ -53,35 +56,35 @@ const photoHandler = async (event) => {
 /**
  * Handle POST /upload - Generate presigned URL for upload
  */
-async function handleGenerateUploadUrl(event) {
+async function handleGenerateUploadUrl(event, origin) {
   try {
     // Parse request body
     const body = JSON.parse(event.body || '{}');
     
     // Validate required fields
     if (!body.fileName) {
-      return error('fileName is required', 400);
+      return error('fileName is required', 400, origin);
     }
     
     if (!body.contentType) {
-      return error('contentType is required', 400);
+      return error('contentType is required', 400, origin);
     }
     
     if (!body.inventoryId) {
-      return error('inventoryId is required', 400);
+      return error('inventoryId is required', 400, origin);
     }
     
     if (!body.entityId) {
-      return error('entityId is required', 400);
+      return error('entityId is required', 400, origin);
     }
     
     // Validate UUIDs
     if (!validateUUID(body.inventoryId)) {
-      return error('Invalid inventoryId format', 400);
+      return error('Invalid inventoryId format', 400, origin);
     }
     
     if (!validateUUID(body.entityId)) {
-      return error('Invalid entityId format', 400);
+      return error('Invalid entityId format', 400, origin);
     }
     
     // Check inventory access
@@ -104,18 +107,18 @@ async function handleGenerateUploadUrl(event) {
       uploadUrl,
       key,
       expiresIn: SECURE_URL_EXPIRATION // 15 minutes
-    }, 201);
+    }, 201, origin);
   } catch (err) {
     console.error('Error generating upload URL:', err);
     
     // Handle authentication/authorization errors
     if (err.statusCode === 401 || err.statusCode === 403) {
-      return error(err.message || 'Access denied', err.statusCode);
+      return error(err.message || 'Access denied', err.statusCode, origin);
     }
     
     // Handle validation errors from S3 service
     if (err.message.includes('Invalid file type')) {
-      return error(err.message, 400);
+      return error(err.message, 400, origin);
     }
     
     throw new Error('Failed to generate upload URL');
@@ -125,11 +128,11 @@ async function handleGenerateUploadUrl(event) {
 /**
  * Handle GET /photo/{key} - Generate presigned URL for download
  */
-async function handleGenerateDownloadUrl(event, key) {
+async function handleGenerateDownloadUrl(event, key, origin) {
   try {
     // Validate key parameter
     if (!key) {
-      return error('Photo key is required', 400);
+      return error('Photo key is required', 400, origin);
     }
     
     // Decode the key (it may be URL encoded)
@@ -148,7 +151,7 @@ async function handleGenerateDownloadUrl(event, key) {
         downloadUrl,
         key: decodedKey,
         expiresIn: SECURE_URL_EXPIRATION // 15 minutes
-      }, 200);
+      }, 200, origin);
     }
     
     // Verify photo access by extracting inventory and entity info from key
@@ -156,7 +159,7 @@ async function handleGenerateDownloadUrl(event, key) {
     
     // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
     if (keyParts.length < 5 || keyParts[0] !== 'photos') {
-      return error('Invalid photo key format', 400);
+      return error('Invalid photo key format', 400, origin);
     }
     
     const [, keyUserId, inventoryId, entityId] = keyParts;
@@ -164,13 +167,13 @@ async function handleGenerateDownloadUrl(event, key) {
     
     // Validate UUIDs
     if (!validateUUID(inventoryId) || !validateUUID(entityId)) {
-      return error('Invalid photo key format', 400);
+      return error('Invalid photo key format', 400, origin);
     }
     
     // Check if user has access to the inventory
     const hasAccess = await inventoryService.hasInventoryAccess(currentUserId, inventoryId);
     if (!hasAccess) {
-      return error('Access denied: You do not have access to this photo', 403);
+      return error('Access denied: You do not have access to this photo', 403, origin);
     }
     
     // Generate presigned download URL with secure expiration (15 minutes)
@@ -183,13 +186,13 @@ async function handleGenerateDownloadUrl(event, key) {
       downloadUrl,
       key: decodedKey,
       expiresIn: SECURE_URL_EXPIRATION // 15 minutes
-    }, 200);
+    }, 200, origin);
   } catch (err) {
     console.error('Error generating download URL:', err);
     
     // Handle authentication/authorization errors
     if (err.statusCode === 401 || err.statusCode === 403) {
-      return error(err.message || 'Access denied', err.statusCode);
+      return error(err.message || 'Access denied', err.statusCode, origin);
     }
     
     throw new Error('Failed to generate download URL');
@@ -199,11 +202,11 @@ async function handleGenerateDownloadUrl(event, key) {
 /**
  * Handle DELETE /photo/{key} - Delete a photo
  */
-async function handleDeletePhoto(event, key) {
+async function handleDeletePhoto(event, key, origin) {
   try {
     // Validate key parameter
     if (!key) {
-      return error('Photo key is required', 400);
+      return error('Photo key is required', 400, origin);
     }
     
     // Decode the key (it may be URL encoded)
@@ -214,7 +217,7 @@ async function handleDeletePhoto(event, key) {
     
     // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
     if (keyParts.length < 5 || keyParts[0] !== 'photos') {
-      return error('Invalid photo key format', 400);
+      return error('Invalid photo key format', 400, origin);
     }
     
     const [, keyUserId, inventoryId, entityId] = keyParts;
@@ -222,13 +225,13 @@ async function handleDeletePhoto(event, key) {
     
     // Validate UUIDs
     if (!validateUUID(inventoryId) || !validateUUID(entityId)) {
-      return error('Invalid photo key format', 400);
+      return error('Invalid photo key format', 400, origin);
     }
     
     // Check if user has access to the inventory
     const hasAccess = await inventoryService.hasInventoryAccess(currentUserId, inventoryId);
     if (!hasAccess) {
-      return error('Access denied: You do not have access to this photo', 403);
+      return error('Access denied: You do not have access to this photo', 403, origin);
     }
     
     // Delete the photo from S3
@@ -240,13 +243,13 @@ async function handleDeletePhoto(event, key) {
     return success({
       message: 'Photo deleted successfully',
       key: decodedKey
-    }, 200);
+    }, 200, origin);
   } catch (err) {
     console.error('Error deleting photo:', err);
     
     // Handle authentication/authorization errors
     if (err.statusCode === 401 || err.statusCode === 403) {
-      return error(err.message || 'Access denied', err.statusCode);
+      return error(err.message || 'Access denied', err.statusCode, origin);
     }
     
     throw new Error('Failed to delete photo');
