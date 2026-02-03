@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "overrides": {
+    "fast-xml-parser": "^5.3.4"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -27,7 +30,7 @@
     "@types/uuid": "^10.0.0",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
-    "aws-amplify": "^6.15.9",
+    "aws-amplify": "^6.16.0",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
     "react": "^19.2.0",
