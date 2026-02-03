@@ -135,6 +135,22 @@ async function handleGenerateDownloadUrl(event, key) {
     // Decode the key (it may be URL encoded)
     const decodedKey = decodeURIComponent(key);
     
+    // Check if this is a QR code request
+    if (decodedKey.startsWith('qr-codes/')) {
+      // QR codes are public within the system - any authenticated user can access them
+      // Format: qr-codes/{containerId}/{size}_{timestamp}.png
+      const downloadUrl = await generateDownloadUrl(decodedKey, true);
+      
+      // Log data access (no specific inventory for QR codes)
+      await logDataAccess(event.user.userId, 'read', 'qr-codes', decodedKey, 'system');
+      
+      return success({
+        downloadUrl,
+        key: decodedKey,
+        expiresIn: SECURE_URL_EXPIRATION // 15 minutes
+      }, 200);
+    }
+    
     // Verify photo access by extracting inventory and entity info from key
     const keyParts = decodedKey.split('/');
     

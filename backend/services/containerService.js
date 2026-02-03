@@ -15,6 +15,7 @@ const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
 /**
  * Container Service
  * Handles all container-related operations including CRUD, location management, and bulk operations
+ * Updated: 2026-02-03 - Added QR code generation logging
  */
 class ContainerService {
   /**

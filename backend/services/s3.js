@@ -89,11 +89,20 @@ async function generateUploadUrl(key, contentType, secure = true, allowDocuments
  * Generate a presigned URL for downloading a file from S3
  * @param {string} key - S3 object key (file path)
  * @param {boolean} secure - Whether to use secure (short) expiration time
+ * @param {string} bucket - Optional bucket name (defaults to BUCKET_NAME)
  * @returns {Promise<string>} Presigned download URL
  */
-async function generateDownloadUrl(key, secure = true) {
+async function generateDownloadUrl(key, secure = true, bucket = null) {
+  // Determine which bucket to use
+  let targetBucket = bucket || BUCKET_NAME;
+  
+  // If key starts with 'qr-codes/', use the QR bucket
+  if (key.startsWith('qr-codes/')) {
+    targetBucket = process.env.QR_REPORT_BUCKET_NAME || BUCKET_NAME;
+  }
+  
   const command = new GetObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: targetBucket,
     Key: key
   });
   
