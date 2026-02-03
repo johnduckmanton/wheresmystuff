@@ -1216,6 +1216,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - S3CrudPolicy:
+            BucketName: !Ref QRCodeReportBucket
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
