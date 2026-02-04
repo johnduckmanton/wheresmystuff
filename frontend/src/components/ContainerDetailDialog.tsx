@@ -468,6 +468,7 @@ export default function ContainerDetailDialog({
                                   component="img"
                                   src={qrCodeImageUrl}
                                   alt="Container QR Code"
+                                  crossOrigin="anonymous"
                                   sx={{
                                     width: 120,
                                     height: 120,
