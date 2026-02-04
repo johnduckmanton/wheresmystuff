@@ -692,18 +692,6 @@ export default function ContainerFormDialog({
     </>
   );
 
-  // Get primary image URL for display - memoized to prevent continuous refreshing
-  const getPrimaryImageUrl = useCallback(async (photoKey: string): Promise<string> => {
-    if (!currentInventory) return '';
-    try {
-      const response = await apiClient.generateDownloadUrl(photoKey);
-      return response.downloadUrl;
-    } catch (error) {
-      console.error('Error generating download URL:', error);
-      return '';
-    }
-  }, [currentInventory]);
-
   // Primary image component - memoized to prevent continuous re-rendering
   const PrimaryImageDisplay = useMemo(() => {
     const Component = () => {
