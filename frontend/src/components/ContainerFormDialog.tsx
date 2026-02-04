@@ -15,6 +15,8 @@ import {
   FormHelperText,
   Chip,
   OutlinedInput,
+  Tabs,
+  Tab,
   type SelectChangeEvent,
   useTheme,
   useMediaQuery,
@@ -142,8 +144,10 @@ export default function ContainerFormDialog({
     storageRate: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [currentTab, setCurrentTab] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const isEditing = !!container;
 
@@ -276,6 +280,10 @@ export default function ContainerFormDialog({
   const handleHandlingFlagsChange = (event: SelectChangeEvent<HandlingFlag[]>) => {
     const value = event.target.value;
     handleFieldChange('handlingFlags', typeof value === 'string' ? value.split(',') : value);
+  };
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -430,6 +438,272 @@ export default function ContainerFormDialog({
     }
   }, [currentInventory]);
 
+  // Render functions for tab content
+  const renderBasicFields = () => (
+    <>
+      {/* Container Name */}
+      <TextField
+        fullWidth
+        label="Container Name"
+        value={formData.name}
+        onChange={(e) => handleFieldChange('name', e.target.value)}
+        error={!!errors.name}
+        helperText={errors.name}
+        required
+        placeholder="e.g., Kitchen Box 1, Bedroom Bag A"
+      />
+
+      {/* Container Type */}
+      <FormControl fullWidth error={!!errors.type} required>
+        <InputLabel>Container Type</InputLabel>
+        <Select
+          value={formData.type}
+          label="Container Type"
+          onChange={(e) => handleFieldChange('type', e.target.value)}
+        >
+          {containerTypeOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+        {errors.type && <FormHelperText>{errors.type}</FormHelperText>}
+      </FormControl>
+
+      {/* Size, Weight, and Color Row */}
+      <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+        <FormControl fullWidth error={!!errors.size}>
+          <InputLabel>Size</InputLabel>
+          <Select
+            value={formData.size}
+            label="Size"
+            onChange={(e) => handleFieldChange('size', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {sizeOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.size && <FormHelperText>{errors.size}</FormHelperText>}
+        </FormControl>
+
+        <TextField
+          fullWidth
+          label="Weight (kg)"
+          type="number"
+          value={formData.weight}
+          onChange={(e) => handleFieldChange('weight', e.target.value)}
+          error={!!errors.weight}
+          helperText={errors.weight || 'Optional'}
+          inputProps={{ min: 0, step: 0.1 }}
+          placeholder="0.0"
+        />
+
+        <TextField
+          fullWidth
+          label="Color"
+          value={formData.color}
+          onChange={(e) => handleFieldChange('color', e.target.value)}
+          error={!!errors.color}
+          helperText={errors.color || 'Hex code'}
+          placeholder="#FF5733"
+        />
+      </Box>
+
+      {/* Contents Summary */}
+      <TextField
+        fullWidth
+        label="Contents Summary"
+        value={formData.contentsSummary}
+        onChange={(e) => handleFieldChange('contentsSummary', e.target.value)}
+        error={!!errors.contentsSummary}
+        helperText={
+          errors.contentsSummary || 
+          `Brief description (${formData.contentsSummary.length}/200)`
+        }
+        placeholder="e.g., Kitchen utensils and small appliances"
+        inputProps={{ maxLength: 200 }}
+        FormHelperTextProps={{
+          sx: {
+            color: formData.contentsSummary.length > 180 ? 'warning.main' : undefined,
+          }
+        }}
+      />
+    </>
+  );
+
+  const renderAssignmentFields = () => (
+    <>
+      {/* Location */}
+      <FormControl fullWidth error={!!errors.locationId}>
+        <InputLabel>Location</InputLabel>
+        <Select
+          value={formData.locationId}
+          label="Location"
+          onChange={(e) => handleFieldChange('locationId', e.target.value)}
+        >
+          <MenuItem value="">
+            <em>None</em>
+          </MenuItem>
+          {locations.map((location) => (
+            <MenuItem key={location.id} value={location.id}>
+              {location.name}
+            </MenuItem>
+          ))}
+        </Select>
+        {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
+      </FormControl>
+
+      {/* Project Assignment */}
+      <FormControl fullWidth error={!!errors.projectId}>
+        <InputLabel>Moving Project</InputLabel>
+        <Select
+          value={formData.projectId}
+          label="Moving Project"
+          onChange={(e) => handleFieldChange('projectId', e.target.value)}
+        >
+          <MenuItem value="">
+            <em>None</em>
+          </MenuItem>
+          {projects.map((project) => (
+            <MenuItem key={project.id} value={project.id}>
+              {project.name}
+            </MenuItem>
+          ))}
+        </Select>
+        <FormHelperText>
+          {errors.projectId || 'Optional: Assign to a moving project'}
+        </FormHelperText>
+      </FormControl>
+
+      {/* Status */}
+      <FormControl fullWidth error={!!errors.status}>
+        <InputLabel>Status</InputLabel>
+        <Select
+          value={formData.status}
+          label="Status"
+          onChange={(e) => handleFieldChange('status', e.target.value)}
+        >
+          {statusOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+        {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
+      </FormControl>
+    </>
+  );
+
+  const renderHandlingFields = () => (
+    <>
+      {/* Handling Flags */}
+      <FormControl fullWidth error={!!errors.handlingFlags}>
+        <InputLabel>Handling Requirements</InputLabel>
+        <Select
+          multiple
+          value={formData.handlingFlags}
+          onChange={handleHandlingFlagsChange}
+          input={<OutlinedInput label="Handling Requirements" />}
+          renderValue={(selected) => (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {selected.map((value) => {
+                const option = handlingFlagOptions.find(opt => opt.value === value);
+                return (
+                  <Chip 
+                    key={value} 
+                    label={option?.label || value} 
+                    size="small" 
+                  />
+                );
+              })}
+            </Box>
+          )}
+        >
+          {handlingFlagOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+        {errors.handlingFlags && <FormHelperText>{errors.handlingFlags}</FormHelperText>}
+      </FormControl>
+
+      {/* Storage Rate */}
+      <TextField
+        fullWidth
+        label="Storage Rate (per month)"
+        type="number"
+        value={formData.storageRate}
+        onChange={(e) => handleFieldChange('storageRate', e.target.value)}
+        error={!!errors.storageRate}
+        helperText={errors.storageRate || 'Optional: Cost per month if stored'}
+        inputProps={{ min: 0, step: 0.01 }}
+      />
+    </>
+  );
+
+  const renderMediaFields = () => (
+    <>
+      {/* Container Photos */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>
+          Container Photos
+        </Typography>
+        
+        {/* Photo Preview Grid - Show existing photos */}
+        {formData.photos && formData.photos.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <PhotoPreviewGrid
+              photoKeys={formData.photos}
+              onRemove={handlePhotoRemove}
+              disabled={isUploadingPhotos || loading}
+            />
+          </Box>
+        )}
+
+        {/* Photo Upload Zone */}
+        <PhotoUploadZone
+          onUpload={handlePhotoUpload}
+          disabled={isUploadingPhotos || loading}
+          currentPhotoCount={formData.photos.length}
+          maxPhotos={10}
+          label="Add Container Photos"
+          helperText="Add photos to help identify this container"
+        />
+      </Box>
+
+      {/* Description */}
+      <TextField
+        fullWidth
+        label="Description"
+        value={formData.description}
+        onChange={(e) => handleFieldChange('description', e.target.value)}
+        error={!!errors.description}
+        helperText={errors.description}
+        multiline
+        rows={3}
+        placeholder="Additional notes about this container..."
+      />
+    </>
+  );
+
+  // Get primary image URL for display - memoized to prevent continuous refreshing
+  const getPrimaryImageUrl = useCallback(async (photoKey: string): Promise<string> => {
+    if (!currentInventory) return '';
+    try {
+      const response = await apiClient.generateDownloadUrl(photoKey);
+      return response.downloadUrl;
+    } catch (error) {
+      console.error('Error generating download URL:', error);
+      return '';
+    }
+  }, [currentInventory]);
+
   // Primary image component - memoized to prevent continuous re-rendering
   const PrimaryImageDisplay = useMemo(() => {
     const Component = () => {
@@ -553,256 +827,62 @@ export default function ContainerFormDialog({
           </Box>
         </Box>
       </DialogTitle>
-      <DialogContent>
-        <Box
-          component="form"
-          onSubmit={handleSubmit}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            pt: 1,
-          }}
-          noValidate
-        >
-          {/* Container Name */}
-          <TextField
-            fullWidth
-            label="Container Name"
-            value={formData.name}
-            onChange={(e) => handleFieldChange('name', e.target.value)}
-            error={!!errors.name}
-            helperText={errors.name}
-            required
-            placeholder="e.g., Kitchen Box 1, Bedroom Bag A"
-          />
 
-          {/* Container Type */}
-          <FormControl fullWidth error={!!errors.type} required>
-            <InputLabel>Container Type</InputLabel>
-            <Select
-              value={formData.type}
-              label="Container Type"
-              onChange={(e) => handleFieldChange('type', e.target.value)}
+      {/* Use tabs on mobile/tablet for better space usage */}
+      {isTablet ? (
+        <>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs 
+              value={currentTab} 
+              onChange={handleTabChange} 
+              variant="scrollable"
+              scrollButtons="auto"
+              aria-label="container form tabs"
             >
-              {containerTypeOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-            {errors.type && <FormHelperText>{errors.type}</FormHelperText>}
-          </FormControl>
-
-          {/* Size, Weight, and Color Row */}
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <FormControl fullWidth error={!!errors.size}>
-              <InputLabel>Size</InputLabel>
-              <Select
-                value={formData.size}
-                label="Size"
-                onChange={(e) => handleFieldChange('size', e.target.value)}
-              >
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {sizeOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-              {errors.size && <FormHelperText>{errors.size}</FormHelperText>}
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label="Weight (kg)"
-              type="number"
-              value={formData.weight}
-              onChange={(e) => handleFieldChange('weight', e.target.value)}
-              error={!!errors.weight}
-              helperText={errors.weight || 'Optional weight in kilograms'}
-              inputProps={{ min: 0, step: 0.1 }}
-              placeholder="0.0"
-            />
-
-            <TextField
-              fullWidth
-              label="Color"
-              value={formData.color}
-              onChange={(e) => handleFieldChange('color', e.target.value)}
-              error={!!errors.color}
-              helperText={errors.color || 'Hex color code (e.g., #FF5733)'}
-              placeholder="#FF5733"
-            />
+              <Tab label="General" />
+              <Tab label="Assignment" />
+              <Tab label="Handling" />
+              <Tab label="Media" />
+            </Tabs>
           </Box>
-
-          {/* Contents Summary */}
-          <TextField
-            fullWidth
-            label="Contents Summary"
-            value={formData.contentsSummary}
-            onChange={(e) => handleFieldChange('contentsSummary', e.target.value)}
-            error={!!errors.contentsSummary}
-            helperText={
-              errors.contentsSummary || 
-              `Brief description of container contents (${formData.contentsSummary.length}/200 characters)`
-            }
-            placeholder="e.g., Kitchen utensils and small appliances"
-            inputProps={{ maxLength: 200 }}
-            FormHelperTextProps={{
-              sx: {
-                color: formData.contentsSummary.length > 180 ? 'warning.main' : undefined,
-              }
+          
+          <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                pt: 1,
+              }}
+            >
+              {currentTab === 0 && renderBasicFields()}
+              {currentTab === 1 && renderAssignmentFields()}
+              {currentTab === 2 && renderHandlingFields()}
+              {currentTab === 3 && renderMediaFields()}
+            </Box>
+          </DialogContent>
+        </>
+      ) : (
+        <DialogContent>
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              pt: 1,
             }}
-          />
-
-          {/* Location */}
-          <FormControl fullWidth error={!!errors.locationId}>
-            <InputLabel>Location</InputLabel>
-            <Select
-              value={formData.locationId}
-              label="Location"
-              onChange={(e) => handleFieldChange('locationId', e.target.value)}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {locations.map((location) => (
-                <MenuItem key={location.id} value={location.id}>
-                  {location.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
-          </FormControl>
-
-          {/* Project Assignment */}
-          <FormControl fullWidth error={!!errors.projectId}>
-            <InputLabel>Moving Project</InputLabel>
-            <Select
-              value={formData.projectId}
-              label="Moving Project"
-              onChange={(e) => handleFieldChange('projectId', e.target.value)}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {projects.map((project) => (
-                <MenuItem key={project.id} value={project.id}>
-                  {project.name}
-                </MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>
-              {errors.projectId || 'Optional: Assign this container to a moving project'}
-            </FormHelperText>
-          </FormControl>
-
-          {/* Status */}
-          <FormControl fullWidth error={!!errors.status}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={formData.status}
-              label="Status"
-              onChange={(e) => handleFieldChange('status', e.target.value)}
-            >
-              {statusOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-            {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
-          </FormControl>
-
-          {/* Handling Flags */}
-          <FormControl fullWidth error={!!errors.handlingFlags}>
-            <InputLabel>Handling Requirements</InputLabel>
-            <Select
-              multiple
-              value={formData.handlingFlags}
-              onChange={handleHandlingFlagsChange}
-              input={<OutlinedInput label="Handling Requirements" />}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => {
-                    const option = handlingFlagOptions.find(opt => opt.value === value);
-                    return (
-                      <Chip 
-                        key={value} 
-                        label={option?.label || value} 
-                        size="small" 
-                      />
-                    );
-                  })}
-                </Box>
-              )}
-            >
-              {handlingFlagOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
-            {errors.handlingFlags && <FormHelperText>{errors.handlingFlags}</FormHelperText>}
-          </FormControl>
-
-          {/* Storage Rate */}
-          <TextField
-            fullWidth
-            label="Storage Rate (per month)"
-            type="number"
-            value={formData.storageRate}
-            onChange={(e) => handleFieldChange('storageRate', e.target.value)}
-            error={!!errors.storageRate}
-            helperText={errors.storageRate || 'Optional: Cost per month if stored'}
-            inputProps={{ min: 0, step: 0.01 }}
-          />
-
-          {/* Container Photos */}
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Container Photos
-            </Typography>
-            
-            {/* Photo Preview Grid - Show existing photos */}
-            {formData.photos && formData.photos.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <PhotoPreviewGrid
-                  photoKeys={formData.photos}
-                  onRemove={handlePhotoRemove}
-                  disabled={isUploadingPhotos || loading}
-                />
-              </Box>
-            )}
-
-            {/* Photo Upload Zone */}
-            <PhotoUploadZone
-              onUpload={handlePhotoUpload}
-              disabled={isUploadingPhotos || loading}
-              currentPhotoCount={formData.photos.length}
-              maxPhotos={10}
-              label="Add Container Photos"
-              helperText="Add photos to help identify this container"
-            />
+            noValidate
+          >
+            {renderBasicFields()}
+            {renderAssignmentFields()}
+            {renderHandlingFields()}
+            {renderMediaFields()}
           </Box>
+        </DialogContent>
+      )}
 
-          {/* Description */}
-          <TextField
-            fullWidth
-            label="Description"
-            value={formData.description}
-            onChange={(e) => handleFieldChange('description', e.target.value)}
-            error={!!errors.description}
-            helperText={errors.description}
-            multiline
-            rows={3}
-            placeholder="Additional notes about this container..."
-          />
-        </Box>
-      </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
         <Button onClick={handleCancel} color="inherit" disabled={loading}>
           Cancel

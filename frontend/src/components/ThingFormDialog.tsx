@@ -910,7 +910,7 @@ export default function ThingFormDialog({
             >
               <Tab 
                 icon={<InfoIcon />} 
-                label="Basic" 
+                label="General" 
                 iconPosition="start"
                 sx={{ minHeight: 48 }}
               />
