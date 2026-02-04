@@ -65,6 +65,7 @@ export default function ContainerDetailDialog({
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
+  const [qrCodeImageUrl, setQrCodeImageUrl] = useState<string>('');
 
   const loadLocation = useCallback(async () => {
     if (!container.locationId) {
@@ -88,6 +89,27 @@ export default function ContainerDetailDialog({
       setUpdatedContainer(container);
     }
   }, [open, container, loadLocation]);
+
+  // Load QR code image URL when container has qrCodeUrl
+  useEffect(() => {
+    const loadQRCodeUrl = async () => {
+      if (updatedContainer.qrCodeUrl) {
+        try {
+          const response = await apiClient.generateDownloadUrl(updatedContainer.qrCodeUrl);
+          setQrCodeImageUrl(response.downloadUrl);
+        } catch (error) {
+          console.error('Error loading QR code image:', error);
+          setQrCodeImageUrl('');
+        }
+      } else {
+        setQrCodeImageUrl('');
+      }
+    };
+
+    if (open) {
+      loadQRCodeUrl();
+    }
+  }, [open, updatedContainer.qrCodeUrl]);
 
   const getStatusColor = (status: ContainerStatus) => {
     switch (status) {
@@ -439,33 +461,51 @@ export default function ContainerDetailDialog({
                                 alignItems: 'center',
                                 gap: 1,
                                 pl: 4,
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'action.hover',
-                                  borderRadius: 1,
-                                  p: 1
-                                }
                               }}
-                              onClick={() => setQrCodeDialogOpen(true)}
                             >
-                              <Box
-                                component="img"
-                                src={`${import.meta.env.VITE_API_URL}/photo?key=${encodeURIComponent(updatedContainer.qrCodeUrl)}`}
-                                alt="Container QR Code"
-                                sx={{
-                                  width: 120,
-                                  height: 120,
-                                  objectFit: 'contain',
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  borderRadius: 1,
-                                  p: 0.5,
-                                  bgcolor: 'white'
-                                }}
-                              />
-                              <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline', fontSize: '0.75rem' }}>
+                              {qrCodeImageUrl ? (
+                                <Box
+                                  component="img"
+                                  src={qrCodeImageUrl}
+                                  alt="Container QR Code"
+                                  sx={{
+                                    width: 120,
+                                    height: 120,
+                                    objectFit: 'contain',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    p: 0.5,
+                                    bgcolor: 'white'
+                                  }}
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    width: 120,
+                                    height: 120,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: 1,
+                                    bgcolor: 'grey.50'
+                                  }}
+                                >
+                                  <Typography variant="caption" color="text.secondary">
+                                    Loading...
+                                  </Typography>
+                                </Box>
+                              )}
+                              <Button 
+                                variant="outlined" 
+                                size="small"
+                                onClick={() => setQrCodeDialogOpen(true)}
+                                startIcon={<QrCodeIcon />}
+                              >
                                 Print Label
-                              </Typography>
+                              </Button>
                             </Box>
                           ) : (
                             <Box 
@@ -474,20 +514,16 @@ export default function ContainerDetailDialog({
                                 alignItems: 'center', 
                                 gap: 1,
                                 pl: 4,
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: 'action.hover',
-                                  borderRadius: 1,
-                                  p: 0.5,
-                                  m: -0.5
-                                }
                               }}
-                              onClick={() => setQrCodeDialogOpen(true)}
                             >
-                              <QrCodeIcon color="primary" />
-                              <Typography variant="body2" color="primary" sx={{ textDecoration: 'underline' }}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => setQrCodeDialogOpen(true)}
+                                startIcon={<QrCodeIcon />}
+                              >
                                 Generate QR Code
-                              </Typography>
+                              </Button>
                             </Box>
                           )}
                         </Box>
