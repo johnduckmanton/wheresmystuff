@@ -8,7 +8,7 @@ s3_bucket = "home-inventory-sam-deployment-dev-1766535400"
 s3_prefix = "home-inventory-system-dev"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Environment=\"dev\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"false\" EnableAdvancedMonitoring=\"false\""
+parameter_overrides = "Environment=\"dev\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"false\" EnableAdvancedMonitoring=\"false\" CloudFrontOrigin=\"https://d1e3knz2m7wphi.cloudfront.net\""
 image_repositories = []
 tags = "Environment=dev Project=home-inventory CostCenter=development"
 
