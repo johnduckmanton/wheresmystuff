@@ -468,6 +468,8 @@ Resources:
               - '*'
             ExposedHeaders:
               - 'Content-Length'
+              - 'ETag'
+            MaxAge: 3000
               - 'Content-Type'
               - 'ETag'
             MaxAge: 3000
