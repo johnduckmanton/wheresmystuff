@@ -908,6 +908,8 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref PhotoBucket
+        - S3CrudPolicy:
+            BucketName: !Ref QRCodeReportBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
         - Version: '2012-10-17'
