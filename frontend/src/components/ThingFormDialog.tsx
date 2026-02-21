@@ -30,6 +30,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Photo as PhotoIcon,
   Image as ImageIcon,
+  QrCodeScanner as BarcodeScanIcon,
 } from '@mui/icons-material';
 import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
@@ -39,6 +40,8 @@ import DocumentPreviewGrid from './DocumentPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
 import S3Image from './S3Image';
 import EnhancedTagInput from './EnhancedTagInput';
+import BarcodeScanner from './BarcodeScanner';
+import BarcodeItemPreview from './BarcodeItemPreview';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 
@@ -74,6 +77,9 @@ export default function ThingFormDialog({
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
   const [currentTab, setCurrentTab] = useState(0);
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
+  const [barcodePreviewOpen, setBarcodePreviewOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState('');
   const { currentInventory } = useInventory();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -315,6 +321,36 @@ export default function ThingFormDialog({
       ...prev,
       [fieldName]: (prev[fieldName] || []).filter((docKey) => docKey !== key),
     }));
+  };
+
+  // Handle barcode scan
+  const handleBarcodeScanned = (barcode: string) => {
+    console.log('Barcode scanned:', barcode);
+    setScannedBarcode(barcode);
+    setBarcodeScannerOpen(false);
+    setBarcodePreviewOpen(true);
+  };
+
+  // Handle barcode item acceptance
+  const handleBarcodeItemAccept = (itemData: any) => {
+    console.log('Accepting barcode item data:', itemData);
+    
+    // Merge barcode data into form
+    setFormData((prev) => ({
+      ...prev,
+      name: itemData.name || prev.name,
+      description: itemData.description || prev.description,
+      categoryId: categories.find(c => c.name === itemData.category)?.id || prev.categoryId,
+      photos: itemData.photos || prev.photos,
+      metadata: {
+        ...prev.metadata,
+        ...itemData.metadata,
+        barcode: itemData.barcode,
+      },
+    }));
+    
+    setBarcodePreviewOpen(false);
+    setScannedBarcode('');
   };
 
   // Filter rooms by selected location
@@ -1041,25 +1077,60 @@ export default function ThingFormDialog({
         pb: { xs: 2, sm: 2 },
         gap: 1,
         flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
       }}>
-        <Button 
-          onClick={handleCancel} 
-          color="inherit"
-          fullWidth={isMobile}
-          sx={{ order: { xs: 2, sm: 1 } }}
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
-          color="primary"
-          fullWidth={isMobile}
-          sx={{ order: { xs: 1, sm: 2 } }}
-        >
-          {thing ? 'Update' : 'Create'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, order: { xs: 3, sm: 1 } }}>
+          {!thing && (
+            <Button
+              onClick={() => setBarcodeScannerOpen(true)}
+              startIcon={<BarcodeScanIcon />}
+              variant="outlined"
+              color="secondary"
+              fullWidth={isMobile}
+            >
+              Scan Barcode
+            </Button>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}>
+          <Button 
+            onClick={handleCancel} 
+            color="inherit"
+            fullWidth={isMobile}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            color="primary"
+            fullWidth={isMobile}
+          >
+            {thing ? 'Update' : 'Create'}
+          </Button>
+        </Box>
       </DialogActions>
+
+      {/* Barcode Scanner Dialog */}
+      <BarcodeScanner
+        open={barcodeScannerOpen}
+        onClose={() => setBarcodeScannerOpen(false)}
+        onBarcodeScanned={handleBarcodeScanned}
+      />
+
+      {/* Barcode Item Preview Dialog */}
+      {currentInventory && (
+        <BarcodeItemPreview
+          open={barcodePreviewOpen}
+          barcode={scannedBarcode}
+          inventoryId={currentInventory.id}
+          onClose={() => {
+            setBarcodePreviewOpen(false);
+            setScannedBarcode('');
+          }}
+          onAccept={handleBarcodeItemAccept}
+        />
+      )}
     </Dialog>
   );
 }

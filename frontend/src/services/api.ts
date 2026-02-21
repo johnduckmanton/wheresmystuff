@@ -726,6 +726,11 @@ class ApiClient {
     return this.post<any>('/ai/analyze-photo', { photoKey, inventoryId });
   }
 
+  // Barcode Lookup API
+  async lookupBarcode(barcode: string, inventoryId: string): Promise<any> {
+    return this.post<any>('/barcode/lookup', { barcode, inventoryId });
+  }
+
   // Container API
   async getContainers(inventoryId?: string): Promise<Container[] | { containers: Container[], count: number, hasMore: boolean, lastEvaluatedKey?: any }> {
     const url = inventoryId ? `/containers?inventoryId=${inventoryId}` : '/containers';

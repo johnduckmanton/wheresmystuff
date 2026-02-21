@@ -1019,6 +1019,37 @@ Resources:
             Auth:
               Authorizer: CognitoAuthorizer
 
+  # Barcode Lookup Lambda
+  BarcodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/barcode.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          UPC_DATABASE_API_KEY: '48D173D658F32EAD76DAE8D61DC9A89D'  # Add your UPC Database API key here
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref PhotoBucket
+        - DynamoDBReadPolicy:
+            TableName: !Ref InventoryTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        LookupBarcode:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /barcode/lookup
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+
   # Inventory Management Lambda
   InventoryFunction:
     Type: AWS::Serverless::Function

@@ -673,6 +673,70 @@ class MockApiClient {
     };
   }
 
+  // Barcode Lookup API (Mock)
+  async lookupBarcode(barcode: string, _inventoryId: string): Promise<any> {
+    await mockDelay(1500); // Simulate API lookup time
+    
+    // Detect barcode type
+    const cleaned = barcode.replace(/[-\s]/g, '');
+    const isISBN = /^(978|979)\d{10}$/.test(cleaned) || /^\d{9}[\dX]$/.test(cleaned);
+    
+    if (isISBN) {
+      // Mock book data
+      return {
+        success: true,
+        source: 'openlibrary',
+        barcodeType: 'isbn',
+        barcode: cleaned,
+        data: {
+          itemName: 'The Great Gatsby',
+          description: 'by F. Scott Fitzgerald. Published 2004 by Scribner. 180 pages.',
+          suggestedCategory: 'Books',
+          brand: 'Scribner',
+          manufacturer: 'Scribner',
+          model: null,
+          imageUrl: 'https://covers.openlibrary.org/b/isbn/9780743273565-L.jpg',
+          storedImageKey: 'barcode-images/mock-isbn/cover.jpg',
+          metadata: {
+            authors: ['F. Scott Fitzgerald'],
+            publishDate: '2004',
+            publisher: 'Scribner',
+            pages: 180,
+            isbn10: '0743273565',
+            isbn13: '9780743273565',
+            subjects: ['Fiction', 'Classics', 'American Literature']
+          }
+        },
+        mockMode: true
+      };
+    } else {
+      // Mock general product data
+      return {
+        success: true,
+        source: 'upcdatabase',
+        barcodeType: 'upc',
+        barcode: cleaned,
+        data: {
+          itemName: 'Wireless Mouse',
+          description: 'Logitech product. Model: M510. Category: Electronics.',
+          suggestedCategory: 'Electronics',
+          brand: 'Logitech',
+          manufacturer: 'Logitech',
+          model: 'M510',
+          imageUrl: 'https://example.com/products/mouse.jpg',
+          storedImageKey: 'barcode-images/mock-upc/product.jpg',
+          metadata: {
+            category: 'Electronics',
+            upc: cleaned,
+            ean: null,
+            description: 'Wireless computer mouse with USB receiver'
+          }
+        },
+        mockMode: true
+      };
+    }
+  }
+
   // Container API (Mock)
   async getContainers(inventoryId?: string): Promise<Container[]> {
     await mockDelay();
