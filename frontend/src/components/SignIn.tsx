@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { signIn, confirmSignIn, signOut } from 'aws-amplify/auth';
+import { signIn, confirmSignIn, signOut, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -24,6 +24,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetCode, setResetCode] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,7 +53,8 @@ export default function SignIn() {
             break;
           case 'RESET_PASSWORD':
             // User needs to reset their password via resetPassword API
-            setError('Password reset required. Please contact support to reset your password.');
+            // Automatically initiate the reset password flow
+            handleResetPasswordFlow();
             break;
           case 'CONFIRM_SIGN_UP':
             setError('Please check your email and confirm your account before signing in.');
@@ -193,6 +195,84 @@ export default function SignIn() {
     }
   };
 
+  const handleResetPasswordFlow = async () => {
+    setLoading(true);
+    try {
+      const output = await resetPassword({ username: email });
+      const { nextStep } = output;
+      
+      if (nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE') {
+        // Show the reset password form with code input
+        setChallengeName('RESET_PASSWORD_CODE');
+      } else if (nextStep.resetPasswordStep === 'DONE') {
+        setError('Password reset complete. Please sign in with your new password.');
+      }
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      setError(err.message || 'Failed to initiate password reset. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmResetPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validate inputs
+    if (!resetCode || resetCode.length < 6) {
+      setError('Please enter the verification code from your email');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 12) {
+      setError('Password must be at least 12 characters long');
+      return;
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(newPassword)) {
+      setError('Password must contain uppercase, lowercase, numbers, and symbols');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await confirmResetPassword({
+        username: email,
+        confirmationCode: resetCode,
+        newPassword: newPassword,
+      });
+
+      // Password reset successful, clear form and show success message
+      setChallengeName(null);
+      setResetCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword('');
+      setError('');
+      
+      // Show success message and allow user to sign in
+      alert('Password reset successful! Please sign in with your new password.');
+    } catch (err: any) {
+      console.error('Confirm reset password error:', err);
+      if (err.name === 'CodeMismatchException') {
+        setError('Invalid verification code. Please check your email and try again.');
+      } else if (err.name === 'ExpiredCodeException') {
+        setError('Verification code has expired. Please request a new one.');
+      } else {
+        setError(err.message || 'Failed to reset password. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cancelChallenge = async () => {
     // Clear the authentication session and return to sign-in
     try {
@@ -206,11 +286,142 @@ export default function SignIn() {
     setChallengeName(null);
     setNewPassword('');
     setConfirmPassword('');
+    setResetCode('');
     setMfaCode('');
     setError('');
     setPassword('');
     setEmail('');
   };
+
+  // Render password reset with code form
+  if (challengeName === 'RESET_PASSWORD_CODE') {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          px: { xs: 2, sm: 3 },
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            maxWidth: 400,
+            width: '100%',
+          }}
+        >
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              bgcolor: 'warning.main',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 2,
+            }}
+            aria-hidden="true"
+          >
+            <VpnKeyIcon sx={{ color: 'white' }} />
+          </Box>
+          <Typography component="h1" variant="h5" gutterBottom>
+            Reset Password
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+            Enter the verification code sent to your email and choose a new password.
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }} role="alert">
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleConfirmResetPassword} sx={{ width: '100%' }} noValidate>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="resetCode"
+              label="Verification Code"
+              name="resetCode"
+              autoComplete="one-time-code"
+              autoFocus
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value)}
+              disabled={loading}
+              helperText="Enter the code from your email"
+              inputProps={{
+                'aria-label': 'Verification Code',
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="newPassword"
+              label="New Password"
+              type="password"
+              id="newPassword"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={loading}
+              helperText="Minimum 12 characters with uppercase, lowercase, numbers, and symbols"
+              inputProps={{
+                'aria-label': 'New Password',
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="confirmPassword"
+              label="Confirm New Password"
+              type="password"
+              id="confirmPassword"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
+              inputProps={{
+                'aria-label': 'Confirm New Password',
+              }}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              disabled={loading || !resetCode || !newPassword || !confirmPassword}
+              aria-label={loading ? 'Resetting password...' : 'Reset password'}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Reset Password'}
+            </Button>
+            <Divider sx={{ my: 2 }} />
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => cancelChallenge()}
+              disabled={loading}
+              sx={{ mb: 1 }}
+            >
+              Cancel
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
 
   // Render password change form if required
   if (challengeName === 'NEW_PASSWORD_REQUIRED') {
