@@ -1026,9 +1026,6 @@ Resources:
       CodeUri: backend/
       Handler: handlers/barcode.handler
       Timeout: 30
-      Environment:
-        Variables:
-          UPC_DATABASE_API_KEY: '48D173D658F32EAD76DAE8D61DC9A89D'  # Add your UPC Database API key here
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref PhotoBucket
@@ -1039,7 +1036,9 @@ Resources:
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
-              Resource: !Ref AuditLogHMACSecret
+              Resource: 
+                - !Ref AuditLogHMACSecret
+                - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:home-inv-upc-api-key-${Environment}-*'
       Events:
         LookupBarcode:
           Type: HttpApi

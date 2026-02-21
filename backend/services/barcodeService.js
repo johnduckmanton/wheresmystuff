@@ -1,9 +1,15 @@
 const { generateDownloadUrl } = require('./s3');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { v4: uuidv4 } = require('uuid');
 
 const s3Client = new S3Client({});
+const secretsClient = new SecretsManagerClient({});
 const BUCKET_NAME = process.env.BUCKET_NAME;
+const ENVIRONMENT = process.env.NODE_ENV || 'dev';
+
+// Cache for API key to avoid repeated Secrets Manager calls
+let cachedApiKey = null;
 
 /**
  * Barcode Lookup Service
@@ -11,7 +17,36 @@ const BUCKET_NAME = process.env.BUCKET_NAME;
  */
 class BarcodeService {
   constructor() {
-    this.upcDatabaseApiKey = process.env.UPC_DATABASE_API_KEY || '';
+    this.upcDatabaseApiKey = null;
+  }
+
+  /**
+   * Get UPC Database API key from Secrets Manager
+   * @returns {Promise<string>} API key
+   */
+  async getUPCApiKey() {
+    // Return cached key if available
+    if (cachedApiKey) {
+      return cachedApiKey;
+    }
+
+    try {
+      const secretName = `home-inv-upc-api-key-${ENVIRONMENT}`;
+      const command = new GetSecretValueCommand({ SecretId: secretName });
+      const response = await secretsClient.send(command);
+      
+      if (response.SecretString) {
+        const secret = JSON.parse(response.SecretString);
+        cachedApiKey = secret.apiKey;
+        return cachedApiKey;
+      }
+      
+      throw new Error('API key not found in secret');
+    } catch (error) {
+      console.error('Failed to retrieve UPC API key from Secrets Manager:', error);
+      // Return null to allow graceful degradation (ISBN lookups will still work)
+      return null;
+    }
   }
 
   /**
@@ -177,15 +212,18 @@ class BarcodeService {
   async lookupUPC(upc) {
     const cleaned = upc.replace(/[-\s]/g, '');
     
-    if (!this.upcDatabaseApiKey) {
-      throw new Error('UPC Database API key not configured');
+    // Get API key from Secrets Manager
+    const apiKey = await this.getUPCApiKey();
+    
+    if (!apiKey) {
+      throw new Error('UPC Database API key not configured. Please add the secret to AWS Secrets Manager.');
     }
     
     const url = `https://api.upcdatabase.org/product/${cleaned}`;
     
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${this.upcDatabaseApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json'
       }
     });

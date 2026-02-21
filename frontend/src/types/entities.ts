@@ -25,6 +25,7 @@ export interface Thing {
   receipts?: string[]; // Array of S3 keys for receipt documents
   warranties?: string[]; // Array of S3 keys for warranty documents
   tags?: string[]; // Array of tag names for categorization and search
+  metadata?: Record<string, any>; // Additional metadata (e.g., barcode info)
   dateAdded: string; // ISO date, auto-generated
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -64,16 +64,12 @@ export default function BarcodeScanner({
           fps: 10,
           qrbox: { width: 250, height: 150 },
           aspectRatio: 1.777778, // 16:9
-          formatsToSupport: [
-            // @ts-ignore - These constants exist but TypeScript doesn't know about them
-            Html5Qrcode.SCAN_TYPE_CAMERA,
-          ],
         },
         (decodedText) => {
           // Barcode successfully scanned
           handleBarcodeDetected(decodedText);
         },
-        (errorMessage) => {
+        (_errorMessage) => {
           // Scanning error (usually just "no barcode found")
           // Don't show these errors as they're normal during scanning
         }
