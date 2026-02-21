@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { signIn, confirmSignIn } from 'aws-amplify/auth';
+import { signIn, confirmSignIn, signOut } from 'aws-amplify/auth';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -182,12 +182,21 @@ export default function SignIn() {
     }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    try {
+      // Sign out to clear any active Cognito session
+      await signOut();
+    } catch (err) {
+      // Ignore errors during sign out - session may already be cleared
+      console.log('Sign out during reset:', err);
+    }
+    
     setChallengeName(null);
     setNewPassword('');
     setConfirmPassword('');
     setMfaCode('');
     setError('');
+    setPassword(''); // Also clear password for security
   };
 
   // Render password change form if required
@@ -291,7 +300,7 @@ export default function SignIn() {
             <Button
               fullWidth
               variant="outlined"
-              onClick={resetForm}
+              onClick={() => resetForm()}
               disabled={loading}
               sx={{ mb: 1 }}
             >
@@ -395,7 +404,7 @@ export default function SignIn() {
             <Button
               fullWidth
               variant="outlined"
-              onClick={resetForm}
+              onClick={() => resetForm()}
               disabled={loading}
               sx={{ mb: 1 }}
             >
