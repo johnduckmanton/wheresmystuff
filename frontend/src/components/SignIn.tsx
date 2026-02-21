@@ -28,6 +28,7 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [challengeName, setChallengeName] = useState<string | null>(null);
+  const [hasActiveSession, setHasActiveSession] = useState(false);
 
 
   const handleSubmit = async (e: FormEvent) => {
@@ -45,6 +46,9 @@ export default function SignIn() {
         // User is fully signed in
         navigate('/');
       } else if (result.nextStep) {
+        // Mark that we have an active authentication session
+        setHasActiveSession(true);
+        
         // Handle different challenge types
         switch (result.nextStep.signInStep) {
           case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
@@ -56,6 +60,7 @@ export default function SignIn() {
             break;
           case 'CONFIRM_SIGN_UP':
             setError('Please check your email and confirm your account before signing in.');
+            setHasActiveSession(false);
             break;
           case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
             setChallengeName('SMS_MFA');
@@ -65,12 +70,15 @@ export default function SignIn() {
             break;
           case 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION':
             setError('MFA selection is required but not currently supported. Please contact support.');
+            setHasActiveSession(false);
             break;
           case 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP':
             setError('TOTP setup is required but not currently supported. Please contact support.');
+            setHasActiveSession(false);
             break;
           case 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE':
             setError('Custom authentication challenge is not currently supported. Please contact support.');
+            setHasActiveSession(false);
             break;
           case 'DONE':
             // Sign-in is complete, navigate to home
@@ -78,6 +86,7 @@ export default function SignIn() {
             break;
           default:
             setError(`Unhandled sign-in step: ${result.nextStep.signInStep}. Please contact support.`);
+            setHasActiveSession(false);
         }
       } else {
         setError('Unexpected sign-in result. Please try again.');
@@ -104,6 +113,13 @@ export default function SignIn() {
     e.preventDefault();
     setError('');
 
+    // Check if we have an active session
+    if (!hasActiveSession) {
+      setError('Authentication session expired. Please sign in again.');
+      setChallengeName(null);
+      return;
+    }
+
     // Validate new password
     if (newPassword !== confirmPassword) {
       setError('New passwords do not match');
@@ -123,20 +139,39 @@ export default function SignIn() {
     setLoading(true);
 
     try {
+      console.log('Attempting to confirm sign-in with new password...');
+      
       const result = await confirmSignIn({
         challengeResponse: newPassword,
       });
 
       console.log('Password change result:', result);
+      console.log('Result isSignedIn:', result.isSignedIn);
+      console.log('Result nextStep:', result.nextStep);
 
       if (result.isSignedIn) {
+        setHasActiveSession(false);
         navigate('/');
+      } else if (result.nextStep) {
+        // Handle any additional steps
+        console.log('Additional step required:', result.nextStep.signInStep);
+        setError(`Additional step required: ${result.nextStep.signInStep}`);
       } else {
         setError('Password change failed. Please try again.');
       }
     } catch (err: any) {
       console.error('Password change error:', err);
-      setError(err.message || 'Failed to change password. Please try again.');
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      
+      // Handle session expiration
+      if (err.name === 'SignInException' || err.message?.includes('signIn was not called')) {
+        setError('Authentication session expired. Please sign in again.');
+        setHasActiveSession(false);
+        setChallengeName(null);
+      } else {
+        setError(err.message || 'Failed to change password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -145,6 +180,13 @@ export default function SignIn() {
   const handleMfaVerification = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Check if we have an active session
+    if (!hasActiveSession) {
+      setError('Authentication session expired. Please sign in again.');
+      setChallengeName(null);
+      return;
+    }
 
     if (!mfaCode || mfaCode.length < 6) {
       setError('Please enter a valid verification code');
@@ -161,6 +203,7 @@ export default function SignIn() {
       console.log('MFA verification result:', result);
 
       if (result.isSignedIn) {
+        setHasActiveSession(false);
         navigate('/');
       } else if (result.nextStep) {
         setError(`Additional authentication required: ${result.nextStep.signInStep}`);
@@ -173,7 +216,11 @@ export default function SignIn() {
         setError('Invalid verification code. Please check and try again.');
       } else if (err.name === 'NotAuthorizedException') {
         setError('Verification code expired. Please sign in again.');
-        resetForm();
+        await cancelChallenge();
+      } else if (err.name === 'SignInException' || err.message?.includes('signIn was not called')) {
+        setError('Authentication session expired. Please sign in again.');
+        setHasActiveSession(false);
+        setChallengeName(null);
       } else {
         setError(err.message || 'Failed to verify code. Please try again.');
       }
@@ -182,21 +229,24 @@ export default function SignIn() {
     }
   };
 
-  const resetForm = async () => {
+  const cancelChallenge = async () => {
+    // Clear the authentication session and return to sign-in
     try {
-      // Sign out to clear any active Cognito session
       await signOut();
     } catch (err) {
-      // Ignore errors during sign out - session may already be cleared
-      console.log('Sign out during reset:', err);
+      // Ignore errors - session may already be cleared
+      console.log('Sign out during cancel:', err);
     }
     
+    // Reset all form state
+    setHasActiveSession(false);
     setChallengeName(null);
     setNewPassword('');
     setConfirmPassword('');
     setMfaCode('');
     setError('');
-    setPassword(''); // Also clear password for security
+    setPassword('');
+    setEmail('');
   };
 
   // Render password change form if required
@@ -300,11 +350,11 @@ export default function SignIn() {
             <Button
               fullWidth
               variant="outlined"
-              onClick={() => resetForm()}
+              onClick={() => cancelChallenge()}
               disabled={loading}
               sx={{ mb: 1 }}
             >
-              Back to Sign In
+              Cancel
             </Button>
           </Box>
         </Paper>
@@ -404,11 +454,11 @@ export default function SignIn() {
             <Button
               fullWidth
               variant="outlined"
-              onClick={() => resetForm()}
+              onClick={() => cancelChallenge()}
               disabled={loading}
               sx={{ mb: 1 }}
             >
-              Back to Sign In
+              Cancel
             </Button>
           </Box>
         </Paper>
