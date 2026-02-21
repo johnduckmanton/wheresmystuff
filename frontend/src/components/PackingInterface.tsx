@@ -257,7 +257,7 @@ export default function PackingInterface({
           baseDelay: 1000, // 1s, 2s, 4s, 8s
           shouldRetry: (error: any) => isRetryableError(error),
         }
-      );
+      ) as { success: boolean; thing: Thing; container: Container; error?: string };
       
       // Close the form
       setThingFormOpen(false);
@@ -285,7 +285,7 @@ export default function PackingInterface({
       errorLogger.logCreateAndPackError(
         error,
         'creation',
-        currentInventory?.userId,
+        currentInventory?.ownerId,
         thingData,
         container.id
       );
@@ -407,7 +407,7 @@ export default function PackingInterface({
       errorLogger.logError(
         error as Error,
         {
-          userId: currentInventory?.userId,
+          userId: currentInventory?.ownerId,
           errorType: 'DataLoadError',
           userAction: 'Loading packing interface data',
           component: 'PackingInterface',
@@ -606,7 +606,7 @@ export default function PackingInterface({
       errorLogger.logError(
         error as Error,
         {
-          userId: currentInventory?.userId,
+          userId: currentInventory?.ownerId,
           errorType: 'PackItemsError',
           userAction: 'Packing items into container',
           component: 'PackingInterface',
@@ -674,7 +674,7 @@ export default function PackingInterface({
       errorLogger.logError(
         error as Error,
         {
-          userId: currentInventory?.userId,
+          userId: currentInventory?.ownerId,
           errorType: 'RemoveItemsError',
           userAction: 'Removing items from container',
           component: 'PackingInterface',
@@ -970,8 +970,10 @@ export default function PackingInterface({
         <Button 
           variant="outlined" 
           onClick={onClose}
-          fullWidth={{ xs: true, sm: false }}
-          sx={{ minHeight: '44px' }}
+          sx={{ 
+            minHeight: '44px',
+            width: { xs: '100%', sm: 'auto' }
+          }}
         >
           Close
         </Button>
@@ -992,8 +994,10 @@ export default function PackingInterface({
                   const item = packingItems.find(i => i.id === itemId);
                   return item?.currentContainer === container.id;
                 })}
-                fullWidth={{ xs: true, sm: false }}
-                sx={{ minHeight: '44px' }}
+                sx={{ 
+                  minHeight: '44px',
+                  width: { xs: '100%', sm: 'auto' }
+                }}
               >
                 Remove from Container
               </Button>
@@ -1005,8 +1009,10 @@ export default function PackingInterface({
                   const item = packingItems.find(i => i.id === itemId);
                   return !item?.alreadyPacked || item?.currentContainer === container.id;
                 })}
-                fullWidth={{ xs: true, sm: false }}
-                sx={{ minHeight: '44px' }}
+                sx={{ 
+                  minHeight: '44px',
+                  width: { xs: '100%', sm: 'auto' }
+                }}
               >
                 Pack Selected ({stats.selectedCount})
               </Button>

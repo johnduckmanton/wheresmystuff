@@ -60,7 +60,6 @@ describe('CreationMethodSelector Component', () => {
     render(<CreationMethodSelector onMethodSelect={mockOnMethodSelect} />);
     
     const aiButton = screen.getByText('AI Photo Upload').closest('button');
-    const styles = window.getComputedStyle(aiButton!);
     
     // Check that minHeight is set to 56px
     expect(aiButton).toHaveStyle({ minHeight: '56px' });

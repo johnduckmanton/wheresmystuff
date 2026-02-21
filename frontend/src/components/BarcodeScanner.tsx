@@ -103,7 +103,8 @@ export default function BarcodeScanner({
       // Get iOS-optimized constraints or standard constraints
       const devices = await getIOSCameraDevices();
       const preferredDeviceId = selectPreferredIOSCamera(devices);
-      const constraints = getIOSCameraConstraints(preferredDeviceId);
+      // Note: constraints are used internally by the camera system
+      getIOSCameraConstraints(preferredDeviceId);
 
       // Start scanning with appropriate constraints
       await html5QrCode.start(

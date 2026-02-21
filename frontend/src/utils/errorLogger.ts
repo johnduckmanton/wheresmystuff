@@ -40,12 +40,12 @@ class ErrorLogger {
    * Log an error with context
    * @param error - The error object or message
    * @param context - Additional context about the error
-   * @param userFriendlyMessage - Optional user-friendly message to display
+   * @param _userFriendlyMessage - Optional user-friendly message to display (reserved for future use)
    */
   logError(
     error: Error | string,
     context: ErrorContext,
-    userFriendlyMessage?: string
+    _userFriendlyMessage?: string
   ): void {
     const errorLog = this.createErrorLog(error, context);
 

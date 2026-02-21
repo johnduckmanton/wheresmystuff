@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { offlineQueueService, QueuedOperation } from '../offlineQueueService';
+import { offlineQueueService } from '../offlineQueueService';
 
 describe('OfflineQueueService', () => {
   beforeEach(() => {

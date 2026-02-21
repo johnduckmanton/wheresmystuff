@@ -4,15 +4,7 @@ import PackingInterface from '../PackingInterface';
 import { NotificationProvider } from '../../contexts/NotificationContext';
 import { LoadingProvider } from '../../contexts/LoadingContext';
 import apiClient from '../../services/api';
-import { createContext } from 'react';
-
-// Mock the inventory context
-const InventoryContext = createContext<any>(undefined);
-
-// Create a mock provider
-const MockInventoryProvider = ({ children, value }: any) => {
-  return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;
-};
+import type { Container } from '../../types';
 
 // Mock the useInventory hook
 vi.mock('../../contexts/InventoryContext', () => ({
@@ -42,27 +34,28 @@ vi.mock('../../services/api', () => ({
     getLocations: vi.fn().mockResolvedValue([]),
     getRooms: vi.fn().mockResolvedValue([]),
     getPeople: vi.fn().mockResolvedValue([]),
-    getContainers: vi.fn().mockResolvedValue({ containers: [] }),
+    getContainers: vi.fn().mockResolvedValue([]),
   },
 }));
 
-const mockContainer = {
+const mockContainer: Container = {
   id: 'container-1',
   name: 'Test Container',
   itemCount: 0,
   inventoryId: 'inventory-1',
-  userId: 'user-1',
   createdAt: '2024-01-01',
   updatedAt: '2024-01-01',
+  type: 'box',
+  qrCode: 'QR-123',
+  handlingFlags: [],
+  estimatedValue: 0,
+  createdBy: 'user-1',
+  updatedBy: 'user-1',
+  status: 'packed',
+  metadata: {},
 };
 
-const mockInventory = {
-  id: 'inventory-1',
-  name: 'Test Inventory',
-  userId: 'user-1',
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
-};
+// mockInventory is used in the context mock below
 
 const renderWithProviders = (component: React.ReactElement) => {
   return render(
@@ -87,7 +80,7 @@ describe('PackingInterface Component - Mode Selection', () => {
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue({ containers: [] });
+    api.getContainers.mockResolvedValue([]);
   });
 
   it('renders mode selector on initial load', async () => {
@@ -222,7 +215,7 @@ describe('PackingInterface Component - No Container Selected Handling', () => {
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue({ containers: [] });
+    api.getContainers.mockResolvedValue([]);
   });
 
   it('shows error when trying manual entry without container', async () => {
@@ -308,6 +301,7 @@ describe('PackingInterface Component - Select Existing Mode Preservation', () =>
       inventoryId: 'inventory-1',
       userId: 'user-1',
       quantity: 1,
+      dateAdded: '2024-01-01',
       createdAt: '2024-01-01',
       updatedAt: '2024-01-01',
     },
@@ -319,6 +313,7 @@ describe('PackingInterface Component - Select Existing Mode Preservation', () =>
       userId: 'user-1',
       quantity: 1,
       containerId: 'container-1',
+      dateAdded: '2024-01-01',
       createdAt: '2024-01-01',
       updatedAt: '2024-01-01',
     },
@@ -329,6 +324,7 @@ describe('PackingInterface Component - Select Existing Mode Preservation', () =>
       inventoryId: 'inventory-1',
       userId: 'user-1',
       quantity: 1,
+      dateAdded: '2024-01-01',
       createdAt: '2024-01-01',
       updatedAt: '2024-01-01',
     },
@@ -343,7 +339,7 @@ describe('PackingInterface Component - Select Existing Mode Preservation', () =>
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue({ containers: [mockContainer] });
+    api.getContainers.mockResolvedValue([mockContainer]);
   });
 
   it('displays existing thing selection interface in select mode', async () => {

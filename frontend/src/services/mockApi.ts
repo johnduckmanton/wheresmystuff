@@ -1076,6 +1076,42 @@ class MockApiClient {
     };
   }
 
+  async createAndPackThing(thingData: Partial<Thing>, containerId: string, _inventoryId: string): Promise<{
+    success: boolean;
+    thing: Thing;
+    container: Container;
+    error?: string;
+  }> {
+    await mockDelay();
+    
+    // Create the thing
+    const newThing: Thing = {
+      id: `thing-${Date.now()}`,
+      name: thingData.name || 'Unnamed Item',
+      description: thingData.description,
+      categoryId: thingData.categoryId,
+      inventoryId: thingData.inventoryId || 'default-inventory',
+      containerId: containerId,
+      dateAdded: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...thingData,
+    } as Thing;
+    
+    this.data.things.push(newThing);
+    
+    // Update container
+    const container = await this.getContainer(containerId);
+    container.itemCount = (container.itemCount || 0) + 1;
+    container.estimatedValue = (container.estimatedValue || 0) + (newThing.purchasePrice || 0);
+    
+    return {
+      success: true,
+      thing: newThing,
+      container,
+    };
+  }
+
   async transferItemsBetweenContainers(
     sourceContainerId: string,
     targetContainerId: string,

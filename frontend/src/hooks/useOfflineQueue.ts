@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { offlineQueueService, QueuedOperation } from '../services/offlineQueueService';
+import { offlineQueueService } from '../services/offlineQueueService';
 import apiClient from '../services/api';
 
 export function useOfflineQueue() {

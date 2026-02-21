@@ -164,8 +164,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               key={index}
               onClick={() => handleActionClick(action)}
               variant={action.variant || 'text'}
-              fullWidth={{ xs: true, sm: false }}
-              sx={{ minHeight: '44px' }} // Touch-friendly
+              sx={{ 
+                minHeight: '44px',
+                width: { xs: '100%', sm: 'auto' }
+              }}
             >
               {action.label}
             </Button>
@@ -173,8 +175,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           <Button
             onClick={handleErrorModalClose}
             variant="outlined"
-            fullWidth={{ xs: true, sm: false }}
-            sx={{ minHeight: '44px' }} // Touch-friendly
+            sx={{ 
+              minHeight: '44px',
+              width: { xs: '100%', sm: 'auto' }
+            }}
           >
             Dismiss
           </Button>
