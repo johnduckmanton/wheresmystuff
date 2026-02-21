@@ -71,6 +71,8 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
   const [photoKey, setPhotoKey] = useState<string>('');
   const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const [cameraInputKey, setCameraInputKey] = useState(0);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   
   // Data for dropdowns
   const [locations, setLocations] = useState<Location[]>([]);
@@ -206,11 +208,22 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
 
     try {
       setIsAnalyzing(true);
+      setAnalysisError(null);
 
       // Load inventory data for dropdowns
       await loadInventoryData();
 
-      const result: AIAnalysisResult = await apiClient.analyzePhoto(photoKey, currentInventory.id);
+      // Create a timeout promise (10 seconds)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Analysis timeout')), 10000);
+      });
+
+      // Race between analysis and timeout
+      const result: AIAnalysisResult = await Promise.race([
+        apiClient.analyzePhoto(photoKey, currentInventory.id),
+        timeoutPromise
+      ]);
+      
       setAnalysisResult(result);
 
       if (result.success && result.analysis) {
@@ -240,15 +253,39 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
 
         setShowAnalysisDialog(true);
       } else {
-        showError(result.error || 'AI analysis failed');
+        handleAIAnalysisError(result.error || 'AI analysis failed');
       }
 
     } catch (error) {
       console.error('Analysis error:', error);
-      showError('AI analysis failed. Please try again.');
+      const errorMessage = error instanceof Error && error.message === 'Analysis timeout'
+        ? 'AI analysis timed out after 10 seconds'
+        : 'AI analysis failed. Please try again.';
+      handleAIAnalysisError(errorMessage);
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleAIAnalysisError = (errorMessage: string) => {
+    setAnalysisError(errorMessage);
+    setShowErrorDialog(true);
+  };
+
+  const handleRetryAnalysis = () => {
+    setShowErrorDialog(false);
+    setAnalysisError(null);
+    if (photoKey) {
+      analyzePhoto(photoKey);
+    }
+  };
+
+  const handleSwitchToManualEntry = () => {
+    setShowErrorDialog(false);
+    setAnalysisError(null);
+    // Clear the photo and reset state
+    setPhotoKey('');
+    showError('Switched to manual entry. Please use the manual entry option from the creation method selector.');
   };
 
   const handleCreateThing = async () => {
@@ -694,6 +731,39 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
             disabled={!editedData.name.trim()}
           >
             Create Item
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog
+        open={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <AIIcon sx={{ mr: 1, color: 'error.main' }} />
+            AI Analysis Error
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {analysisError}
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            You can retry the analysis or switch to manual entry to create the item without AI assistance.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleSwitchToManualEntry} color="inherit">
+            Switch to Manual Entry
+          </Button>
+          <Button onClick={handleRetryAnalysis} variant="contained" color="primary">
+            Retry Analysis
           </Button>
         </DialogActions>
       </Dialog>

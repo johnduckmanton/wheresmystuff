@@ -16,8 +16,19 @@ import {
   Close as CloseIcon,
   CameraAlt as CameraIcon,
   Keyboard as KeyboardIcon,
+  Settings as SettingsIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { Html5Qrcode } from 'html5-qrcode';
+import {
+  detectIOSContext,
+  getIOSCameraConstraints,
+  requestIOSCameraPermission,
+  getIOSCameraDevices,
+  selectPreferredIOSCamera,
+  stopIOSCameraStream,
+  getIOSCameraErrorMessage,
+} from '../utils/iosCamera';
 
 interface BarcodeScannerProps {
   open: boolean;
@@ -34,7 +45,9 @@ export default function BarcodeScanner({
   const [manualEntry, setManualEntry] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
   const [error, setError] = useState<string>('');
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [scanner, setScanner] = useState<Html5Qrcode | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
   const scannerId = 'barcode-scanner-reader';
 
@@ -48,20 +61,55 @@ export default function BarcodeScanner({
       if (scanner) {
         stopScanning();
       }
+      if (cameraStream) {
+        stopIOSCameraStream(cameraStream);
+        setCameraStream(null);
+      }
     };
   }, [open, manualEntry]);
 
   const initializeScanner = async () => {
     try {
       setError('');
+      setPermissionDenied(false);
+      
+      // Detect iOS context
+      const iosContext = detectIOSContext();
+      
+      // For iOS, request camera permission with iOS-specific handling
+      if (iosContext.isIOS) {
+        // Get available cameras and select preferred one (back camera)
+        const devices = await getIOSCameraDevices();
+        const preferredDeviceId = selectPreferredIOSCamera(devices);
+        
+        // Request permission with iOS-optimized constraints
+        const permissionResult = await requestIOSCameraPermission(preferredDeviceId);
+        
+        if (!permissionResult.success) {
+          setPermissionDenied(true);
+          setError(permissionResult.error || 'Camera access denied');
+          return;
+        }
+        
+        // Store the stream for cleanup
+        if (permissionResult.stream) {
+          setCameraStream(permissionResult.stream);
+        }
+      }
+
       const html5QrCode = new Html5Qrcode(scannerId);
       setScanner(html5QrCode);
 
-      // Start scanning
+      // Get iOS-optimized constraints or standard constraints
+      const devices = await getIOSCameraDevices();
+      const preferredDeviceId = selectPreferredIOSCamera(devices);
+      const constraints = getIOSCameraConstraints(preferredDeviceId);
+
+      // Start scanning with appropriate constraints
       await html5QrCode.start(
-        { facingMode: 'environment' }, // Use back camera
+        preferredDeviceId || { facingMode: 'environment' },
         {
-          fps: 10,
+          fps: iosContext.isIOS ? 30 : 10, // iOS performs better with 30fps
           qrbox: { width: 250, height: 150 },
           aspectRatio: 1.777778, // 16:9
         },
@@ -78,9 +126,21 @@ export default function BarcodeScanner({
       setScanning(true);
     } catch (err: any) {
       console.error('Failed to initialize barcode scanner:', err);
-      setError(
-        err.message || 'Failed to access camera. Please check permissions.'
-      );
+      
+      // Use iOS-specific error messages
+      const errorMessage = getIOSCameraErrorMessage(err);
+      
+      // Check if this is a permission error
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        setPermissionDenied(true);
+        setError(errorMessage);
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Please connect a camera or use manual entry.');
+      } else if (err.name === 'NotReadableError') {
+        setError(errorMessage);
+      } else {
+        setError(errorMessage || 'Failed to access camera. Please check permissions or use manual entry.');
+      }
       setScanning(false);
     }
   };
@@ -94,6 +154,12 @@ export default function BarcodeScanner({
         console.error('Error stopping scanner:', err);
       }
       setScanning(false);
+    }
+    
+    // Clean up iOS camera stream
+    if (cameraStream) {
+      stopIOSCameraStream(cameraStream);
+      setCameraStream(null);
     }
   };
 
@@ -118,6 +184,7 @@ export default function BarcodeScanner({
     setManualEntry(false);
     setManualBarcode('');
     setError('');
+    setPermissionDenied(false);
     onClose();
   };
 
@@ -161,8 +228,59 @@ export default function BarcodeScanner({
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {error && (
-            <Alert severity="error" onClose={() => setError('')}>
-              {error}
+            <Alert 
+              severity={permissionDenied ? "warning" : "error"} 
+              onClose={() => {
+                setError('');
+                setPermissionDenied(false);
+              }}
+              icon={permissionDenied ? <WarningIcon /> : undefined}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 'medium', mb: 1 }}>
+                {error}
+              </Typography>
+              
+              {permissionDenied && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    To enable camera access:
+                  </Typography>
+                  <Typography variant="body2" component="div" sx={{ pl: 2, mb: 1 }}>
+                    <strong>Chrome/Edge:</strong> Click the camera icon in the address bar, then select "Allow"
+                  </Typography>
+                  <Typography variant="body2" component="div" sx={{ pl: 2, mb: 1 }}>
+                    <strong>Safari:</strong> Go to Settings → Safari → Camera, then select "Allow"
+                  </Typography>
+                  <Typography variant="body2" component="div" sx={{ pl: 2, mb: 1 }}>
+                    <strong>Firefox:</strong> Click the permissions icon in the address bar, then enable camera
+                  </Typography>
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<SettingsIcon />}
+                      onClick={() => {
+                        // Try to trigger browser settings (limited support)
+                        window.open('about:preferences#privacy', '_blank');
+                      }}
+                    >
+                      Browser Settings
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<KeyboardIcon />}
+                      onClick={() => {
+                        setError('');
+                        setPermissionDenied(false);
+                        toggleManualEntry();
+                      }}
+                    >
+                      Use Manual Entry
+                    </Button>
+                  </Box>
+                </Box>
+              )}
             </Alert>
           )}
 
@@ -229,7 +347,7 @@ export default function BarcodeScanner({
                 placeholder="e.g., 9780743273565"
                 fullWidth
                 autoFocus
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleManualSubmit();
                   }

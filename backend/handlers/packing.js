@@ -5,6 +5,7 @@ const { createValidationErrorResponse } = require('../utils/errorHandler');
 const { authenticate, authorizeInventoryAccess } = require('../middleware/auth');
 const { withRateLimit } = require('../middleware/rateLimit');
 const { withCorsValidation } = require('../middleware/corsValidation');
+const errorLogger = require('../utils/errorLogger');
 
 /**
  * Lambda handler for Packing operations
@@ -95,6 +96,14 @@ const packingHandler = async (event) => {
       switch (httpMethod) {
         case 'GET':
           return await handleGetContents(event, containerId, origin);
+        default:
+          return error('Method not allowed', 405, origin);
+      }
+    } else if (path.includes('/create-and-pack')) {
+      // Create a thing and immediately pack it into a container
+      switch (httpMethod) {
+        case 'POST':
+          return await handleCreateAndPack(event, origin);
         default:
           return error('Method not allowed', 405, origin);
       }
@@ -501,6 +510,137 @@ async function handleGetContents(event, containerId, origin) {
     }
     
     throw new Error('Failed to retrieve container contents');
+  }
+}
+
+/**
+ * Handle POST request - Create a thing and immediately pack it into a container
+ */
+async function handleCreateAndPack(event, origin) {
+  try {
+    // Parse request body
+    const body = JSON.parse(event.body || '{}');
+    
+    // Validate required fields
+    if (!body.inventoryId || !validateUUID(body.inventoryId)) {
+      return error('Valid inventoryId is required', 400, origin);
+    }
+    
+    if (!body.containerId || !validateUUID(body.containerId)) {
+      return error('Valid containerId is required', 400, origin);
+    }
+    
+    if (!body.thingData || typeof body.thingData !== 'object') {
+      return error('thingData object is required', 400, origin);
+    }
+    
+    // Validate thing data - name is required
+    if (!body.thingData.name || typeof body.thingData.name !== 'string' || body.thingData.name.trim().length === 0) {
+      return error('Thing name is required', 400, origin);
+    }
+    
+    // Sanitize inputs
+    const inventoryId = sanitizeInput(body.inventoryId);
+    const containerId = sanitizeInput(body.containerId);
+    
+    // Sanitize thing data
+    const thingData = {
+      name: sanitizeInput(body.thingData.name),
+      ...(body.thingData.description && { description: sanitizeInput(body.thingData.description) }),
+      ...(body.thingData.categoryId && validateUUID(body.thingData.categoryId) && { categoryId: sanitizeInput(body.thingData.categoryId) }),
+      ...(body.thingData.value !== undefined && { value: body.thingData.value }),
+      ...(body.thingData.purchasePrice !== undefined && { purchasePrice: body.thingData.purchasePrice }),
+      ...(body.thingData.photos && Array.isArray(body.thingData.photos) && { photos: body.thingData.photos }),
+      ...(body.thingData.tags && Array.isArray(body.thingData.tags) && { tags: body.thingData.tags.map(tag => sanitizeInput(tag)) }),
+      ...(body.thingData.serialNumber && { serialNumber: sanitizeInput(body.thingData.serialNumber) }),
+      ...(body.thingData.model && { model: sanitizeInput(body.thingData.model) }),
+      ...(body.thingData.make && { make: sanitizeInput(body.thingData.make) }),
+      ...(body.thingData.brand && { brand: sanitizeInput(body.thingData.brand) }),
+      ...(body.thingData.condition && { condition: sanitizeInput(body.thingData.condition) }),
+      ...(body.thingData.notes && { notes: sanitizeInput(body.thingData.notes) }),
+      ...(body.thingData.barcode && { barcode: sanitizeInput(body.thingData.barcode) })
+    };
+    
+    // Create and pack the thing
+    const result = await packingService.createAndPackThing(thingData, containerId, inventoryId, event.user.userId);
+    
+    return success(result, 201, origin);
+  } catch (err) {
+    // Determine error stage for better logging
+    const body = JSON.parse(event.body || '{}');
+    let stage = 'validation';
+    
+    if (err.message.includes('Container not found') || err.message.includes('not found')) {
+      stage = 'validation';
+    } else if (err.message.includes('allocation') || err.message.includes('add to container')) {
+      stage = 'allocation';
+    } else if (err.statusCode >= 500 || !err.statusCode) {
+      stage = 'creation';
+    }
+    
+    // Log error with context
+    const { userFriendlyMessage } = errorLogger.logCreateAndPackError(
+      err,
+      stage,
+      event.user?.userId,
+      body.thingData,
+      body.containerId
+    );
+    
+    // Handle specific error status codes from the service
+    if (err.statusCode) {
+      // Map status codes to user-friendly messages
+      let userMessage = userFriendlyMessage;
+      
+      switch (err.statusCode) {
+        case 400:
+          userMessage = err.message;
+          break;
+        case 403:
+          userMessage = 'You do not have permission to access this inventory';
+          break;
+        case 404:
+          if (err.message.includes('Container')) {
+            userMessage = 'The selected container could not be found';
+          } else {
+            userMessage = 'The requested resource could not be found';
+          }
+          break;
+        case 409:
+          userMessage = 'Unable to complete the operation due to a conflict. Please try again';
+          break;
+        case 500:
+          userMessage = 'An unexpected error occurred. Please try again later';
+          break;
+        case 503:
+          userMessage = 'The service is temporarily unavailable. Please try again in a moment';
+          break;
+        default:
+          userMessage = 'An error occurred while creating and packing the item';
+      }
+      
+      return error(userMessage, err.statusCode, origin);
+    }
+    
+    // Legacy error handling for errors without statusCode
+    if (err.message.includes('Access denied')) {
+      return error('You do not have permission to access this inventory', 403, origin);
+    }
+    
+    if (err.message.includes('Container not found')) {
+      return error('The selected container could not be found', 404, origin);
+    }
+    
+    if (err.message.includes('not found')) {
+      return error('The requested resource could not be found', 404, origin);
+    }
+    
+    if (err.message.includes('required') || err.message.includes('Invalid')) {
+      return error(err.message, 400, origin);
+    }
+    
+    // Generic server error - return user-friendly message
+    return error(userFriendlyMessage, 500, origin);
   }
 }
 

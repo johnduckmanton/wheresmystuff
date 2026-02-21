@@ -22,6 +22,7 @@ describe('Packing Service Validation', () => {
     expect(typeof packingService.validateContainerCapacity).toBe('function');
     expect(typeof packingService.bulkAssignItems).toBe('function');
     expect(typeof packingService.getAvailableItems).toBe('function');
+    expect(typeof packingService.createAndPackThing).toBe('function');
   });
 
   it('should export handler function', () => {

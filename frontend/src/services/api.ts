@@ -1258,6 +1258,18 @@ class ApiClient {
     return this.get<any>(`/packing/available-items?${params.toString()}`);
   }
 
+  async createAndPackThing(thingData: Partial<Thing>, containerId: string, inventoryId: string): Promise<{
+    thing: Thing;
+    container: Container;
+    success: boolean;
+  }> {
+    return this.post<any>('/packing/create-and-pack', {
+      thingData,
+      containerId,
+      inventoryId,
+    });
+  }
+
   // QR Code API
   async generateQRCode(containerId: string, inventoryId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
     qrCodeId: string;

@@ -740,6 +740,277 @@ class PackingService {
   }
 
   /**
+   * Create a new thing and immediately pack it into a container
+   * @param {object} thingData - Thing data (name, description, category, etc.)
+   * @param {string} containerId - Container ID to pack the thing into
+   * @param {string} inventoryId - Inventory ID
+   * @param {string} userId - User ID performing the operation
+   * @returns {Promise<object>} Created thing and updated container
+   */
+  async createAndPackThing(thingData, containerId, inventoryId, userId) {
+    const { v4: uuidv4 } = require('uuid');
+    const { validateUUID } = require('../utils/validation');
+    
+    // Validate inventory access
+    const hasAccess = await hasInventoryAccess(userId, inventoryId);
+    if (!hasAccess) {
+      const error = new Error('Access denied to inventory');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Validate required parameters
+    if (!thingData || typeof thingData !== 'object') {
+      const error = new Error('Thing data is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!containerId || !validateUUID(containerId)) {
+      const error = new Error('Valid container ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!inventoryId || !validateUUID(inventoryId)) {
+      const error = new Error('Valid inventory ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validate thing data (name is required)
+    if (!thingData.name || typeof thingData.name !== 'string' || thingData.name.trim().length === 0) {
+      const error = new Error('Thing name is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.name.length > 255) {
+      const error = new Error('Thing name must be 255 characters or less');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validate optional fields
+    if (thingData.description && thingData.description.length > 1000) {
+      const error = new Error('Description must be 1000 characters or less');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.categoryId && !validateUUID(thingData.categoryId)) {
+      const error = new Error('Invalid category ID format');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.value !== undefined && (typeof thingData.value !== 'number' || thingData.value < 0)) {
+      const error = new Error('Value must be a non-negative number');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.purchasePrice !== undefined && (typeof thingData.purchasePrice !== 'number' || thingData.purchasePrice < 0)) {
+      const error = new Error('Purchase price must be a non-negative number');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.photos && (!Array.isArray(thingData.photos) || thingData.photos.length > 10)) {
+      const error = new Error('Photos must be an array with maximum 10 items');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (thingData.tags && (!Array.isArray(thingData.tags) || thingData.tags.length > 20)) {
+      const error = new Error('Tags must be an array with maximum 20 items');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validate container exists and belongs to user
+    const container = await containerService.getContainer(containerId, inventoryId, userId);
+    if (!container) {
+      const error = new Error('Container not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Verify container belongs to the same inventory
+    if (container.inventoryId !== inventoryId) {
+      const error = new Error('Container does not belong to the specified inventory');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Generate thing ID
+    const thingId = uuidv4();
+    const now = new Date().toISOString();
+
+    // Prepare thing data with required fields
+    const thing = {
+      id: thingId,
+      inventoryId,
+      name: thingData.name.trim(),
+      description: thingData.description || null,
+      categoryId: thingData.categoryId || null,
+      locationId: container.locationId || null, // Set to container's location
+      value: thingData.value || 0,
+      purchasePrice: thingData.purchasePrice || 0,
+      photos: thingData.photos || [],
+      tags: thingData.tags || [],
+      containerId: containerId,
+      packedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      // Include any additional fields from thingData
+      ...(thingData.serialNumber && { serialNumber: thingData.serialNumber }),
+      ...(thingData.model && { model: thingData.model }),
+      ...(thingData.make && { make: thingData.make }),
+      ...(thingData.brand && { brand: thingData.brand }),
+      ...(thingData.condition && { condition: thingData.condition }),
+      ...(thingData.notes && { notes: thingData.notes }),
+      ...(thingData.barcode && { barcode: thingData.barcode })
+    };
+
+    // Calculate value for container update
+    const thingValue = thing.purchasePrice || thing.value || 0;
+
+    // Use transaction to ensure atomicity and immediate persistence
+    // Note: DynamoDB transactions ensure all-or-nothing behavior
+    // If any operation fails, the entire transaction is rolled back
+    // This prevents partial failures where thing is created but not allocated
+    // 
+    // IMPORTANT: Container assignment persistence (Requirement 9.2)
+    // The thing is created with containerId already set, and both the thing
+    // creation and container update are persisted atomically in a single transaction.
+    // The method only returns success after the transaction completes, ensuring
+    // the container assignment is persisted before returning to the user.
+    const transactItems = [];
+
+    // Add thing creation to transaction
+    // The thing includes containerId, ensuring immediate assignment persistence
+    transactItems.push({
+      Put: {
+        TableName: TABLE_NAME,
+        Item: removeUndefinedValues({
+          pk: `INVENTORY#${inventoryId}#THINGS`,
+          sk: thingId,
+          data: thing
+        })
+      }
+    });
+
+    // Update container with new item count and estimated value
+    const newItemCount = container.itemCount + 1;
+    const newEstimatedValue = container.estimatedValue + thingValue;
+    
+    container.updateContents(newItemCount, newEstimatedValue, userId);
+
+    // Add container update to transaction
+    transactItems.push({
+      Put: {
+        TableName: TABLE_NAME,
+        Item: removeUndefinedValues(container.toDynamoDBItem())
+      }
+    });
+
+    // Execute transaction - this ensures immediate persistence of container assignment
+    // Both operations complete atomically before returning success to the user
+    try {
+      await docClient.send(new TransactWriteCommand({
+        TransactItems: transactItems
+      }));
+    } catch (transactionError) {
+      console.error('Transaction failed:', transactionError);
+      
+      // Provide specific error messages based on error type
+      if (transactionError.name === 'TransactionCanceledException') {
+        // Transaction was cancelled, possibly due to a condition check failure
+        const error = new Error('Failed to create and pack thing: transaction cancelled');
+        error.statusCode = 409;
+        error.details = transactionError.message;
+        error.retryable = true;
+        throw error;
+      } else if (transactionError.name === 'ProvisionedThroughputExceededException') {
+        // Rate limit exceeded
+        const error = new Error('Service temporarily unavailable, please try again');
+        error.statusCode = 503;
+        error.details = transactionError.message;
+        error.retryable = true;
+        throw error;
+      } else if (transactionError.name === 'ValidationException') {
+        // Invalid data format
+        const error = new Error('Invalid data format');
+        error.statusCode = 400;
+        error.details = transactionError.message;
+        error.retryable = false;
+        throw error;
+      } else {
+        // Generic error
+        const error = new Error('Failed to create and pack thing');
+        error.statusCode = 500;
+        error.details = transactionError.message;
+        error.retryable = true;
+        throw error;
+      }
+    }
+
+    // Log the operation
+    await logPackingOperation(userId, 'create_and_pack', containerId, inventoryId, {
+      thingId: thingId,
+      thingName: thing.name,
+      containerName: container.name,
+      value: thingValue
+    });
+
+    // Create activity entry and notify session participants
+    try {
+      await collaborationService.createActivityEntry(inventoryId, {
+        type: 'thing_created_and_packed',
+        userId,
+        containerId,
+        thingId: thingId,
+        details: {
+          thingName: thing.name,
+          containerName: container.name,
+          value: thingValue
+        }
+      });
+
+      // Get active sessions for this inventory and notify participants
+      const activeSessions = await collaborationService.getActivePackingSessions(inventoryId, userId);
+      for (const session of activeSessions) {
+        if (session.participants.length > 1) {
+          await notificationService.notifySessionParticipants(
+            session.id,
+            session.participants.filter(id => id !== userId),
+            'thing_created_and_packed',
+            {
+              inventoryId,
+              sessionName: session.name,
+              thingName: thing.name,
+              containerName: container.name,
+              userName: 'A user'
+            }
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error sending notifications:', notificationError);
+      // Don't fail the main operation if notifications fail
+    }
+
+    return {
+      success: true,
+      thing,
+      container,
+      newItemCount,
+      newEstimatedValue
+    };
+  }
+
+  /**
    * Get a single item by ID (private helper method)
    * @param {string} itemId - Item ID
    * @param {string} inventoryId - Inventory ID

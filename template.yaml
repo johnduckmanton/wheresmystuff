@@ -1420,6 +1420,14 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
+        CreateAndPack:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/create-and-pack
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
 
   # QR Code Management Lambda
   QRCodeFunction:

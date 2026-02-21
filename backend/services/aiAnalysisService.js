@@ -1,4 +1,5 @@
 const { generateDownloadUrl } = require('./s3');
+const errorLogger = require('../utils/errorLogger');
 
 /**
  * AI Analysis Service - Prototype Implementation
@@ -41,7 +42,13 @@ class AIAnalysisService {
         processingTimeMs: processingTime
       };
     } catch (error) {
-      console.error('AI Analysis failed:', error);
+      // Log error with context
+      errorLogger.logServiceError(
+        error,
+        'AIAnalysisService',
+        userId,
+        'Photo analysis'
+      );
       
       return {
         success: false,
@@ -168,8 +175,13 @@ Example for wireless headphones:
       const analysis = JSON.parse(cleanedContent);
       return this.validateAndCleanAnalysis(analysis);
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', content);
-      console.error('Parse error:', parseError.message);
+      // Log parse error
+      errorLogger.logServiceError(
+        parseError,
+        'AIAnalysisService',
+        undefined,
+        'Parse OpenAI response'
+      );
       
       // Fallback: return a basic analysis if JSON parsing fails
       return this.createFallbackAnalysis(content);

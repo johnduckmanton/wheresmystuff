@@ -48,6 +48,7 @@ import apiClient from '../services/api';
 export interface ThingFormDialogProps {
   open: boolean;
   thing?: Thing; // If provided, we're editing; otherwise creating
+  prefillData?: Partial<Thing>; // Pre-filled data for new things (e.g., from AI analysis)
   locations: Location[];
   rooms: Room[];
   categories: Category[];
@@ -64,6 +65,7 @@ interface ThingFormData extends Partial<Thing> {
 export default function ThingFormDialog({
   open,
   thing,
+  prefillData,
   locations,
   rooms,
   categories,
@@ -101,6 +103,31 @@ export default function ThingFormDialog({
       if (thing) {
         // Editing existing thing
         setFormData({ ...thing });
+      } else if (prefillData) {
+        // Creating new thing with pre-filled data (e.g., from AI analysis)
+        setFormData({
+          name: '',
+          description: '',
+          make: '',
+          model: '',
+          serialNumber: '',
+          inventoryId: currentInventory?.id || '',
+          locationId: '',
+          roomId: '',
+          ownerId: '',
+          categoryId: '',
+          notes: '',
+          datePurchased: '',
+          purchasedFrom: '',
+          purchasePrice: undefined,
+          warrantyDetails: '',
+          disposalDate: '',
+          nextReviewDate: '',
+          photos: [],
+          receipts: [],
+          warranties: [],
+          ...prefillData, // Merge pre-filled data
+        });
       } else {
         // Creating new thing - auto-select current inventory
         setFormData({
@@ -128,7 +155,7 @@ export default function ThingFormDialog({
       }
       setErrors({});
     }
-  }, [open, thing, currentInventory?.id]);
+  }, [open, thing, prefillData, currentInventory?.id]);
 
   // Handle field change
   const handleFieldChange = (name: string, value: any) => {
@@ -153,7 +180,30 @@ export default function ThingFormDialog({
 
     // Name is required
     if (!formData.name || formData.name.trim() === '') {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Name is required. Please enter a name for this item.';
+    } else if (formData.name.length > 200) {
+      newErrors.name = 'Name is too long. Please use 200 characters or less.';
+    }
+
+    // Validate purchase price if provided
+    if (formData.purchasePrice !== undefined && formData.purchasePrice !== null) {
+      if (formData.purchasePrice < 0) {
+        newErrors.purchasePrice = 'Purchase price cannot be negative. Please enter a positive value or leave blank.';
+      }
+    }
+
+    // Validate dates if provided
+    if (formData.datePurchased && formData.disposalDate) {
+      const purchaseDate = new Date(formData.datePurchased);
+      const disposalDate = new Date(formData.disposalDate);
+      if (disposalDate < purchaseDate) {
+        newErrors.disposalDate = 'Disposal date cannot be before purchase date. Please check the dates.';
+      }
+    }
+
+    // Validate inventory is selected
+    if (!formData.inventoryId) {
+      newErrors.inventoryId = 'Inventory is required. Please select an inventory.';
     }
 
     setErrors(newErrors);
@@ -484,6 +534,13 @@ export default function ThingFormDialog({
             input: {
               'aria-label': 'Thing name',
               'aria-required': 'true',
+              'aria-invalid': !!errors.name,
+              'aria-describedby': errors.name ? 'name-error' : undefined,
+              inputMode: 'text',
+              sx: { minHeight: 48 },
+            },
+            formHelperText: {
+              id: 'name-error',
             },
           }}
         />
@@ -500,6 +557,8 @@ export default function ThingFormDialog({
           slotProps={{
             input: {
               'aria-label': 'Thing description',
+              inputMode: 'text',
+              sx: { minHeight: 48 },
             },
           }}
         />
@@ -522,6 +581,8 @@ export default function ThingFormDialog({
           slotProps={{
             input: {
               'aria-label': 'Make or brand',
+              inputMode: 'text',
+              sx: { minHeight: 48 },
             },
           }}
         />
@@ -536,6 +597,8 @@ export default function ThingFormDialog({
           slotProps={{
             input: {
               'aria-label': 'Model',
+              inputMode: 'text',
+              sx: { minHeight: 48 },
             },
           }}
         />
@@ -550,6 +613,8 @@ export default function ThingFormDialog({
           slotProps={{
             input: {
               'aria-label': 'Serial number',
+              inputMode: 'text',
+              sx: { minHeight: 48 },
             },
           }}
         />
@@ -572,7 +637,7 @@ export default function ThingFormDialog({
   const renderLocationFields = () => (
     <Grid container spacing={1.5}>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
           <InputLabel id="location-select-label">Location</InputLabel>
           <Select
             labelId="location-select-label"
@@ -602,7 +667,7 @@ export default function ThingFormDialog({
         </FormControl>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormControl fullWidth disabled={!formData.locationId} size={isMobile ? 'medium' : 'small'}>
+        <FormControl fullWidth disabled={!formData.locationId} size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
           <InputLabel id="room-select-label">Room</InputLabel>
           <Select
             labelId="room-select-label"
@@ -630,7 +695,7 @@ export default function ThingFormDialog({
         </FormControl>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
           <InputLabel id="owner-select-label">Owner</InputLabel>
           <Select
             labelId="owner-select-label"
@@ -655,7 +720,7 @@ export default function ThingFormDialog({
         </FormControl>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
           <InputLabel>Category</InputLabel>
           <Select
             value={formData.categoryId || ''}
@@ -674,7 +739,7 @@ export default function ThingFormDialog({
         </FormControl>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
-        <FormControl fullWidth size={isMobile ? 'medium' : 'small'}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
           <InputLabel>Moving Project</InputLabel>
           <Select
             value={formData.projectId || ''}
@@ -713,6 +778,9 @@ export default function ThingFormDialog({
             inputLabel: {
               shrink: true,
             },
+            input: {
+              sx: { minHeight: 48 },
+            },
           }}
         />
       </Grid>
@@ -723,6 +791,8 @@ export default function ThingFormDialog({
           type="number"
           value={formData.purchasePrice || ''}
           onChange={(e) => handleFieldChange('purchasePrice', e.target.value ? parseFloat(e.target.value) : undefined)}
+          error={!!errors.purchasePrice}
+          helperText={errors.purchasePrice}
           size={isMobile ? 'medium' : 'small'}
           slotProps={{
             input: {
@@ -730,8 +800,15 @@ export default function ThingFormDialog({
               inputProps: {
                 min: 0,
                 step: 0.01,
+                inputMode: 'decimal',
                 'aria-label': 'Purchase price',
+                'aria-invalid': !!errors.purchasePrice,
+                'aria-describedby': errors.purchasePrice ? 'purchase-price-error' : undefined,
               },
+              sx: { minHeight: 48 },
+            },
+            formHelperText: {
+              id: 'purchase-price-error',
             },
           }}
         />
@@ -743,6 +820,12 @@ export default function ThingFormDialog({
           value={formData.purchasedFrom || ''}
           onChange={(e) => handleFieldChange('purchasedFrom', e.target.value)}
           size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              inputMode: 'text',
+              sx: { minHeight: 48 },
+            },
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12 }}>
@@ -754,6 +837,12 @@ export default function ThingFormDialog({
           multiline
           rows={2}
           size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              inputMode: 'text',
+              sx: { minHeight: 48 },
+            },
+          }}
         />
       </Grid>
     </Grid>
@@ -771,6 +860,12 @@ export default function ThingFormDialog({
           multiline
           rows={3}
           size={isMobile ? 'medium' : 'small'}
+          slotProps={{
+            input: {
+              inputMode: 'text',
+              sx: { minHeight: 48 },
+            },
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
@@ -780,10 +875,23 @@ export default function ThingFormDialog({
           type="date"
           value={formData.disposalDate || ''}
           onChange={(e) => handleFieldChange('disposalDate', e.target.value)}
+          error={!!errors.disposalDate}
+          helperText={errors.disposalDate}
           size={isMobile ? 'medium' : 'small'}
           slotProps={{
             inputLabel: {
               shrink: true,
+            },
+            input: {
+              inputProps: {
+                'aria-label': 'Disposal date',
+                'aria-invalid': !!errors.disposalDate,
+                'aria-describedby': errors.disposalDate ? 'disposal-date-error' : undefined,
+              },
+              sx: { minHeight: 48 },
+            },
+            formHelperText: {
+              id: 'disposal-date-error',
             },
           }}
         />
@@ -799,6 +907,9 @@ export default function ThingFormDialog({
           slotProps={{
             inputLabel: {
               shrink: true,
+            },
+            input: {
+              sx: { minHeight: 48 },
             },
           }}
         />
