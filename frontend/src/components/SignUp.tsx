@@ -93,13 +93,23 @@ export default function SignUp() {
       });
       
       // Auto sign in after verification
-      await signIn({
+      const signInResult = await signIn({
         username: email,
         password,
       });
       
-      setSuccess('Email verified! Redirecting...');
-      setTimeout(() => navigate('/'), 1500);
+      // Check if sign-in was successful or requires additional steps
+      if (signInResult.isSignedIn) {
+        setSuccess('Email verified! Redirecting...');
+        setTimeout(() => navigate('/'), 1500);
+      } else if (signInResult.nextStep) {
+        // Handle any additional sign-in challenges
+        setError(`Additional authentication required: ${signInResult.nextStep.signInStep}. Please sign in manually.`);
+        setTimeout(() => navigate('/signin'), 2000);
+      } else {
+        setError('Verification successful but sign-in failed. Please sign in manually.');
+        setTimeout(() => navigate('/signin'), 2000);
+      }
     } catch (err: any) {
       console.error('Verification error:', err);
       setError(err.message || 'Failed to verify code. Please try again.');
