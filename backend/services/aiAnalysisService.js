@@ -65,7 +65,7 @@ class AIAnalysisService {
 
 {
   "itemName": "A concise, specific name for the item",
-  "description": "A 2-3 sentence description including color, condition, and notable features",
+  "description": "A 2-3 sentence description including color and notable features",
   "suggestedCategory": "Choose from: ${categoryList}",
   "extractedText": {
     "brandNames": ["array of brand names visible in the photo"],
@@ -86,7 +86,7 @@ IMPORTANT:
 Example for wireless headphones:
 {
   "itemName": "Black Wireless Headphones",
-  "description": "Over-ear wireless headphones in black color with adjustable headband and cushioned ear cups. Appears to be in good condition with minimal wear.",
+  "description": "Over-ear wireless headphones in black color with adjustable headband and cushioned ear cups.",
   "suggestedCategory": "Electronics",
   "extractedText": {
     "brandNames": ["Sony"],
