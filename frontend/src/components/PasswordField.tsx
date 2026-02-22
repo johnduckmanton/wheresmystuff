@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TextField, Box, TextFieldProps } from '@mui/material';
+import { TextField, Box, type TextFieldProps } from '@mui/material';
 import PasswordToggleButton from './PasswordToggleButton';
 
 export interface PasswordFieldProps extends Omit<TextFieldProps, 'type'> {

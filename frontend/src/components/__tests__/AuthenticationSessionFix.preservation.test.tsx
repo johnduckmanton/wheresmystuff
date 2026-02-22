@@ -39,7 +39,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-import { signIn, confirmSignIn, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
+import { signIn, resetPassword } from 'aws-amplify/auth';
 
 describe('Preservation Property Tests: Authentication Flow Behavior', () => {
   beforeEach(() => {
