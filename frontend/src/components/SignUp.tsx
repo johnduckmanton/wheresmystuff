@@ -12,6 +12,7 @@ import {
   Link,
 } from '@mui/material';
 import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import PasswordField from './PasswordField';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -193,13 +194,12 @@ export default function SignUp() {
                 'aria-label': 'Email Address',
               }}
             />
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="password"
               label="Password"
-              type="password"
               id="password"
               autoComplete="new-password"
               value={password}
@@ -210,13 +210,12 @@ export default function SignUp() {
                 'aria-label': 'Password',
               }}
             />
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="confirmPassword"
               label="Confirm Password"
-              type="password"
               id="confirmPassword"
               autoComplete="new-password"
               value={confirmPassword}

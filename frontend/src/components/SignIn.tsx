@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { signIn, confirmSignIn, signOut, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,6 +17,7 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import SmsIcon from '@mui/icons-material/Sms';
 import SecurityIcon from '@mui/icons-material/Security';
 import { Link as RouterLink } from 'react-router-dom';
+import PasswordField from './PasswordField';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -29,7 +30,17 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [challengeName, setChallengeName] = useState<string | null>(null);
+  const [resetPasswordVisibility, setResetPasswordVisibility] = useState(false);
 
+  // Reset the resetPasswordVisibility flag after it's been triggered
+  useEffect(() => {
+    if (resetPasswordVisibility) {
+      const timer = setTimeout(() => {
+        setResetPasswordVisibility(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [resetPasswordVisibility]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -44,6 +55,8 @@ export default function SignIn() {
 
       if (result.isSignedIn) {
         // User is fully signed in
+        // Reset password field before navigation
+        setPassword('');
         navigate('/');
       } else if (result.nextStep) {
         // Handle different challenge types
@@ -130,6 +143,11 @@ export default function SignIn() {
       });
 
       if (result.isSignedIn) {
+        // Reset password visibility before clearing fields
+        setResetPasswordVisibility(true);
+        // Reset password fields before navigation
+        setNewPassword('');
+        setConfirmPassword('');
         navigate('/');
       } else if (result.nextStep) {
         // Handle any additional steps (e.g., MFA after password change)
@@ -174,6 +192,8 @@ export default function SignIn() {
       });
 
       if (result.isSignedIn) {
+        // Reset MFA code before navigation
+        setMfaCode('');
         navigate('/');
       } else if (result.nextStep) {
         setError(`Additional authentication required: ${result.nextStep.signInStep}`);
@@ -249,6 +269,9 @@ export default function SignIn() {
         newPassword: newPassword,
       });
 
+      // Reset password visibility before clearing fields
+      setResetPasswordVisibility(true);
+      
       // Password reset successful, clear form and show success message
       setChallengeName(null);
       setResetCode('');
@@ -274,9 +297,12 @@ export default function SignIn() {
   };
 
   const cancelChallenge = async () => {
+    // Reset password visibility before clearing fields
+    setResetPasswordVisibility(true);
+    
     // Clear the authentication session and return to sign-in
     try {
-      await signOut();
+      await signOut({ global: true });
     } catch (err) {
       // Ignore errors - session may already be cleared
       console.log('Sign out during cancel:', err);
@@ -364,13 +390,12 @@ export default function SignIn() {
                 'aria-label': 'Verification Code',
               }}
             />
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="newPassword"
               label="New Password"
-              type="password"
               id="newPassword"
               autoComplete="new-password"
               value={newPassword}
@@ -380,14 +405,14 @@ export default function SignIn() {
               inputProps={{
                 'aria-label': 'New Password',
               }}
+              resetVisibility={resetPasswordVisibility}
             />
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="confirmPassword"
               label="Confirm New Password"
-              type="password"
               id="confirmPassword"
               autoComplete="new-password"
               value={confirmPassword}
@@ -396,6 +421,7 @@ export default function SignIn() {
               inputProps={{
                 'aria-label': 'Confirm New Password',
               }}
+              resetVisibility={resetPasswordVisibility}
             />
             <Button
               type="submit"
@@ -477,13 +503,12 @@ export default function SignIn() {
           )}
 
           <Box component="form" onSubmit={handlePasswordChange} sx={{ width: '100%' }} noValidate>
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="newPassword"
               label="New Password"
-              type="password"
               id="newPassword"
               autoComplete="new-password"
               value={newPassword}
@@ -493,14 +518,14 @@ export default function SignIn() {
               inputProps={{
                 'aria-label': 'New Password',
               }}
+              resetVisibility={resetPasswordVisibility}
             />
-            <TextField
+            <PasswordField
               margin="normal"
               required
               fullWidth
               name="confirmPassword"
               label="Confirm New Password"
-              type="password"
               id="confirmPassword"
               autoComplete="new-password"
               value={confirmPassword}
@@ -509,6 +534,7 @@ export default function SignIn() {
               inputProps={{
                 'aria-label': 'Confirm New Password',
               }}
+              resetVisibility={resetPasswordVisibility}
             />
             <Button
               type="submit"
@@ -709,13 +735,12 @@ export default function SignIn() {
               'aria-label': 'Email Address',
             }}
           />
-          <TextField
+          <PasswordField
             margin="normal"
             required
             fullWidth
             name="password"
             label="Password"
-            type="password"
             id="password"
             autoComplete="current-password"
             value={password}

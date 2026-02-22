@@ -1,9 +1,14 @@
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
+import { it as fcIt } from '@fast-check/vitest';
 
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
+
+// Export fast-check's it for property-based testing
+// Minimum 100 iterations per property test as per design spec
+export { fcIt };
 
 // Cleanup after each test
 afterEach(() => {

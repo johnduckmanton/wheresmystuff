@@ -55,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await signOut({ global: true });
       navigate('/signin');
     } catch (error) {
       console.error('Error signing out:', error);
