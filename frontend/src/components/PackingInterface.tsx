@@ -163,7 +163,8 @@ export default function PackingInterface({
     // Open ThingFormDialog with pre-filled data
     setThingFormOpen(true);
     
-    // Reset creation method will happen after form is submitted or closed
+    // Hide the AI upload interface now that we're showing the form
+    setCreationMethod(null);
   };
 
   // Handle Barcode Scanner - open scanner dialog
