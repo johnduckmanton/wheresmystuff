@@ -109,7 +109,7 @@ Resources:
         Rules:
           - Id: DeleteOldLogs
             Status: Enabled
-            ExpirationInDays: 90
+            ExpirationInDays: 7
       OwnershipControls:
         Rules:
           - ObjectOwnership: BucketOwnerPreferred

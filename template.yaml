@@ -375,7 +375,7 @@ Resources:
                 StorageClass: GLACIER
           - Id: DeleteOldVersions
             Status: Enabled
-            NoncurrentVersionExpirationInDays: !If [IsProduction, 365, 90]
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
           - Id: DeleteIncompleteMultipartUploads
             Status: Enabled
             AbortIncompleteMultipartUpload:
@@ -383,7 +383,7 @@ Resources:
           - Id: DeleteOldThumbnails
             Status: Enabled
             Prefix: thumbnails/
-            ExpirationInDays: !If [IsProduction, 180, 60]
+            ExpirationInDays: !If [IsProduction, 90, 30]
           - Id: DeleteTempFiles
             Status: Enabled
             Prefix: temp/
@@ -436,18 +436,18 @@ Resources:
                 StorageClass: GLACIER
           - Id: DeleteOldQRCodes
             Status: Enabled
-            ExpirationInDays: !If [IsProduction, 365, 180]
+            ExpirationInDays: !If [IsProduction, 180, 90]
           - Id: DeleteOldReports
             Status: Enabled
             Prefix: reports/
-            ExpirationInDays: !If [IsProduction, 90, 30]
+            ExpirationInDays: !If [IsProduction, 30, 7]
           - Id: DeleteOldLogs
             Status: Enabled
             Prefix: logs/
             ExpirationInDays: !Ref LogRetentionDays
           - Id: DeleteOldVersions
             Status: Enabled
-            NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
+            NoncurrentVersionExpirationInDays: !If [IsProduction, 30, 7]
           - Id: DeleteIncompleteMultipartUploads
             Status: Enabled
             AbortIncompleteMultipartUpload:
@@ -2472,6 +2472,71 @@ Resources:
   # ContainerFunctionLogGroup, PackingFunctionLogGroup, QRCodeFunctionLogGroup,
   # ProjectFunctionLogGroup, ReportsFunctionLogGroup, AnalyticsFunctionLogGroup
 
+  # AWS Backup for DynamoDB (Production only)
+  BackupVault:
+    Type: AWS::Backup::BackupVault
+    Condition: IsProduction
+    Properties:
+      BackupVaultName: !Sub home-inv-backup-vault-${Environment}
+      Tags:
+        Environment: !Ref Environment
+        Purpose: DynamoDBBackup
+
+  BackupPlan:
+    Type: AWS::Backup::BackupPlan
+    Condition: IsProduction
+    Properties:
+      BackupPlan:
+        BackupPlanName: !Sub home-inv-daily-backup-${Environment}
+        BackupPlanRule:
+          - RuleName: DailyBackup
+            TargetBackupVault: !Ref BackupVault
+            ScheduleExpression: cron(0 2 * * ? *)  # 2 AM UTC daily
+            StartWindowMinutes: 60
+            CompletionWindowMinutes: 120
+            Lifecycle:
+              DeleteAfterDays: 30  # Keep backups for 30 days
+              MoveToColdStorageAfterDays: 7  # Move to cold storage after 7 days for cost savings
+      BackupPlanTags:
+        Environment: !Ref Environment
+        Purpose: DynamoDBBackup
+
+  BackupRole:
+    Type: AWS::IAM::Role
+    Condition: IsProduction
+    Properties:
+      RoleName: !Sub home-inv-backup-role-${Environment}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: backup.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: BackupService
+
+  BackupSelection:
+    Type: AWS::Backup::BackupSelection
+    Condition: IsProduction
+    Properties:
+      BackupPlanId: !Ref BackupPlan
+      BackupSelection:
+        SelectionName: !Sub home-inv-dynamodb-selection-${Environment}
+        IamRoleArn: !GetAtt BackupRole.Arn
+        Resources:
+          - !GetAtt InventoryTable.Arn
+        Conditions:
+          StringEquals:
+            - ConditionKey: aws:ResourceTag/Environment
+              ConditionValue: !Ref Environment
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -2532,4 +2597,11 @@ Outputs:
     Value: !Ref HttpApi
     Export:
       Name: !Sub ${AWS::StackName}-HttpApiId
+
+  BackupVaultName:
+    Description: AWS Backup Vault Name (Production only)
+    Condition: IsProduction
+    Value: !Ref BackupVault
+    Export:
+      Name: !Sub ${AWS::StackName}-BackupVaultName
 
