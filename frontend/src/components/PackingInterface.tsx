@@ -78,6 +78,9 @@ export default function PackingInterface({
   // Creation method state
   const [creationMethod, setCreationMethod] = useState<'ai' | 'barcode' | 'manual' | null>(null);
   
+  // AI analysis state
+  const [aiAnalysisData, setAiAnalysisData] = useState<Partial<Thing> | null>(null);
+  
   // Barcode Scanner state
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const [barcodePreviewOpen, setBarcodePreviewOpen] = useState(false);
@@ -145,7 +148,7 @@ export default function PackingInterface({
   };
 
   // Handle AI Photo Upload completion
-  const handleAIUploadComplete = (thing: Thing) => {
+  const handleAIUploadComplete = (analysisData: Partial<Thing>, _photoKey: string) => {
     // Check if container is selected
     if (!container) {
       showError('No container selected. Please select a container before creating an item.');
@@ -153,18 +156,14 @@ export default function PackingInterface({
       return;
     }
     
-    // Thing was created by AIPhotoUpload component
-    // Extract details and prepare for form pre-fill (if needed for future enhancements)
-    console.log('AI Photo Upload completed, thing created:', thing);
+    // Store AI analysis data
+    console.log('AI Photo Upload completed, analysis data:', analysisData);
+    setAiAnalysisData(analysisData);
     
-    // Reload data to show the new thing
-    loadData();
+    // Open ThingFormDialog with pre-filled data
+    setThingFormOpen(true);
     
-    // Show success message
-    showSuccess(`Item "${thing.name}" created successfully with AI assistance!`);
-    
-    // Reset creation method to show selector again
-    setCreationMethod(null);
+    // Reset creation method will happen after form is submitted or closed
   };
 
   // Handle Barcode Scanner - open scanner dialog
@@ -262,6 +261,9 @@ export default function PackingInterface({
       // Close the form
       setThingFormOpen(false);
       
+      // Clear AI analysis data
+      setAiAnalysisData(null);
+      
       // Reload data to show the new thing in the container
       await loadData();
       
@@ -352,6 +354,8 @@ export default function PackingInterface({
   // Handle manual entry form close
   const handleManualEntryClose = () => {
     setThingFormOpen(false);
+    // Clear AI analysis data if it was from AI
+    setAiAnalysisData(null);
     // Reset to method selector
     setCreationMethod(null);
   };
@@ -1077,7 +1081,7 @@ export default function PackingInterface({
                 <Box sx={{ maxWidth: 800, width: '100%', mx: 'auto' }}>
                   <AIPhotoUpload
                     categories={categories}
-                    onThingCreated={handleAIUploadComplete}
+                    onAnalysisComplete={handleAIUploadComplete}
                   />
                 </Box>
               )}
@@ -1241,6 +1245,7 @@ export default function PackingInterface({
         rooms={rooms}
         categories={categories}
         people={people}
+        prefillData={aiAnalysisData || undefined}
         onSubmit={handleThingFormSubmit}
         onClose={handleManualEntryClose}
       />

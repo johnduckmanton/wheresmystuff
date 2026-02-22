@@ -620,12 +620,10 @@ export default function Things() {
         <Box sx={{ mb: 3 }}>
           <AIPhotoUpload 
             categories={categories}
-            onThingCreated={async () => {
-              // Refresh all data to include the new thing
-              await loadData();
+            onAnalysisComplete={(_analysisData, _photoKey) => {
+              // For now, just show a message - full integration coming later
+              showSuccess('AI analysis complete! Full integration with thing creation coming soon.');
               setShowAIUpload(false);
-              setSearchQuery({ tagMode: 'and' });
-              handleClearFilters();
             }}
           />
         </Box>

@@ -60,10 +60,10 @@ interface AIAnalysisResult {
 
 interface AIPhotoUploadProps {
   categories: Category[];
-  onThingCreated: (thing: Thing) => void;
+  onAnalysisComplete: (analysisData: Partial<Thing>, photoKey: string) => void;
 }
 
-export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUploadProps) {
+export default function AIPhotoUpload({ categories, onAnalysisComplete }: AIPhotoUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -101,7 +101,7 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const { showSuccess, showError } = useNotification();
+  const { showError } = useNotification();
   const { currentInventory } = useInventory();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,63 +288,54 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
     showError('Switched to manual entry. Please use the manual entry option from the creation method selector.');
   };
 
-  const handleCreateThing = async () => {
-    if (!currentInventory || !photoKey) return;
+  const handleUseDetails = () => {
+    if (!photoKey) return;
 
-    try {
-      const thingData: Omit<Thing, 'dateAdded'> = {
-        id: uuidv4(), // Generate proper UUID for the Thing
-        name: editedData.name || 'Unnamed Item',
-        description: editedData.description || undefined,
-        categoryId: editedData.categoryId || undefined,
-        locationId: editedData.locationId || undefined,
-        roomId: editedData.roomId || undefined,
-        ownerId: editedData.ownerId || undefined,
-        make: editedData.make || undefined,
-        model: editedData.model || undefined,
-        serialNumber: editedData.serialNumber || undefined,
-        tags: editedData.tags.length > 0 ? editedData.tags : undefined,
-        notes: editedData.notes || undefined,
-        purchasePrice: editedData.purchasePrice ? parseFloat(editedData.purchasePrice) : undefined,
-        datePurchased: editedData.datePurchased || undefined,
-        purchasedFrom: editedData.purchasedFrom || undefined,
-        warrantyDetails: editedData.warrantyDetails || undefined,
-        inventoryId: currentInventory.id,
-        photos: [photoKey]
-      };
+    // Prepare analysis data from edited form data
+    const analysisData: Partial<Thing> = {
+      name: editedData.name || 'Unnamed Item',
+      description: editedData.description || undefined,
+      categoryId: editedData.categoryId || undefined,
+      locationId: editedData.locationId || undefined,
+      roomId: editedData.roomId || undefined,
+      ownerId: editedData.ownerId || undefined,
+      make: editedData.make || undefined,
+      model: editedData.model || undefined,
+      serialNumber: editedData.serialNumber || undefined,
+      tags: editedData.tags.length > 0 ? editedData.tags : undefined,
+      notes: editedData.notes || undefined,
+      purchasePrice: editedData.purchasePrice ? parseFloat(editedData.purchasePrice) : undefined,
+      datePurchased: editedData.datePurchased || undefined,
+      purchasedFrom: editedData.purchasedFrom || undefined,
+      warrantyDetails: editedData.warrantyDetails || undefined,
+      photos: [photoKey]
+    };
 
-      const newThing = await apiClient.createThing(thingData);
-      
-      showSuccess(`Item "${newThing.name}" created successfully with AI assistance!`);
-      onThingCreated(newThing);
-      
-      // Reset state
-      setShowAnalysisDialog(false);
-      setAnalysisResult(null);
-      setPhotoKey('');
-      setEditedData({
-        name: '',
-        description: '',
-        categoryId: '',
-        locationId: '',
-        roomId: '',
-        ownerId: '',
-        make: '',
-        model: '',
-        serialNumber: '',
-        tags: [],
-        notes: '',
-        purchasePrice: '',
-        datePurchased: '',
-        purchasedFrom: '',
-        warrantyDetails: '',
-        estimatedValue: '',
-      });
-
-    } catch (error) {
-      console.error('Create thing error:', error);
-      showError('Failed to create item. Please try again.');
-    }
+    // Call parent with analysis data and photoKey
+    onAnalysisComplete(analysisData, photoKey);
+    
+    // Reset state
+    setShowAnalysisDialog(false);
+    setAnalysisResult(null);
+    setPhotoKey('');
+    setEditedData({
+      name: '',
+      description: '',
+      categoryId: '',
+      locationId: '',
+      roomId: '',
+      ownerId: '',
+      make: '',
+      model: '',
+      serialNumber: '',
+      tags: [],
+      notes: '',
+      purchasePrice: '',
+      datePurchased: '',
+      purchasedFrom: '',
+      warrantyDetails: '',
+      estimatedValue: '',
+    });
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -726,11 +717,11 @@ export default function AIPhotoUpload({ categories, onThingCreated }: AIPhotoUpl
             Cancel
           </Button>
           <Button 
-            onClick={handleCreateThing} 
+            onClick={handleUseDetails} 
             variant="contained"
             disabled={!editedData.name.trim()}
           >
-            Create Item
+            Use These Details
           </Button>
         </DialogActions>
       </Dialog>
