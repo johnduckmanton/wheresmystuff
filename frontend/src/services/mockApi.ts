@@ -2363,11 +2363,8 @@ class MockApiClient {
       milestones: []
     };
   }
-}
 
-export default MockApiClient;
-
-  async getContainerQRCode(containerId: string, inventoryId: string): Promise<{
+  async getContainerQRCode(containerId: string, _inventoryId: string): Promise<{
     containerId: string;
     hasQRCode: boolean;
     qrCode?: string;
@@ -2383,3 +2380,6 @@ export default MockApiClient;
       downloadUrl: container.qrCodeUrl,
     };
   }
+}
+
+export default MockApiClient;
