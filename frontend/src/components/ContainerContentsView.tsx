@@ -42,6 +42,7 @@ import {
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import apiClient from '../services/api';
+import PhotoThumbnail from './PhotoThumbnail';
 import type { Container, Category, ThingWithContainer } from '../types/entities';
 
 interface ContainerContentsViewProps {
@@ -453,13 +454,13 @@ export default function ContainerContentsView({
                     
                     {/* Item Avatar */}
                     <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: 'primary.main' }}>
-                        {item.photos && item.photos.length > 0 ? (
-                          <PhotoIcon />
-                        ) : (
-                          <InventoryIcon />
-                        )}
-                      </Avatar>
+                      <PhotoThumbnail
+                        photoKey={item.photos?.[0]}
+                        altText={item.name}
+                        variant="avatar"
+                        size={40}
+                        showPopup={true}
+                      />
                     </ListItemAvatar>
                     
                     {/* Item Details */}

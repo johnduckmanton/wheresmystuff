@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import type { Thing, Category, Location, Room, Person } from '../types';
 import QuickFilters from './QuickFilters';
+import PhotoThumbnail from './PhotoThumbnail';
 import apiClient from '../services/api';
 
 interface ThingAssignmentDialogProps {
@@ -35,97 +36,6 @@ interface ThingAssignmentDialogProps {
   onClose: () => void;
   onSave: (thingIds: string[]) => Promise<void>;
   inventoryId: string;
-}
-
-// Component to handle photo thumbnail display
-function PhotoThumbnail({ photoKey, altText }: { photoKey?: string; altText: string }) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!photoKey) {
-      setPhotoUrl(null);
-      setError(false);
-      return;
-    }
-
-    const loadPhoto = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        const response = await apiClient.generateDownloadUrl(photoKey);
-        setPhotoUrl(response.downloadUrl);
-      } catch (error) {
-        console.warn('Failed to load photo:', error);
-        setPhotoUrl(null);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPhoto();
-  }, [photoKey]);
-
-  const hasImage = photoUrl && !error;
-
-  return (
-    <Box
-      sx={{
-        width: 40,
-        height: 40,
-        borderRadius: 1,
-        backgroundColor: '#f5f5f5',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        border: '1px solid #e0e0e0',
-        flexShrink: 0,
-        mr: 2,
-      }}
-    >
-      {loading ? (
-        <Box sx={{ fontSize: 12, color: '#999' }}>⋯</Box>
-      ) : hasImage ? (
-        <img
-          src={photoUrl}
-          alt={altText}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-          onError={() => setError(true)}
-        />
-      ) : (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#bbb',
-            textAlign: 'center',
-            width: '100%',
-            height: '100%',
-          }}
-        >
-          <Box
-            component="span"
-            className="material-icons"
-            sx={{ 
-              fontSize: 20, 
-              color: '#ddd',
-            }}
-          >
-            photo
-          </Box>
-        </Box>
-      )}
-    </Box>
-  );
 }
 
 const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
