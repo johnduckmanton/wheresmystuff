@@ -465,7 +465,7 @@ export default function ContainerDetailDialog({
                               sx={{ 
                                 display: 'flex',
                                 flexDirection: 'column',
-                                alignItems: 'center',
+                                alignItems: 'flex-start',
                                 gap: 1,
                                 pl: 4,
                               }}

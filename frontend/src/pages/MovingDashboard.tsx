@@ -882,17 +882,27 @@ export default function MovingDashboard() {
             setContainerFormOpen(true);
           }}
           onDelete={async () => {
+            if (!selectedContainer) return;
+            
+            // Show confirmation dialog
+            const itemCount = selectedContainer.itemCount || 0;
+            const message = itemCount > 0 
+              ? `Are you sure you want to delete "${selectedContainer.name}"? This container contains ${itemCount} items. The items will be removed from the container.`
+              : `Are you sure you want to delete "${selectedContainer.name}"?`;
+            
+            if (!window.confirm(message)) {
+              return;
+            }
+            
             setContainerDetailOpen(false);
-            if (selectedContainer) {
-              try {
-                await apiClient.deleteContainer(selectedContainer.id, currentInventory.id);
-                setContainers(prev => prev.filter(c => c.id !== selectedContainer.id));
-                setSelectedContainer(null);
-                showSuccess(`Container "${selectedContainer.name}" deleted successfully`);
-              } catch (err) {
-                console.error('Error deleting container:', err);
-                showError('Failed to delete container');
-              }
+            try {
+              await apiClient.deleteContainer(selectedContainer.id, currentInventory.id, true);
+              setContainers(prev => prev.filter(c => c.id !== selectedContainer.id));
+              setSelectedContainer(null);
+              showSuccess(`Container "${selectedContainer.name}" deleted successfully`);
+            } catch (err) {
+              console.error('Error deleting container:', err);
+              showError('Failed to delete container');
             }
           }}
           onPack={() => {

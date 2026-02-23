@@ -750,8 +750,11 @@ class ApiClient {
     return this.put<Container>(`/containers/${id}`, data);
   }
 
-  async deleteContainer(id: string, inventoryId?: string): Promise<void> {
-    const url = inventoryId ? `/containers/${id}?inventoryId=${inventoryId}` : `/containers/${id}`;
+  async deleteContainer(id: string, inventoryId?: string, force?: boolean): Promise<void> {
+    let url = inventoryId ? `/containers/${id}?inventoryId=${inventoryId}` : `/containers/${id}`;
+    if (force) {
+      url += inventoryId ? '&force=true' : '?force=true';
+    }
     return this.delete<void>(url);
   }
 

@@ -589,7 +589,8 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     if (!selectedContainer || !currentInventory) return;
 
     try {
-      await apiClient.deleteContainer(selectedContainer.id, currentInventory.id);
+      // Always use force=true to remove items if present
+      await apiClient.deleteContainer(selectedContainer.id, currentInventory.id, true);
       showSuccess('Container deleted successfully');
       loadContainers();
     } catch (error) {

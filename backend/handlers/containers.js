@@ -384,9 +384,12 @@ async function handleDelete(event, id, origin) {
     if (!validateUUID(inventoryId)) {
       return error('Invalid inventoryId format', 400, origin);
     }
+
+    // Check for force parameter
+    const force = event.queryStringParameters?.force === 'true';
     
     // Delete the container
-    await containerService.deleteContainer(id, inventoryId, event.user.userId);
+    await containerService.deleteContainer(id, inventoryId, event.user.userId, force);
     
     return success({ message: 'Container deleted successfully' }, 200, origin);
   } catch (err) {
