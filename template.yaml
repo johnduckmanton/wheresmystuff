@@ -468,8 +468,6 @@ Resources:
               - '*'
             ExposedHeaders:
               - 'Content-Length'
-              - 'ETag'
-            MaxAge: 3000
               - 'Content-Type'
               - 'ETag'
             MaxAge: 3000
@@ -637,6 +635,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListThings:
           Type: HttpApi
@@ -710,6 +716,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListLocations:
           Type: HttpApi
@@ -767,6 +781,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListRooms:
           Type: HttpApi
@@ -816,6 +838,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListCategories:
           Type: HttpApi
@@ -865,6 +895,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListPeople:
           Type: HttpApi
@@ -918,6 +956,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GenerateUploadUrl:
           Type: HttpApi
@@ -957,6 +1003,18 @@ Resources:
             TableName: !Ref InventoryTable
         - Version: '2012-10-17'
           Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
@@ -1009,6 +1067,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         AnalyzePhoto:
           Type: HttpApi
@@ -1039,6 +1105,14 @@ Resources:
               Resource: 
                 - !Ref AuditLogHMACSecret
                 - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:home-inv-upc-api-key-*'
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         LookupBarcode:
           Type: HttpApi
@@ -1153,6 +1227,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - cognito-idp:AdminGetUser
@@ -1258,6 +1340,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         ListContainers:
           Type: HttpApi
@@ -1363,6 +1453,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         AddItemsToContainer:
           Type: HttpApi
@@ -1446,6 +1544,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -1551,6 +1657,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GetProjects:
           Type: HttpApi
@@ -1784,6 +1898,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         StartStorageTracking:
           Type: HttpApi
@@ -1852,6 +1974,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GenerateLocationReport:
           Type: HttpApi
@@ -1901,6 +2031,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GetPackingMetrics:
           Type: HttpApi
@@ -1950,6 +2088,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         CreateSharingLink:
           Type: HttpApi
@@ -1997,6 +2143,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GetNotifications:
           Type: HttpApi
@@ -2038,6 +2192,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GetActivityFeed:
           Type: HttpApi
@@ -2073,6 +2235,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         MigrateInventoryData:
           Type: HttpApi
@@ -2106,6 +2276,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         SyncInventoryData:
           Type: HttpApi
@@ -2139,6 +2317,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         GetAuditLogs:
           Type: HttpApi
@@ -2203,6 +2389,14 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
+            - !If
+              - IsProduction
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: !GetAtt DynamoDBKMSKey.Arn
+              - !Ref AWS::NoValue
       Events:
         CheckStorageAlerts:
           Type: HttpApi
@@ -2478,7 +2672,7 @@ Resources:
     Condition: IsProduction
     Properties:
       BackupVaultName: !Sub home-inv-backup-vault-${Environment}
-      Tags:
+      BackupVaultTags:
         Environment: !Ref Environment
         Purpose: DynamoDBBackup
 
@@ -2495,8 +2689,7 @@ Resources:
             StartWindowMinutes: 60
             CompletionWindowMinutes: 120
             Lifecycle:
-              DeleteAfterDays: 30  # Keep backups for 30 days
-              MoveToColdStorageAfterDays: 7  # Move to cold storage after 7 days for cost savings
+              DeleteAfterDays: 30  # Keep backups for 30 days (no cold storage to avoid 90-day minimum)
       BackupPlanTags:
         Environment: !Ref Environment
         Purpose: DynamoDBBackup
