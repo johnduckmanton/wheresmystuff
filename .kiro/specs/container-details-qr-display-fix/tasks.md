@@ -1,0 +1,132 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration tests
+  - **Property 1: Fault Condition** - QR Code Display Defects
+  - **CRITICAL**: These tests MUST FAIL on unfixed code - failure confirms the bugs exist
+  - **DO NOT attempt to fix the tests or the code when they fail**
+  - **NOTE**: These tests encode the expected behavior - they will validate the fix when they pass after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the six defects exist
+  - **Scoped PBT Approach**: Scope properties to concrete failing cases with containers that have existing QR codes
+  - Test that containers with qrCodeUrl display text "QR Code" instead of img element (Defect 1)
+  - Test that containers with qrCodeUrl show "Generate QR Code" button in Statistics card (Defect 2)
+  - Test that Print Label button uses QrCodeIcon instead of PrintIcon (Defect 3)
+  - Test that QRCodeGenerator dialog shows size dropdown when qrCodeUrl exists (Defect 4)
+  - Test that QRCodeGenerator dialog shows "Generate QR Code" button when qrCodeUrl exists (Defect 5)
+  - Test that generated labels for containers with handlingFlags don't match specification layout (Defect 6)
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests FAIL (this is correct - it proves the bugs exist)
+  - Document counterexamples found to understand root cause
+  - Mark task complete when tests are written, run, and failures are documented
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Legacy Container Support
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for containers without QR codes (qrCodeUrl is null/empty)
+  - Observe: Containers without qrCodeUrl show "Generate QR Code" button in Statistics card
+  - Observe: QRCodeGenerator dialog shows size dropdown for containers without qrCodeUrl
+  - Observe: QRCodeGenerator dialog shows "Generate QR Code" button for containers without qrCodeUrl
+  - Observe: All dialog operations (open, close, refresh, download, print) work correctly
+  - Write property-based tests capturing observed behavior patterns
+  - Property-based testing generates many test cases for stronger guarantees
+  - Test that for all containers where qrCodeUrl is null/empty, "Generate QR Code" button is shown
+  - Test that for all containers where qrCodeUrl is null/empty, size dropdown is visible in dialog
+  - Test that for all containers where qrCodeUrl is null/empty, "Generate QR Code" button is visible in dialog
+  - Test that all dialog functionality continues to work identically
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 3. Fix for container details QR display defects
+
+  - [x] 3.1 Fix ContainerDetailDialog QR image display
+    - Replace text "QR Code" display with conditional rendering
+    - When qrCodeUrl exists, render `<Box component="img" src={qrCodeImageUrl} />` at 120x120px
+    - Use existing qrCodeImageUrl state that's already being loaded
+    - _Bug_Condition: container.qrCodeUrl IS NOT NULL AND container.qrCodeUrl != '' AND context == 'statistics_display'_
+    - _Expected_Behavior: Display actual QR code image at 120x120 pixels instead of text_
+    - _Preservation: Containers without QR codes continue to show "Generate QR Code" button_
+    - _Requirements: 2.1, 3.1_
+
+  - [x] 3.2 Fix ContainerDetailDialog button visibility logic
+    - Add conditional logic to hide "Generate QR Code" button in Statistics card when qrCodeUrl exists
+    - Check `updatedContainer.qrCodeUrl` before rendering the button
+    - Only show "Print Label" button when QR exists
+    - _Bug_Condition: container.qrCodeUrl IS NOT NULL AND container.qrCodeUrl != '' AND context == 'statistics_buttons'_
+    - _Expected_Behavior: "Generate QR Code" button not shown in Statistics card when QR exists_
+    - _Preservation: Containers without QR codes continue to show "Generate QR Code" button_
+    - _Requirements: 2.2, 3.2_
+
+  - [x] 3.3 Fix Print Label button icon
+    - Import PrintIcon from '@mui/icons-material'
+    - Replace `<QrCodeIcon />` with `<PrintIcon />` in menu bar IconButton
+    - _Bug_Condition: context == 'print_button_icon'_
+    - _Expected_Behavior: Print Label button uses PrintIcon instead of QrCodeIcon_
+    - _Preservation: All existing dialog functionality continues to work_
+    - _Requirements: 2.3, 3.3_
+
+  - [x] 3.4 Fix QRCodeGenerator size dropdown visibility
+    - Add conditional rendering to hide FormControl for "QR Code Size" when container has QR code
+    - Check `container.qrCodeUrl` before rendering the FormControl
+    - Only show size selection when qrCodeUrl is null/empty
+    - _Bug_Condition: container.qrCodeUrl IS NOT NULL AND container.qrCodeUrl != '' AND context == 'dialog_size_dropdown'_
+    - _Expected_Behavior: Size dropdown not shown in dialog when QR exists_
+    - _Preservation: Size dropdown shown for containers without QR codes_
+    - _Requirements: 2.4, 3.4_
+
+  - [x] 3.5 Fix QRCodeGenerator generate button visibility
+    - Add conditional rendering to hide "Generate QR Code" button when container has QR code
+    - Check `container.qrCodeUrl` in the generation buttons Box
+    - Only show "Generate QR Code" button when qrCodeUrl is null/empty
+    - Always show "Generate Printable Label" button
+    - _Bug_Condition: container.qrCodeUrl IS NOT NULL AND container.qrCodeUrl != '' AND context == 'dialog_generate_button'_
+    - _Expected_Behavior: "Generate QR Code" button not shown in dialog when QR exists_
+    - _Preservation: "Generate QR Code" button shown for containers without QR codes_
+    - _Requirements: 2.5, 3.5_
+
+  - [x] 3.6 Fix labelService handling flag icons and layout
+    - Update SVG markup in `_getHandlingIconData` to match specification
+    - Ensure fragile icon shows proper glass/warning symbol with color #DC2626
+    - Ensure keep_upright icon shows proper upward arrow with color #2563EB
+    - Verify all icon colors match specification for each flag type
+    - Ensure text labels are properly positioned and styled below icons
+    - Verify createLabelSVG method properly positions handling icons at bottom of label
+    - Confirm handlingY calculation places icons in correct position
+    - Verify icon spacing and centering logic
+    - _Bug_Condition: container.qrCodeUrl IS NOT NULL AND container.qrCodeUrl != '' AND context == 'label_generation' AND handlingFlags.length > 0_
+    - _Expected_Behavior: Generated label matches specification layout with proper handling flag icons and text_
+    - _Preservation: Label generation for containers without handling flags continues to work_
+    - _Requirements: 2.6, 3.6, 3.7_
+
+  - [x] 3.7 Verify bug condition exploration tests now pass
+    - **Property 1: Expected Behavior** - QR Code Display Defects Fixed
+    - **IMPORTANT**: Re-run the SAME tests from task 1 - do NOT write new tests
+    - The tests from task 1 encode the expected behavior
+    - When these tests pass, it confirms the expected behavior is satisfied
+    - Run bug condition exploration tests from step 1
+    - **EXPECTED OUTCOME**: Tests PASS (confirms bugs are fixed)
+    - Verify QR image is displayed instead of text
+    - Verify "Generate QR Code" button is hidden in Statistics card when QR exists
+    - Verify Print Label button uses PrintIcon
+    - Verify size dropdown is hidden in dialog when QR exists
+    - Verify "Generate QR Code" button is hidden in dialog when QR exists
+    - Verify generated labels match specification layout with proper handling flag icons
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [x] 3.8 Verify preservation tests still pass
+    - **Property 2: Preservation** - Legacy Container Support Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm containers without QR codes still show "Generate QR Code" button
+    - Confirm size dropdown still shown for containers without QR codes
+    - Confirm "Generate QR Code" button still shown in dialog for containers without QR codes
+    - Confirm all dialog functionality still works identically
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Run all exploration tests and verify they pass (bugs are fixed)
+  - Run all preservation tests and verify they pass (no regressions)
+  - Run any existing unit tests to ensure no breakage
+  - Ask the user if questions arise

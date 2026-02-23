@@ -28,6 +28,7 @@ import {
   Info as InfoIcon,
   Share as ShareIcon,
   Add as AddIcon,
+  Print as PrintIcon,
 } from '@mui/icons-material';
 
 
@@ -208,7 +209,7 @@ export default function ContainerDetailDialog({
         }}>
           <Tooltip title="Print Label">
             <IconButton onClick={() => setQrCodeDialogOpen(true)} size="small" color="secondary">
-              <QrCodeIcon />
+              <PrintIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Share Container">
@@ -505,14 +506,6 @@ export default function ContainerDetailDialog({
                                   </Typography>
                                 </Box>
                               )}
-                              <Button 
-                                variant="outlined" 
-                                size="small"
-                                onClick={() => setQrCodeDialogOpen(true)}
-                                startIcon={<QrCodeIcon />}
-                              >
-                                Print Label
-                              </Button>
                             </Box>
                           ) : (
                             <Box 

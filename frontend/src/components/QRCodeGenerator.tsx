@@ -211,27 +211,29 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           </Box>
         </Paper>
 
-        {/* Size Selection */}
-        <FormControl fullWidth sx={{ mb: 3 }}>
-          <InputLabel>QR Code Size</InputLabel>
-          <Select
-            value={selectedSize}
-            label="QR Code Size"
-            onChange={(e) => setSelectedSize(e.target.value as 'small' | 'medium' | 'large')}
-            disabled={loading}
-          >
-            {sizeOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                <Box>
-                  <Typography variant="body1">{option.label}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.description}
-                  </Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* Size Selection - Only show for containers without QR codes */}
+        {!container.qrCodeUrl && (
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel>QR Code Size</InputLabel>
+            <Select
+              value={selectedSize}
+              label="QR Code Size"
+              onChange={(e) => setSelectedSize(e.target.value as 'small' | 'medium' | 'large')}
+              disabled={loading}
+            >
+              {sizeOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Box>
+                    <Typography variant="body1">{option.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.description}
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
         {/* Error Display */}
         {error && (
@@ -241,17 +243,19 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         )}
 
         {/* Generation Buttons */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3 }}>
-          <Button
-            variant="contained"
-            fullWidth
-            startIcon={generating === 'qr' ? <CircularProgress size={20} /> : <QrCodeIcon />}
-            onClick={handleGenerateQRCode}
-            disabled={loading}
-            sx={{ py: 1.5 }}
-          >
-            {generating === 'qr' ? 'Generating...' : 'Generate QR Code'}
-          </Button>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: container.qrCodeUrl ? '1fr' : '1fr 1fr' }, gap: 2, mb: 3 }}>
+          {!container.qrCodeUrl && (
+            <Button
+              variant="contained"
+              fullWidth
+              startIcon={generating === 'qr' ? <CircularProgress size={20} /> : <QrCodeIcon />}
+              onClick={handleGenerateQRCode}
+              disabled={loading}
+              sx={{ py: 1.5 }}
+            >
+              {generating === 'qr' ? 'Generating...' : 'Generate QR Code'}
+            </Button>
+          )}
           <Button
             variant="outlined"
             fullWidth
