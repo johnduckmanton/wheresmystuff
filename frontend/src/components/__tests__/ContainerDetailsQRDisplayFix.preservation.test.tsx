@@ -56,7 +56,7 @@ const containerStatusArbitrary = fc.constantFrom<ContainerStatus>(
 );
 
 const containerTypeArbitrary = fc.constantFrom<ContainerType>(
-  'box', 'bag', 'bin', 'crate', 'other'
+  'box', 'bag', 'bin', 'crate', 'suitcase', 'trunk', 'custom'
 );
 
 const handlingFlagArbitrary = fc.constantFrom<HandlingFlag>(
@@ -75,13 +75,13 @@ const containerWithoutQRArbitrary = fc.record({
   inventoryId: fc.uuid(),
   qrCodeUrl: fc.constantFrom('', null as any), // Container does NOT have QR code
   handlingFlags: fc.uniqueArray(handlingFlagArbitrary, { maxLength: 3 }), // Use uniqueArray to avoid duplicate keys
-  photos: fc.constant([]),
+  photos: fc.constant([] as string[]),
   contentsSummary: fc.option(fc.string({ maxLength: 200 }), { nil: undefined }),
   description: fc.option(fc.string({ maxLength: 500 }), { nil: undefined }),
-  qrCode: fc.constant(undefined),
-  createdBy: fc.constant(undefined),
-  updatedBy: fc.constant(undefined),
-  metadata: fc.constant(undefined),
+  qrCode: fc.string({ minLength: 1, maxLength: 20 }),
+  createdBy: fc.string({ minLength: 1, maxLength: 50 }),
+  updatedBy: fc.string({ minLength: 1, maxLength: 50 }),
+  metadata: fc.constant({} as Record<string, any>),
 });
 
 describe('Preservation Property Tests: Legacy Container Support', () => {
@@ -235,10 +235,10 @@ describe('Preservation Property Tests: Legacy Container Support', () => {
       handlingFlags: [],
       photos: [],
       contentsSummary: 'Old items',
-      qrCode: undefined,
-      createdBy: undefined,
-      updatedBy: undefined,
-      metadata: undefined,
+      qrCode: 'QR-LEGACY-1',
+      createdBy: 'user1',
+      updatedBy: 'user1',
+      metadata: {},
     };
 
     // Test ContainerDetailDialog
@@ -306,10 +306,10 @@ describe('Preservation Property Tests: Legacy Container Support', () => {
       handlingFlags: [],
       photos: [],
       contentsSummary: 'Test',
-      qrCode: undefined,
-      createdBy: undefined,
-      updatedBy: undefined,
-      metadata: undefined,
+      qrCode: 'QR-NULL-TEST',
+      createdBy: 'user1',
+      updatedBy: 'user1',
+      metadata: {},
     };
 
     renderWithProviders(

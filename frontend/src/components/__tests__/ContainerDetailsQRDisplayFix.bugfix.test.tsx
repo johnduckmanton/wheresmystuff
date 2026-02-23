@@ -68,6 +68,10 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
     handlingFlags: ['fragile', 'keep_upright'],
     photos: [],
     contentsSummary: 'Test contents',
+    qrCode: 'QR123456',
+    createdBy: 'user1',
+    updatedBy: 'user1',
+    metadata: {},
   };
 
   const mockContainerWithoutQR: Container = {
@@ -170,9 +174,6 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
 
     // Find the Print Label IconButton in the menu bar (DialogTitle section)
     // The button should have tooltip "Print Label" and use PrintIcon
-    
-    // Check for PrintIcon import
-    const hasPrintIconImport = dialogContent.includes("Print as PrintIcon");
     
     // Find the Print Label button section
     const printLabelButtonMatch = dialogContent.match(
