@@ -767,6 +767,49 @@ async function logMigrationOperation(userId, action, inventoryId, details = {}) 
   }
 }
 
+/**
+ * Log security events (invalid QR codes, suspicious activity)
+ * @param {string} userId - User identifier (or 'anonymous' if not authenticated)
+ * @param {string} action - Security action (invalid_qr_scan, qr_validation_failure, suspicious_qr_activity)
+ * @param {string} resource - Resource identifier (qr_code, container)
+ * @param {object} details - Security event details
+ * @returns {Promise<void>}
+ */
+async function logSecurityEvent(userId, action, resource, details = {}) {
+  const timestamp = new Date().toISOString();
+  const date = timestamp.split('T')[0];
+  const id = uuidv4();
+  
+  const logEntry = {
+    pk: `AUDITLOG#${date}`,
+    sk: `${timestamp}#${id}`,
+    id,
+    timestamp,
+    eventType: 'security_event',
+    userId,
+    action,
+    resource,
+    success: false,
+    details: {
+      action,
+      resource,
+      ...details
+    }
+  };
+  
+  // Add HMAC for integrity protection
+  logEntry.hmac = generateHMAC(logEntry);
+  
+  try {
+    await docClient.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: logEntry
+    }));
+  } catch (error) {
+    console.error('Error logging security event:', error);
+  }
+}
+
 module.exports = {
   logRateLimit,
   logAuth,
@@ -782,6 +825,7 @@ module.exports = {
   logProjectOperation,
   logSyncOperation,
   logMigrationOperation,
+  logSecurityEvent,
   queryAuditLogs,
   verifyHMAC
 };

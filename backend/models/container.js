@@ -56,6 +56,7 @@ class Container {
     this.photos = data.photos || [];
     this.qrCode = data.qrCode || this._generateQRCode();
     this.qrCodeUrl = data.qrCodeUrl;
+    this.qrCodeGeneratedAt = data.qrCodeGeneratedAt;
     this.locationId = data.locationId;
     this.handlingFlags = data.handlingFlags || [];
     this.itemCount = data.itemCount || 0;
@@ -286,6 +287,7 @@ class Container {
     if (this.size) item.size = this.size;
     if (this.color) item.color = this.color;
     if (this.qrCodeUrl) item.qrCodeUrl = this.qrCodeUrl;
+    if (this.qrCodeGeneratedAt) item.qrCodeGeneratedAt = this.qrCodeGeneratedAt;
     if (this.locationId) item.locationId = this.locationId;
     if (this.storageStartDate) item.storageStartDate = this.storageStartDate;
     if (this.storageRate) item.storageRate = this.storageRate;
@@ -312,6 +314,7 @@ class Container {
       photos: item.photos || [],
       qrCode: item.qrCode,
       qrCodeUrl: item.qrCodeUrl,
+      qrCodeGeneratedAt: item.qrCodeGeneratedAt,
       locationId: item.locationId,
       handlingFlags: item.handlingFlags || [],
       itemCount: item.itemCount || 0,

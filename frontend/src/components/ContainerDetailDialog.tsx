@@ -93,12 +93,18 @@ export default function ContainerDetailDialog({
   // Load QR code image URL when container has qrCodeUrl
   useEffect(() => {
     const loadQRCodeUrl = async () => {
-      if (updatedContainer.qrCodeUrl) {
+      if (updatedContainer.id && inventoryId) {
         try {
-          const response = await apiClient.generateDownloadUrl(updatedContainer.qrCodeUrl);
-          setQrCodeImageUrl(response.downloadUrl);
+          // Call the new getContainerQRCode endpoint
+          const response = await apiClient.getContainerQRCode(updatedContainer.id, inventoryId);
+          
+          if (response.hasQRCode && response.downloadUrl) {
+            setQrCodeImageUrl(response.downloadUrl);
+          } else {
+            setQrCodeImageUrl('');
+          }
         } catch (error) {
-          console.error('Error loading QR code image:', error);
+          console.error('Error loading QR code:', error);
           setQrCodeImageUrl('');
         }
       } else {
@@ -109,7 +115,7 @@ export default function ContainerDetailDialog({
     if (open) {
       loadQRCodeUrl();
     }
-  }, [open, updatedContainer.qrCodeUrl]);
+  }, [open, updatedContainer.id, inventoryId]);
 
   const getStatusColor = (status: ContainerStatus) => {
     switch (status) {

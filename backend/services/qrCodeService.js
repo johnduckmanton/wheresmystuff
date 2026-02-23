@@ -1,5 +1,6 @@
 const QRCode = require('qrcode');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const cacheService = require('./cacheService');
 
@@ -87,6 +88,27 @@ class QRCodeService {
   }
 
   /**
+   * Generate presigned download URL for QR code image
+   * @param {string} s3Key - S3 object key
+   * @param {number} expiresIn - URL expiration time in seconds (default: 3600 = 1 hour)
+   * @returns {Promise<string>} Presigned download URL
+   */
+  async generateDownloadUrl(s3Key, expiresIn = 3600) {
+    const command = new GetObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: s3Key
+    });
+
+    try {
+      const url = await getSignedUrl(s3Client, command, { expiresIn });
+      return url;
+    } catch (error) {
+      console.error(`Failed to generate presigned URL for ${s3Key}:`, error);
+      throw new Error(`Failed to generate download URL: ${error.message}`);
+    }
+  }
+
+  /**
    * Generate QR code for a container with specified size
    * @param {string} containerId - Container ID
    * @param {string} size - Size: 'small', 'medium', or 'large'
@@ -132,13 +154,17 @@ class QRCodeService {
     // Store in S3
     const s3Key = await this.storeQRCodeImage(containerId, imageBuffer, size);
 
+    // Generate presigned download URL
+    const downloadUrl = await this.generateDownloadUrl(s3Key);
+
     const qrCodeData = {
       qrCodeId,
       s3Key,
       size,
       containerId,
       generatedAt: new Date().toISOString(),
-      imageUrl: `https://${BUCKET_NAME}.s3.amazonaws.com/${s3Key}`
+      imageUrl: `https://${BUCKET_NAME}.s3.amazonaws.com/${s3Key}`,
+      downloadUrl
     };
 
     // Cache the QR code data
@@ -225,12 +251,21 @@ class QRCodeService {
   }
 
   /**
-   * Validate QR code format and authenticity
+   * Validate QR code format and authenticity with detailed error reporting
    * @param {string} qrCodeId - QR code identifier
-   * @returns {boolean} True if valid
+   * @returns {Object} Validation result with success status and error details
    */
   validateQRCode(qrCodeId) {
     try {
+      // Check format first
+      if (!this.validateQRCodeFormat(qrCodeId)) {
+        return {
+          valid: false,
+          error: 'INVALID_FORMAT',
+          message: 'QR code format is invalid. Expected format: CONT_{containerId}_{timestamp}_{uniqueId}'
+        };
+      }
+
       const decoded = this.decodeQRCodeId(qrCodeId);
       
       // Check if timestamp is reasonable (not too old, not in future)
@@ -238,34 +273,75 @@ class QRCodeService {
       const qrTimestamp = decoded.timestamp;
       const maxAge = 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
       
-      if (qrTimestamp > now || (now - qrTimestamp) > maxAge) {
-        return false;
+      if (qrTimestamp > now) {
+        return {
+          valid: false,
+          error: 'FUTURE_TIMESTAMP',
+          message: 'QR code has a future timestamp and may be invalid'
+        };
+      }
+      
+      if ((now - qrTimestamp) > maxAge) {
+        const ageInDays = Math.floor((now - qrTimestamp) / (24 * 60 * 60 * 1000));
+        return {
+          valid: false,
+          error: 'EXPIRED',
+          message: `QR code is expired (${ageInDays} days old, maximum age is 365 days)`
+        };
       }
 
-      return true;
+      return {
+        valid: true,
+        decoded
+      };
     } catch (error) {
-      return false;
+      return {
+        valid: false,
+        error: 'DECODE_ERROR',
+        message: `Failed to decode QR code: ${error.message}`
+      };
     }
   }
 
   /**
    * Scan and validate QR code, returning container information
+   * Logs security events for invalid QR codes
    * @param {string} qrCodeData - Raw QR code data from scanner
+   * @param {string} userId - User ID for security logging (optional)
    * @returns {Object} Scan result with container ID and validation status
    */
-  scanQRCode(qrCodeData) {
+  async scanQRCode(qrCodeData, userId = 'anonymous') {
     try {
       // Validate QR code format and authenticity
-      if (!this.validateQRCode(qrCodeData)) {
+      const validation = this.validateQRCode(qrCodeData);
+      
+      if (!validation.valid) {
+        // Log security event for invalid QR code
+        console.error('Invalid QR code scan attempt:', {
+          userId,
+          qrCodeData: qrCodeData.substring(0, 20) + '...', // Log partial data for security
+          error: validation.error,
+          message: validation.message,
+          timestamp: new Date().toISOString()
+        });
+
+        // Import audit log service for security logging
+        const auditLogService = require('./auditLogService');
+        await auditLogService.logSecurityEvent(userId, 'invalid_qr_scan', 'qr_code', {
+          qrCodePrefix: qrCodeData.substring(0, 20),
+          validationError: validation.error,
+          errorMessage: validation.message
+        });
+
         return {
           success: false,
-          error: 'INVALID_QR_CODE',
-          message: 'Invalid or expired QR code'
+          error: validation.error,
+          message: validation.message
         };
       }
 
       // Decode QR code to get container information
-      const decoded = this.decodeQRCodeId(qrCodeData);
+      const decoded = validation.decoded;
 
       return {
         success: true,
@@ -275,10 +351,23 @@ class QRCodeService {
         timestamp: decoded.timestamp
       };
     } catch (error) {
+      // Log security event for unexpected errors
+      console.error('QR code scan error:', {
+        userId,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+
+      const auditLogService = require('./auditLogService');
+      await auditLogService.logSecurityEvent(userId, 'qr_scan_error', 'qr_code', {
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
+
       return {
         success: false,
-        error: 'QR_DECODE_ERROR',
-        message: `Failed to decode QR code: ${error.message}`
+        error: 'QR_SCAN_ERROR',
+        message: `Failed to scan QR code: ${error.message}`
       };
     }
   }

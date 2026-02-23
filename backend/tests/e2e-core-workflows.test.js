@@ -125,7 +125,7 @@ describe('Core Moving & Storage Workflows', () => {
   });
 
   describe('QR Code Workflow Tests', () => {
-    test('should generate and validate QR code format', () => {
+    test('should generate and validate QR code format', async () => {
       const QRCodeService = require('../services/qrCodeService');
       const qrService = new QRCodeService();
       
@@ -142,27 +142,27 @@ describe('Core Moving & Storage Workflows', () => {
       expect(decoded.uniqueId).toMatch(/^[a-f0-9]{8}$/);
       
       // Validate scanning
-      const scanResult = qrService.scanQRCode(qrCodeId);
+      const scanResult = await qrService.scanQRCode(qrCodeId);
       expect(scanResult.success).toBe(true);
       expect(scanResult.containerId).toBe(containerId);
     });
 
-    test('should handle invalid QR codes', () => {
+    test('should handle invalid QR codes', async () => {
       const QRCodeService = require('../services/qrCodeService');
       const qrService = new QRCodeService();
       
       const invalidCodes = [
-        'invalid-format',
-        'WRONG_prefix_123_abc',
-        'CONT_test_future_123', // future timestamp
-        'CONT_test_old_123' // very old timestamp
+        { code: 'invalid-format', expectedError: 'INVALID_FORMAT' },
+        { code: 'WRONG_prefix_123_abc', expectedError: 'INVALID_FORMAT' },
+        { code: `CONT_test_${Date.now() + 86400000}_123`, expectedError: 'FUTURE_TIMESTAMP' }, // future timestamp
+        { code: `CONT_test_${Date.now() - (400 * 24 * 60 * 60 * 1000)}_123`, expectedError: 'EXPIRED' } // very old timestamp
       ];
 
-      invalidCodes.forEach(code => {
-        const result = qrService.scanQRCode(code);
+      for (const { code, expectedError } of invalidCodes) {
+        const result = await qrService.scanQRCode(code);
         expect(result.success).toBe(false);
-        expect(result.error).toBe('INVALID_QR_CODE');
-      });
+        expect(result.error).toBe(expectedError);
+      }
     });
   });
 

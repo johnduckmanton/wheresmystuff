@@ -654,17 +654,61 @@ exports.getContainerQRCode = async (event) => {
     const user = event.user;
     
     const { containerId } = event.pathParameters;
+    const { inventoryId } = event.queryStringParameters || {};
 
     if (!containerId) {
       return error('Container ID is required');
     }
 
-    // This would typically query the database to get existing QR code info
-    // For now, we'll return a message indicating QR code needs to be generated
-    return success({
-      containerId,
-      message: 'Use the generate endpoint to create a QR code for this container'
-    });
+    if (!inventoryId) {
+      return error('Inventory ID is required');
+    }
+
+    // Get container service to fetch container data
+    const ContainerService = require('../services/containerService');
+    
+    try {
+      // Fetch the container to check if it has a QR code
+      const container = await ContainerService.getContainer(containerId, inventoryId, user.userId);
+      
+      if (!container.qrCodeUrl) {
+        // Container doesn't have a QR code yet
+        return success({
+          containerId,
+          hasQRCode: false,
+          message: 'QR code not generated yet'
+        });
+      }
+
+      // Generate presigned download URL for the QR code
+      const downloadUrl = await generateQRDownloadUrl(container.qrCodeUrl, false);
+
+      // Log the QR code access
+      await logSecurityEvent('QR_CODE_ACCESSED', {
+        userId: user.userId,
+        containerId,
+        inventoryId
+      });
+
+      return success({
+        containerId,
+        hasQRCode: true,
+        downloadUrl,
+        qrCodeId: container.qrCode,
+        generatedAt: container.qrCodeGeneratedAt
+      });
+
+    } catch (containerError) {
+      console.error('Container access error:', containerError);
+      
+      if (containerError.message.includes('not found')) {
+        return error('Container not found', 404);
+      } else if (containerError.message.includes('Access denied')) {
+        return error('Access denied to container', 403);
+      } else {
+        throw containerError;
+      }
+    }
 
   } catch (err) {
     console.error('Error getting container QR code:', err);

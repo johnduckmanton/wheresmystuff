@@ -755,6 +755,25 @@ class ApiClient {
     return this.delete<void>(url);
   }
 
+  // Container QR Code API
+  async getContainerQRCode(containerId: string, inventoryId: string): Promise<{
+    containerId: string;
+    hasQRCode: boolean;
+    downloadUrl?: string;
+    qrCodeId?: string;
+    generatedAt?: string;
+    message?: string;
+  }> {
+    return this.get<{
+      containerId: string;
+      hasQRCode: boolean;
+      downloadUrl?: string;
+      qrCodeId?: string;
+      generatedAt?: string;
+      message?: string;
+    }>(`/containers/${containerId}/qr-code?inventoryId=${inventoryId}`);
+  }
+
   // Container Sharing API
   async createSharingLink(containerId: string, options: {
     inventoryId: string;

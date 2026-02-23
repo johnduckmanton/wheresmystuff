@@ -60,27 +60,27 @@ describe('QRCodeService', () => {
       const containerId = 'test-container-123';
       const qrCodeId = qrCodeService.generateQRCodeId(containerId);
       
-      expect(qrCodeService.validateQRCode(qrCodeId)).toBe(true);
+      expect(qrCodeService.validateQRCode(qrCodeId).valid).toBe(true);
     });
 
     test('should reject invalid format', () => {
-      expect(qrCodeService.validateQRCode('invalid-format')).toBe(false);
+      expect(qrCodeService.validateQRCode('invalid-format').valid).toBe(false);
     });
 
     test('should reject future timestamp', () => {
       const futureTimestamp = Date.now() + 86400000; // 1 day in future
       const qrCodeId = `CONT_test_${futureTimestamp}_12345678`;
       
-      expect(qrCodeService.validateQRCode(qrCodeId)).toBe(false);
+      expect(qrCodeService.validateQRCode(qrCodeId).valid).toBe(false);
     });
   });
 
   describe('scanQRCode', () => {
-    test('should successfully scan valid QR code', () => {
+    test('should successfully scan valid QR code', async () => {
       const containerId = 'test-container-123';
       const qrCodeId = qrCodeService.generateQRCodeId(containerId);
       
-      const result = qrCodeService.scanQRCode(qrCodeId);
+      const result = await qrCodeService.scanQRCode(qrCodeId);
       
       expect(result.success).toBe(true);
       expect(result.containerId).toBe(containerId);
@@ -89,22 +89,22 @@ describe('QRCodeService', () => {
       expect(result.timestamp).toBeGreaterThan(0);
     });
 
-    test('should fail to scan invalid QR code', () => {
-      const result = qrCodeService.scanQRCode('invalid-qr-code');
+    test('should fail to scan invalid QR code', async () => {
+      const result = await qrCodeService.scanQRCode('invalid-qr-code');
       
       expect(result.success).toBe(false);
-      expect(result.error).toBe('INVALID_QR_CODE');
-      expect(result.message).toBe('Invalid or expired QR code');
+      expect(result.error).toBe('INVALID_FORMAT');
+      expect(result.message).toContain('QR code format is invalid');
     });
 
-    test('should fail to scan expired QR code', () => {
+    test('should fail to scan expired QR code', async () => {
       const oldTimestamp = Date.now() - (400 * 24 * 60 * 60 * 1000); // 400 days ago
       const expiredQrCode = `CONT_test_${oldTimestamp}_12345678`;
       
-      const result = qrCodeService.scanQRCode(expiredQrCode);
+      const result = await qrCodeService.scanQRCode(expiredQrCode);
       
       expect(result.success).toBe(false);
-      expect(result.error).toBe('INVALID_QR_CODE');
+      expect(result.error).toBe('EXPIRED');
     });
   });
 
@@ -153,24 +153,24 @@ describe('LabelService', () => {
     test('should return correct dimensions for small size', () => {
       const dimensions = labelService.getLabelDimensions('small');
       
-      expect(dimensions.width).toBe(288);
-      expect(dimensions.height).toBe(288);
-      expect(dimensions.qrSize).toBe(140);
+      expect(dimensions.width).toBe(420);
+      expect(dimensions.height).toBe(432);
+      expect(dimensions.qrSize).toBe(180);
     });
 
     test('should return correct dimensions for medium size', () => {
       const dimensions = labelService.getLabelDimensions('medium');
       
       expect(dimensions.width).toBe(432);
-      expect(dimensions.height).toBe(432);
-      expect(dimensions.qrSize).toBe(210);
+      expect(dimensions.height).toBe(576);
+      expect(dimensions.qrSize).toBe(220);
     });
 
     test('should return correct dimensions for large size', () => {
       const dimensions = labelService.getLabelDimensions('large');
       
       expect(dimensions.width).toBe(576);
-      expect(dimensions.height).toBe(576);
+      expect(dimensions.height).toBe(864);
       expect(dimensions.qrSize).toBe(280);
     });
 

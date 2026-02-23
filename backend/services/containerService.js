@@ -55,7 +55,7 @@ class ContainerService {
       console.log('🔄 Attempting to generate QR code for container:', container.id);
       const QRCodeService = require('./qrCodeService');
       const qrCodeService = new QRCodeService();
-      const qrCodeData = await qrCodeService.generateContainerQRCode(container.id, 'medium');
+      const qrCodeData = await qrCodeService.generateContainerQRCode(container.id, 'large');
       
       console.log('✅ QR code generated successfully:', {
         containerId: container.id,
@@ -63,15 +63,17 @@ class ContainerService {
         qrCodeId: qrCodeData.qrCodeId
       });
       
-      // Update container with QR code URL
+      // Update container with QR code metadata
+      container.qrCode = qrCodeData.qrCodeId;
       container.qrCodeUrl = qrCodeData.s3Key;
+      container.qrCodeGeneratedAt = qrCodeData.generatedAt;
     } catch (error) {
       console.error('❌ Failed to generate QR code during container creation:', {
         containerId: container.id,
         error: error.message,
         stack: error.stack
       });
-      // Don't fail container creation if QR code generation fails
+      // Don't fail container creation if QR code generation fails (Requirement 1.5)
       // The QR code can be generated later
     }
 
@@ -665,7 +667,7 @@ class ContainerService {
    * @param {string} containerId - Container ID
    * @param {string} inventoryId - Inventory ID
    * @param {string} userId - User ID requesting the contents
-   * @returns {Promise<object>} Container with its items
+   * @returns {Promise<object>} Container with its items, location, and room information
    */
   async getContainerContents(containerId, inventoryId, userId) {
     // Validate inventory access
@@ -701,13 +703,69 @@ class ContainerService {
       ...item.data
     })) : [];
 
+    // Fetch location information if container has a locationId
+    let locationData = null;
+    if (container.locationId) {
+      const locationResult = await docClient.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk AND sk = :sk',
+        ExpressionAttributeValues: {
+          ':pk': `INVENTORY#${inventoryId}#LOCATIONS`,
+          ':sk': container.locationId
+        }
+      }));
+      
+      if (locationResult.Items && locationResult.Items.length > 0) {
+        const location = locationResult.Items[0].data;
+        locationData = {
+          name: location.name,
+          type: location.type,
+          address: location.address
+        };
+      }
+    }
+
+    // Check if any items have a roomId and fetch the first room found
+    let roomData = null;
+    const itemWithRoom = items.find(item => item.roomId);
+    if (itemWithRoom && itemWithRoom.roomId) {
+      // Rooms are stored with a similar pattern to locations
+      // We need to search for the room - trying common patterns
+      try {
+        const roomResult = await docClient.send(new QueryCommand({
+          TableName: TABLE_NAME,
+          KeyConditionExpression: 'pk = :pk AND sk = :sk',
+          ExpressionAttributeValues: {
+            ':pk': `INVENTORY#${inventoryId}#ROOMS`,
+            ':sk': itemWithRoom.roomId
+          }
+        }));
+        
+        if (roomResult.Items && roomResult.Items.length > 0) {
+          const room = roomResult.Items[0].data;
+          roomData = {
+            name: room.name,
+            floor: room.floor
+          };
+        }
+      } catch (error) {
+        // Room lookup failed - this is non-critical, continue without room data
+        console.log('Room lookup failed:', error.message);
+      }
+    }
+
     // Log the contents access
     await logDataAccess(userId, 'read', 'container_contents', containerId, inventoryId);
 
     const contentsData = {
-      container,
+      container: {
+        ...container,
+        contentsSummary: container.contentsSummary
+      },
       items,
-      itemCount: items.length
+      itemCount: items.length,
+      location: locationData,
+      room: roomData
     };
 
     // CACHING DISABLED - No longer caching container contents
