@@ -373,26 +373,19 @@ export default function PackingInterface({
 
     setLocalLoading(true);
     try {
-      const [itemsData, categoriesData, locationsData, roomsData, peopleData, containersData] = await Promise.all([
-        apiClient.getThings(currentInventory.id),
-        apiClient.getCategories(currentInventory.id),
-        apiClient.getLocations(currentInventory.id),
-        apiClient.getRooms(undefined, currentInventory.id),
-        apiClient.getPeople(currentInventory.id),
-        apiClient.getContainers(currentInventory.id),
-      ]);
+      // Use optimized single API call to get all packing interface data
+      // This avoids Lambda throttling from 6 parallel requests
+      const data = await apiClient.getPackingInterfaceData(currentInventory.id);
 
-      setAllItems(itemsData);
-      setCategories(categoriesData);
-      setLocations(locationsData);
-      setRooms(roomsData);
-      setPeople(peopleData);
-      // Handle containers response which might be paginated
-      const containersList = Array.isArray(containersData) ? containersData : containersData.containers;
-      setContainers(containersList);
+      setAllItems(data.things);
+      setCategories(data.categories);
+      setLocations(data.locations);
+      setRooms(data.rooms);
+      setPeople(data.people);
+      setContainers(data.containers);
 
       // Transform items for packing interface
-      const packingItemsData: PackingItem[] = itemsData.map(item => {
+      const packingItemsData: PackingItem[] = data.things.map(item => {
         const extendedItem = item as any;
         const alreadyPacked = !!extendedItem.containerId;
 
@@ -406,7 +399,7 @@ export default function PackingInterface({
       });
 
       setPackingItems(packingItemsData);
-      setFilteredItems(itemsData); // Initialize filtered items
+      setFilteredItems(data.things); // Initialize filtered items
     } catch (error: any) {
       // Log error with context
       errorLogger.logError(

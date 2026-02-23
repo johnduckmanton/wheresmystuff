@@ -1502,6 +1502,14 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
+        GetInterfaceData:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /packing/interface-data
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
         ValidateCapacity:
           Type: HttpApi
           Properties:

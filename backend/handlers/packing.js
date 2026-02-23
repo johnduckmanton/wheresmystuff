@@ -79,6 +79,14 @@ const packingHandler = async (event) => {
         default:
           return error('Method not allowed', 405, origin);
       }
+    } else if (path.includes('/interface-data')) {
+      // Get all data needed for packing interface (optimized single call)
+      switch (httpMethod) {
+        case 'GET':
+          return await handleGetInterfaceData(event, origin);
+        default:
+          return error('Method not allowed', 405, origin);
+      }
     } else if (path.includes('/validate-capacity')) {
       // Validate container capacity
       const containerId = pathParameters.containerId;
@@ -641,6 +649,58 @@ async function handleCreateAndPack(event, origin) {
     
     // Generic server error - return user-friendly message
     return error(userFriendlyMessage, 500, origin);
+  }
+}
+
+/**
+ * Handle GET request - Get all data needed for packing interface
+ * This optimized endpoint returns things, categories, locations, rooms, people, and containers in a single call
+ * to avoid Lambda throttling from multiple parallel requests
+ */
+async function handleGetInterfaceData(event, origin) {
+  try {
+    const inventoryId = event.queryStringParameters?.inventoryId;
+    
+    if (!inventoryId) {
+      return error('inventoryId query parameter is required', 400, origin);
+    }
+    
+    if (!validateUUID(inventoryId)) {
+      return error('Invalid inventoryId format', 400, origin);
+    }
+
+    // Check inventory access
+    await authorizeInventoryAccess(event, inventoryId);
+
+    // Import required services
+    const { listEntities } = require('../utils/dynamodb');
+    
+    // Fetch all data in parallel from DynamoDB (single Lambda execution)
+    const [things, categories, locations, rooms, people, containers] = await Promise.all([
+      listEntities('THING', inventoryId),
+      listEntities('CATEGORY', inventoryId),
+      listEntities('LOCATION', inventoryId),
+      listEntities('ROOM', inventoryId),
+      listEntities('PERSON', inventoryId),
+      listEntities('CONTAINER', inventoryId),
+    ]);
+
+    return success({
+      things,
+      categories,
+      locations,
+      rooms,
+      people,
+      containers,
+    }, 200, origin);
+  } catch (err) {
+    console.error('Error getting packing interface data:', err);
+    
+    if (err.message.includes('Access denied')) {
+      return error(err.message, 403, origin);
+    }
+    
+    throw new Error('Failed to retrieve packing interface data');
   }
 }
 

@@ -1277,6 +1277,17 @@ class ApiClient {
     return this.get<any>(`/packing/available-items?${params.toString()}`);
   }
 
+  async getPackingInterfaceData(inventoryId: string): Promise<{
+    things: Thing[];
+    categories: Category[];
+    locations: Location[];
+    rooms: Room[];
+    people: Person[];
+    containers: Container[];
+  }> {
+    return this.get<any>(`/packing/interface-data?inventoryId=${inventoryId}`);
+  }
+
   async createAndPackThing(thingData: Partial<Thing>, containerId: string, inventoryId: string): Promise<{
     thing: Thing;
     container: Container;
