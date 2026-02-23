@@ -335,15 +335,6 @@ export default function ContainerContentsView({
                 <strong>{contents.categories}</strong> categories
               </Typography>
             </Box>
-            
-            {contents.summary.hasPhotos && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PhotoIcon color="primary" />
-                <Typography variant="body1">
-                  Items with photos
-                </Typography>
-              </Box>
-            )}
           </Box>
         </CardContent>
       </Card>
