@@ -34,6 +34,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useLoading } from '../contexts/LoadingContext';
 import apiClient from '../services/api';
 import QuickFilters from './QuickFilters';
+import PhotoThumbnail from './PhotoThumbnail';
 import ModeSelector from './packing/ModeSelector';
 import CreationMethodSelector from './packing/CreationMethodSelector';
 import AIPhotoUpload from './AIPhotoUpload';
@@ -813,22 +814,8 @@ export default function PackingInterface({
               Pack Items into {container.name}
             </Typography>
             
-            {/* Statistics */}
+            {/* Statistics - Only show selected count */}
             <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              <Chip
-                icon={<InventoryIcon />}
-                label={`${stats.packedInContainer} items in container`}
-                color="success"
-                variant="outlined"
-                size="small"
-              />
-              <Chip
-                icon={<SearchIcon />}
-                label={`${stats.totalItems} items shown`}
-                color="info"
-                variant="outlined"
-                size="small"
-              />
               <Chip
                 icon={<CheckCircleIcon />}
                 label={`${stats.selectedCount} selected`}
@@ -837,20 +824,6 @@ export default function PackingInterface({
                 size="small"
               />
             </Box>
-
-            {/* Progress indicator */}
-            {stats.availableForPacking > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Container capacity: {stats.packedInContainer} items
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min((stats.packedInContainer / Math.max(stats.availableForPacking, 1)) * 100, 100)}
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
-              </Box>
-            )}
           </Box>
 
           {/* Search Bar and Controls */}
@@ -965,21 +938,11 @@ export default function PackingInterface({
           flexDirection: { xs: 'column', sm: 'row' },
         }}
       >
-        <Button 
-          variant="outlined" 
-          onClick={onClose}
-          sx={{ 
-            minHeight: '44px',
-            width: { xs: '100%', sm: 'auto' }
-          }}
-        >
-          Close
-        </Button>
-        
         <Box sx={{ 
           display: 'flex', 
           gap: { xs: 1, sm: 2 },
           flexDirection: { xs: 'column', sm: 'row' },
+          width: '100%',
         }}>
           {stats.selectedCount > 0 && (
             <>
@@ -1300,6 +1263,15 @@ function PackingItemCard({
             }}
           />
 
+          {/* Photo Thumbnail */}
+          <PhotoThumbnail
+            photoKey={item.photos?.[0]}
+            altText={item.name}
+            size={48}
+            variant="square"
+            showPopup={false}
+          />
+
           {/* Item Info */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box sx={{ 
@@ -1348,6 +1320,7 @@ function PackingItemCard({
               )}
             </Box>
 
+            {/* Hide description on mobile */}
             {item.description && (
               <Typography 
                 variant="body2" 
@@ -1355,6 +1328,7 @@ function PackingItemCard({
                 sx={{ 
                   mb: 1,
                   fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+                  display: { xs: 'none', sm: 'block' },
                 }}
               >
                 {item.description}
