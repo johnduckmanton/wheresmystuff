@@ -7,7 +7,6 @@ import {
   CardContent,
   Checkbox,
   Chip,
-  LinearProgress,
   Alert,
   IconButton,
   Dialog,
@@ -22,7 +21,6 @@ import {
   Add as AddIcon,
   Remove as RemoveIcon,
   Search as SearchIcon,
-  Inventory as InventoryIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   FilterList as FilterListIcon,
@@ -62,7 +60,6 @@ interface PackingItem extends Thing {
 
 export default function PackingInterface({
   container,
-  onClose,
   onItemsAdded,
   onContainerUpdated,
 }: PackingInterfaceProps) {
@@ -386,7 +383,7 @@ export default function PackingInterface({
       setContainers(data.containers);
 
       // Transform items for packing interface
-      const packingItemsData: PackingItem[] = data.things.map(item => {
+      const packingItemsData: PackingItem[] = data.things.map((item: Thing) => {
         const extendedItem = item as any;
         const alreadyPacked = !!extendedItem.containerId;
 

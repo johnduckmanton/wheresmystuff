@@ -811,6 +811,25 @@ class MockApiClient {
     return inventoryId ? mockContainers.filter(c => c.inventoryId === inventoryId) : mockContainers;
   }
 
+  async getPackingInterfaceData(inventoryId: string): Promise<{
+    things: Thing[];
+    categories: Category[];
+    locations: Location[];
+    rooms: Room[];
+    people: Person[];
+    containers: Container[];
+  }> {
+    await mockDelay();
+    return {
+      things: await this.getThings(inventoryId),
+      categories: await this.getCategories(inventoryId),
+      locations: await this.getLocations(inventoryId),
+      rooms: await this.getRooms(inventoryId),
+      people: await this.getPeople(inventoryId),
+      containers: await this.getContainers(inventoryId),
+    };
+  }
+
   async getContainer(id: string): Promise<Container> {
     await mockDelay();
     const containers = await this.getContainers();
@@ -2347,3 +2366,20 @@ class MockApiClient {
 }
 
 export default MockApiClient;
+
+  async getContainerQRCode(containerId: string, inventoryId: string): Promise<{
+    containerId: string;
+    hasQRCode: boolean;
+    qrCode?: string;
+    downloadUrl?: string;
+  }> {
+    await mockDelay();
+    const container = await this.getContainer(containerId);
+    
+    return {
+      containerId,
+      hasQRCode: !!container.qrCode,
+      qrCode: container.qrCode,
+      downloadUrl: container.qrCodeUrl,
+    };
+  }

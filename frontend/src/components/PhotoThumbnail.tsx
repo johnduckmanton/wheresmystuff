@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Typography, Avatar } from '@mui/material';
 import { Photo as PhotoIcon } from '@mui/icons-material';
 import apiClient from '../services/api';
