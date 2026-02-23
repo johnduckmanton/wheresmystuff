@@ -7,7 +7,7 @@ stack_name = "home-inventory-system-prod"
 s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
 s3_prefix = "home-inventory-system-prod"
 confirm_changeset = true  # Always require confirmation for production
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 parameter_overrides = "Environment=\"prod\" CustomDomainName=\"\" ACMCertificateArn=\"\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\""
 image_repositories = []
 tags = "Environment=prod Project=home-inventory CostCenter=production DataProtection=enabled"
@@ -29,7 +29,7 @@ stack_name = "home-inventory-system-prod"
 s3_bucket = "home-inventory-sam-deployment-prod-1766535400"
 s3_prefix = "home-inventory-system-prod"
 confirm_changeset = true  # Always require confirmation for production
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 parameter_overrides = "Environment=\"prod\" EnableWAF=\"true\" EnableAdvancedMonitoring=\"true\" CustomDomainName=\"wheresmystuff.johnduckmanton.co.uk\" ACMCertificateArn=\"arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID\""
 image_repositories = []
 tags = "Environment=prod Project=home-inventory CostCenter=production DataProtection=enabled BackupEnabled=true"
