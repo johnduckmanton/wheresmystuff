@@ -775,7 +775,8 @@ exports.generateLabel = async (event) => {
         name: container.name,
         type: container.type,
         contentsSummary: container.contentsSummary,
-        createdAt: container.createdAt
+        createdAt: container.createdAt,
+        handlingFlags: container.handlingFlags || []
       };
     } catch (containerError) {
       // Enhanced error logging for debugging access issues
@@ -902,7 +903,8 @@ exports.generateBatchLabels = async (event) => {
           name: container.name,
           type: container.type,
           contentsSummary: container.contentsSummary,
-          createdAt: container.createdAt
+          createdAt: container.createdAt,
+          handlingFlags: container.handlingFlags || []
         });
       } catch (containerError) {
         errors.push({

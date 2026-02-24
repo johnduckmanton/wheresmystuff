@@ -73,12 +73,12 @@ class LabelService {
     // Generate QR code for the container
     const qrCodeId = qrCodeService.generateQRCodeId(containerData.id);
     
-    // Generate QR code as SVG and extract the path data
+    // Generate QR code as PNG buffer
     const QRCode = require('qrcode');
-    const qrCodeSvg = await QRCode.toString(qrCodeId, {
-      type: 'svg',
-      width: 100,  // Small base size, we'll scale it up
-      margin: 0,
+    const qrCodeBuffer = await QRCode.toBuffer(qrCodeId, {
+      type: 'png',
+      width: dimensions.qrSize,
+      margin: 1,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
@@ -86,21 +86,37 @@ class LabelService {
     });
 
     // Create SVG label
-    const labelSvg = this.createLabelSVG(containerData, qrCodeSvg, dimensions);
+    const labelSvg = this.createLabelSVG(containerData, '', dimensions);
     
-    // Convert SVG to PNG using sharp
-    const pngBuffer = await sharp(Buffer.from(labelSvg, 'utf8'))
-      .png()
+    // Convert SVG to PNG using sharp with text rendering
+    const svgBuffer = Buffer.from(labelSvg, 'utf8');
+    
+    // Create base label from SVG
+    let labelImage = sharp(svgBuffer)
+      .png();
+    
+    // Composite the QR code onto the label
+    const { width, height, qrSize, padding } = dimensions;
+    const centerX = width / 2;
+    const qrX = Math.round(centerX - qrSize / 2);
+    const qrY = padding;
+    
+    const pngBuffer = await labelImage
+      .composite([{
+        input: qrCodeBuffer,
+        top: qrY,
+        left: qrX
+      }])
       .toBuffer();
     
     return pngBuffer;
   }
 
   /**
-   * Create SVG label with QR code and container information
+   * Create SVG label with container information (QR code added separately)
    * Includes special handling icons for fragile, keep upright, etc.
    * @param {Object} containerData - Container information
-   * @param {string} qrCodeSvg - QR code SVG string
+   * @param {string} qrCodeSvg - Not used, kept for compatibility
    * @param {Object} dimensions - Label dimensions
    * @returns {string} Complete label SVG
    */
@@ -124,7 +140,7 @@ class LabelService {
     const idY = dateY + fontSize + (availableHeight * 0.06);
     
     // Special handling section at the bottom
-    const handlingY = height - padding - 40;
+    const handlingY = height - padding - 60;
     
     // Format creation date
     const createdDate = new Date(containerData.createdAt).toLocaleDateString();
@@ -138,44 +154,38 @@ class LabelService {
     
     // Escape text for SVG
     const escapeSvgText = (text) => {
-      return text.replace(/&/g, '&amp;')
+      if (!text) return '';
+      return String(text).replace(/&/g, '&amp;')
                  .replace(/</g, '&lt;')
                  .replace(/>/g, '&gt;')
                  .replace(/"/g, '&quot;')
                  .replace(/'/g, '&#39;');
     };
     
-    // Extract the QR code content and get the viewBox from the original SVG
-    const qrCodeMatch = qrCodeSvg.match(/<svg[^>]*viewBox="([^"]*)"[^>]*>(.*?)<\/svg>/s);
-    const viewBox = qrCodeMatch ? qrCodeMatch[1] : '0 0 100 100';
-    const qrCodeContent = qrCodeMatch ? qrCodeMatch[2] : qrCodeSvg.replace(/<\?xml[^>]*\?>/, '').replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
-    
     // Get handling flags
     const handlingFlags = containerData.handlingFlags || [];
-    const isFragile = handlingFlags.includes('fragile');
-    const keepUpright = handlingFlags.includes('keep_upright');
-    const isHeavy = handlingFlags.includes('heavy');
-    const isValuable = handlingFlags.includes('valuable');
     
     // Generate handling icons section
     const handlingIconsSection = this._generateHandlingIcons(handlingFlags, handlingY, width, fontSize);
     
     const labelSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style type="text/css">
+      text {
+        font-family: Arial, Helvetica, sans-serif;
+      }
+    </style>
+  </defs>
+  
   <!-- White background with clean border -->
   <rect width="${width}" height="${height}" fill="white" stroke="#333" stroke-width="2"/>
   
-  <!-- QR Code - Scaled to fill the exact bounding box -->
-  <g transform="translate(${qrX}, ${qrY})">
-    <rect width="${qrSize}" height="${qrSize}" fill="white" stroke="#ddd" stroke-width="1"/>
-    <svg x="2" y="2" width="${qrSize - 4}" height="${qrSize - 4}" viewBox="${viewBox}">
-      ${qrCodeContent}
-    </svg>
-  </g>
+  <!-- QR Code placeholder (will be composited as PNG) -->
+  <rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="white" stroke="#ddd" stroke-width="1"/>
   
   <!-- Container Name - Bold and prominent -->
   <text x="${centerX}" y="${nameY}" 
-        font-family="Arial, sans-serif" 
         font-size="${nameFontSize}" 
         font-weight="bold" 
         text-anchor="middle" 
@@ -185,7 +195,6 @@ class LabelService {
   
   <!-- Box Details Section Header -->
   <text x="${centerX}" y="${boxDetailsY}" 
-        font-family="Arial, sans-serif" 
         font-size="${fontSize}" 
         font-weight="bold"
         text-anchor="middle" 
@@ -195,7 +204,6 @@ class LabelService {
   
   <!-- Container Type -->
   <text x="${centerX}" y="${typeY}" 
-        font-family="Arial, sans-serif" 
         font-size="${fontSize}" 
         text-anchor="middle" 
         fill="#666">
@@ -205,7 +213,6 @@ class LabelService {
   <!-- Contents Summary - Only show if it fits -->
   ${contentsSummary ? `
   <text x="${centerX}" y="${contentsY}" 
-        font-family="Arial, sans-serif" 
         font-size="${fontSize - 2}" 
         font-weight="600"
         text-anchor="middle" 
@@ -215,7 +222,6 @@ class LabelService {
   
   <!-- Creation Date -->
   <text x="${centerX}" y="${dateY}" 
-        font-family="Arial, sans-serif" 
         font-size="${fontSize - 2}" 
         text-anchor="middle" 
         fill="#888">
@@ -224,7 +230,6 @@ class LabelService {
   
   <!-- Container ID -->
   <text x="${centerX}" y="${idY}" 
-        font-family="Arial, monospace" 
         font-size="${fontSize - 4}" 
         text-anchor="middle" 
         fill="#aaa">
@@ -251,8 +256,8 @@ class LabelService {
       return '';
     }
 
-    const iconSize = 32;
-    const iconSpacing = 10;
+    const iconSize = 40;
+    const iconSpacing = 15;
     const totalIconsWidth = (handlingFlags.length * iconSize) + ((handlingFlags.length - 1) * iconSpacing);
     const startX = (width - totalIconsWidth) / 2;
 
@@ -266,9 +271,8 @@ class LabelService {
   <!-- ${flag} icon -->
   <g transform="translate(${currentX}, ${startY})">
     ${iconData.svg}
-    <text x="${iconSize / 2}" y="${iconSize + fontSize + 2}" 
-          font-family="Arial, sans-serif" 
-          font-size="${fontSize - 4}" 
+    <text x="${iconSize / 2}" y="${iconSize + fontSize + 4}" 
+          font-size="${fontSize - 2}" 
           font-weight="bold"
           text-anchor="middle" 
           fill="${iconData.color}">
