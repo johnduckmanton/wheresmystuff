@@ -200,8 +200,12 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
 
   useEffect(() => {
     const generateLabel = async () => {
-      if (!canvasRef.current) return;
+      if (!canvasRef.current) {
+        console.log('PrintableLabel: No canvas ref');
+        return;
+      }
 
+      console.log('PrintableLabel: Starting label generation');
       setLoading(true);
       setError(null);
 
@@ -214,7 +218,12 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not get canvas context');
+        if (!ctx) {
+          console.error('PrintableLabel: Could not get canvas context');
+          throw new Error('Could not get canvas context');
+        }
+
+        console.log('PrintableLabel: Canvas setup complete');
 
         // Fill white background
         ctx.fillStyle = '#FFFFFF';
@@ -265,6 +274,8 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           ctx.fillText(summary, borderPadding + innerPadding, sectionY + 115);
         }
 
+        console.log('PrintableLabel: Starting QR code generation with ID:', qrCodeId);
+
         // Generate and draw QR code
         const qrCodeDataUrl = await QRCode.toDataURL(qrCodeId, {
           width: qrSize,
@@ -275,22 +286,31 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           },
         });
 
+        console.log('PrintableLabel: QR code generated, data URL length:', qrCodeDataUrl.length);
+
         const qrImage = new Image();
+        console.log('PrintableLabel: Loading QR code image...');
+        
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => {
+            console.error('PrintableLabel: QR code image load timeout');
             reject(new Error('QR code image load timeout'));
           }, 5000);
 
           qrImage.onload = () => {
+            console.log('PrintableLabel: QR code image loaded successfully');
             clearTimeout(timeout);
             resolve();
           };
           qrImage.onerror = (error) => {
+            console.error('PrintableLabel: QR code image load error:', error);
             clearTimeout(timeout);
             reject(error);
           };
           qrImage.src = qrCodeDataUrl;
         });
+
+        console.log('PrintableLabel: Drawing QR code on canvas');
 
         const qrX = Math.round((width - qrSize) / 2);
         const qrY = height - borderPadding - innerPadding - qrSize - 50;
@@ -335,12 +355,16 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           }
         }
 
+        console.log('PrintableLabel: Converting canvas to data URL');
+
         // Convert canvas to data URL
         const dataUrl = canvas.toDataURL('image/png');
         setLabelUrl(dataUrl);
         setLoading(false);
+        
+        console.log('PrintableLabel: Label generation complete');
       } catch (err) {
-        console.error('Error generating label:', err);
+        console.error('PrintableLabel: Error generating label:', err);
         setError(err instanceof Error ? err.message : 'Failed to generate label');
         setLoading(false);
       }
