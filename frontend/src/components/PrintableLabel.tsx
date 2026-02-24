@@ -30,6 +30,159 @@ interface LabelDimensions {
   padding: number;
 }
 
+const getLabelDimensions = (labelSize: string): LabelDimensions => {
+  const dimensions = {
+    small: {
+      width: 420,
+      height: 432,
+      qrSize: 180,
+      fontSize: 12,
+      nameFontSize: 18,
+      padding: 20,
+    },
+    medium: {
+      width: 432,
+      height: 576,
+      qrSize: 220,
+      fontSize: 14,
+      nameFontSize: 22,
+      padding: 25,
+    },
+    large: {
+      width: 576,
+      height: 864,
+      qrSize: 280,
+      fontSize: 16,
+      nameFontSize: 28,
+      padding: 30,
+    },
+  };
+
+  return dimensions[labelSize as keyof typeof dimensions] || dimensions.medium;
+};
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+};
+
+const getHandlingIconData = (flag: string) => {
+  const icons: Record<string, { label: string; color: string }> = {
+    fragile: { label: 'FRAGILE', color: '#DC2626' },
+    keep_upright: { label: 'THIS WAY UP', color: '#2563EB' },
+    heavy: { label: 'HEAVY', color: '#7C3AED' },
+    valuable: { label: 'VALUABLE', color: '#CA8A04' },
+    priority: { label: 'PRIORITY', color: '#DC2626' },
+    temperature_sensitive: { label: 'TEMP SENSITIVE', color: '#0891B2' },
+  };
+  return icons[flag] || null;
+};
+
+const drawHandlingIcon = (
+  ctx: CanvasRenderingContext2D,
+  flag: string,
+  x: number,
+  y: number,
+  iconSize: number
+) => {
+  const iconData = getHandlingIconData(flag);
+  if (!iconData) return;
+
+  // Draw icon border
+  ctx.strokeStyle = iconData.color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, iconSize, iconSize);
+
+  // Draw icon symbol
+  ctx.fillStyle = iconData.color;
+  ctx.strokeStyle = iconData.color;
+
+  switch (flag) {
+    case 'fragile':
+      // Draw wine glass symbol
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize / 2, y + iconSize * 0.2);
+      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.8);
+      ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.8);
+      ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      break;
+
+    case 'keep_upright':
+      // Draw upward arrow
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize / 2, y + iconSize * 0.25);
+      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.75);
+      ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.75);
+      ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      break;
+
+    case 'heavy':
+      // Draw "H"
+      ctx.font = `bold ${iconSize * 0.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('H', x + iconSize / 2, y + iconSize / 2);
+      break;
+
+    case 'valuable':
+      // Draw dollar sign
+      ctx.font = `bold ${iconSize * 0.35}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', x + iconSize / 2, y + iconSize / 2);
+      break;
+
+    case 'priority':
+      // Draw exclamation mark
+      ctx.font = `bold ${iconSize * 0.35}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('!', x + iconSize / 2, y + iconSize / 2);
+      break;
+
+    case 'temperature_sensitive':
+      // Draw thermometer symbol
+      ctx.beginPath();
+      ctx.arc(x + iconSize / 2, y + iconSize * 0.35, iconSize * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeRect(x + iconSize * 0.43, y + iconSize * 0.45, iconSize * 0.14, iconSize * 0.3);
+      break;
+  }
+
+  // Draw label text below icon
+  ctx.font = `bold 9px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = iconData.color;
+  ctx.fillText(iconData.label, x + iconSize / 2, y + iconSize + 5);
+};
+
 /**
  * Printable Label Component
  * Generates a printable label with QR code and container information using Canvas API
@@ -44,159 +197,6 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [labelUrl, setLabelUrl] = useState<string | null>(null);
-
-  const getLabelDimensions = (labelSize: string): LabelDimensions => {
-    const dimensions = {
-      small: {
-        width: 420,
-        height: 432,
-        qrSize: 180,
-        fontSize: 12,
-        nameFontSize: 18,
-        padding: 20,
-      },
-      medium: {
-        width: 432,
-        height: 576,
-        qrSize: 220,
-        fontSize: 14,
-        nameFontSize: 22,
-        padding: 25,
-      },
-      large: {
-        width: 576,
-        height: 864,
-        qrSize: 280,
-        fontSize: 16,
-        nameFontSize: 28,
-        padding: 30,
-      },
-    };
-
-    return dimensions[labelSize as keyof typeof dimensions] || dimensions.medium;
-  };
-
-  const drawRoundedRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number
-  ) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-  };
-
-  const getHandlingIconData = (flag: string) => {
-    const icons: Record<string, { label: string; color: string }> = {
-      fragile: { label: 'FRAGILE', color: '#DC2626' },
-      keep_upright: { label: 'THIS WAY UP', color: '#2563EB' },
-      heavy: { label: 'HEAVY', color: '#7C3AED' },
-      valuable: { label: 'VALUABLE', color: '#CA8A04' },
-      priority: { label: 'PRIORITY', color: '#DC2626' },
-      temperature_sensitive: { label: 'TEMP SENSITIVE', color: '#0891B2' },
-    };
-    return icons[flag] || null;
-  };
-
-  const drawHandlingIcon = (
-    ctx: CanvasRenderingContext2D,
-    flag: string,
-    x: number,
-    y: number,
-    iconSize: number
-  ) => {
-    const iconData = getHandlingIconData(flag);
-    if (!iconData) return;
-
-    // Draw icon border
-    ctx.strokeStyle = iconData.color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, iconSize, iconSize);
-
-    // Draw icon symbol
-    ctx.fillStyle = iconData.color;
-    ctx.strokeStyle = iconData.color;
-
-    switch (flag) {
-      case 'fragile':
-        // Draw wine glass symbol
-        ctx.beginPath();
-        ctx.moveTo(x + iconSize / 2, y + iconSize * 0.2);
-        ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.8);
-        ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.8);
-        ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
-        ctx.closePath();
-        ctx.fill();
-        break;
-
-      case 'keep_upright':
-        // Draw upward arrow
-        ctx.beginPath();
-        ctx.moveTo(x + iconSize / 2, y + iconSize * 0.25);
-        ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.75);
-        ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.75);
-        ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.5);
-        ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
-        ctx.closePath();
-        ctx.fill();
-        break;
-
-      case 'heavy':
-        // Draw "H"
-        ctx.font = `bold ${iconSize * 0.4}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('H', x + iconSize / 2, y + iconSize / 2);
-        break;
-
-      case 'valuable':
-        // Draw dollar sign
-        ctx.font = `bold ${iconSize * 0.35}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('$', x + iconSize / 2, y + iconSize / 2);
-        break;
-
-      case 'priority':
-        // Draw exclamation mark
-        ctx.font = `bold ${iconSize * 0.35}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('!', x + iconSize / 2, y + iconSize / 2);
-        break;
-
-      case 'temperature_sensitive':
-        // Draw thermometer symbol
-        ctx.beginPath();
-        ctx.arc(x + iconSize / 2, y + iconSize * 0.35, iconSize * 0.12, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.strokeRect(x + iconSize * 0.43, y + iconSize * 0.45, iconSize * 0.14, iconSize * 0.3);
-        break;
-    }
-
-    // Draw label text below icon
-    ctx.font = `bold 9px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = iconData.color;
-    ctx.fillText(iconData.label, x + iconSize / 2, y + iconSize + 5);
-  };
 
   useEffect(() => {
     const generateLabel = async () => {
@@ -276,9 +276,19 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         });
 
         const qrImage = new Image();
-        await new Promise((resolve, reject) => {
-          qrImage.onload = resolve;
-          qrImage.onerror = reject;
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('QR code image load timeout'));
+          }, 5000);
+
+          qrImage.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          qrImage.onerror = (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          };
           qrImage.src = qrCodeDataUrl;
         });
 

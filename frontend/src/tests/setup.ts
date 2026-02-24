@@ -56,3 +56,55 @@ Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
   writable: true,
 });
+
+// Mock Canvas API for label generation tests
+HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+  fillStyle: '',
+  strokeStyle: '',
+  lineWidth: 0,
+  font: '',
+  textAlign: '',
+  textBaseline: '',
+  fillRect: vi.fn(),
+  strokeRect: vi.fn(),
+  fillText: vi.fn(),
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  quadraticCurveTo: vi.fn(),
+  arc: vi.fn(),
+  closePath: vi.fn(),
+  stroke: vi.fn(),
+  fill: vi.fn(),
+  drawImage: vi.fn(),
+});
+
+HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/png;base64,mock-canvas-data');
+
+// Mock Image for QR code generation
+global.Image = class MockImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  _src = '';
+  
+  set src(value: string) {
+    this._src = value;
+    // Trigger onload asynchronously to simulate real image loading
+    Promise.resolve().then(() => {
+      if (this.onload) {
+        this.onload();
+      }
+    });
+  }
+  
+  get src() {
+    return this._src;
+  }
+} as any;
+
+// Mock QRCode library
+vi.mock('qrcode', () => ({
+  default: {
+    toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,mock-qr-code'),
+  },
+}));

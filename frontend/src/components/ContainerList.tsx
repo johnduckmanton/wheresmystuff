@@ -397,7 +397,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleGenerateQRCode(params.row);
+                handlePrintLabel(params.row);
               }}
             >
               <QrCodeIcon fontSize="small" color="secondary" />
@@ -491,9 +491,9 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setPackingDialogOpen(true);
   };
 
-  const handleGenerateQRCode = (container: Container) => {
+  const handlePrintLabel = (container: Container) => {
     setSelectedContainer(container);
-    setQrCodeDialogOpen(true);
+    setPrintLabelDialogOpen(true);
   };
 
   const handleStorageManagement = (container: Container) => {
@@ -657,7 +657,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onPack={handlePackItems}
-                onGenerateQR={handleGenerateQRCode}
+                onGenerateQR={handlePrintLabel}
               />
             ))
           )}

@@ -59,7 +59,7 @@ export default function ContainerDetailDialog({
   onEdit,
   onDelete,
   onPack,
-  onUpdate,
+  onUpdate: _onUpdate, // Prefix with underscore to indicate intentionally unused
 }: ContainerDetailDialogProps) {
   const [location, setLocation] = useState<Location | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
