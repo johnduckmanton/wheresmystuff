@@ -425,19 +425,6 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent sx={{ textAlign: 'center', py: 4 }}>
-          <CircularProgress />
-          <Typography variant="body2" sx={{ mt: 2 }}>
-            Generating label...
-          </Typography>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (error) {
     return (
       <Card>
@@ -456,28 +443,51 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           Printable Label
         </Typography>
 
-        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1, mb: 2 }}>
-          <canvas ref={canvasRef} style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd' }} />
-        </Box>
+        {loading ? (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <CircularProgress />
+            <Typography variant="body2" sx={{ mt: 2 }}>
+              Generating label...
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1, mb: 2 }}>
+              <canvas ref={canvasRef} style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd' }} />
+            </Box>
 
-        <Typography variant="body2" gutterBottom>
-          <strong>Size:</strong> {size}
-        </Typography>
-        <Typography variant="body2" gutterBottom>
-          <strong>Format:</strong> Print-optimized PNG
-        </Typography>
-        <Typography variant="body2" gutterBottom>
-          <strong>Includes:</strong> QR Code, Container Name, Type, Handling Flags, Creation Date
-        </Typography>
+            <Typography variant="body2" gutterBottom>
+              <strong>Size:</strong> {size}
+            </Typography>
+            <Typography variant="body2" gutterBottom>
+              <strong>Format:</strong> Print-optimized PNG
+            </Typography>
+            <Typography variant="body2" gutterBottom>
+              <strong>Includes:</strong> QR Code, Container Name, Type, Handling Flags, Creation Date
+            </Typography>
+          </>
+        )}
+
+        {/* Canvas always rendered but hidden during loading */}
+        <canvas 
+          ref={canvasRef} 
+          style={{ 
+            display: loading ? 'none' : 'none',  // Always hidden, only used for generation
+            position: 'absolute',
+            left: '-9999px'
+          }} 
+        />
       </CardContent>
-      <CardActions>
-        <Button startIcon={<DownloadIcon />} onClick={handleDownload}>
-          Download
-        </Button>
-        <Button startIcon={<PrintIcon />} onClick={handlePrint} variant="contained">
-          Print Label
-        </Button>
-      </CardActions>
+      {!loading && (
+        <CardActions>
+          <Button startIcon={<DownloadIcon />} onClick={handleDownload}>
+            Download
+          </Button>
+          <Button startIcon={<PrintIcon />} onClick={handlePrint} variant="contained">
+            Print Label
+          </Button>
+        </CardActions>
+      )}
     </Card>
   );
 };
