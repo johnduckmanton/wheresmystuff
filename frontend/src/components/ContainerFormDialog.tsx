@@ -36,6 +36,7 @@ import type {
   HandlingFlag, 
   ContainerStatus,
   Location,
+  Room,
   MovingProject
 } from '../types/entities';
 import { ContainerType as ContainerTypeEnum, HandlingFlag as HandlingFlagEnum, ContainerStatus as ContainerStatusEnum } from '../types/entities';
@@ -94,6 +95,7 @@ interface FormData {
   contentsSummary: string;
   photos: string[];
   locationId: string;
+  roomId: string;
   projectId: string;
   handlingFlags: HandlingFlag[];
   status: ContainerStatus;
@@ -110,6 +112,7 @@ interface FormErrors {
   contentsSummary?: string;
   photos?: string;
   locationId?: string;
+  roomId?: string;
   projectId?: string;
   handlingFlags?: string;
   status?: string;
@@ -126,6 +129,7 @@ export default function ContainerFormDialog({
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [projects, setProjects] = useState<MovingProject[]>([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -138,6 +142,7 @@ export default function ContainerFormDialog({
     contentsSummary: '',
     photos: [],
     locationId: '',
+    roomId: '',
     projectId: '',
     handlingFlags: [],
     status: ContainerStatusEnum.Empty,
@@ -155,6 +160,7 @@ export default function ContainerFormDialog({
   useEffect(() => {
     if (open && currentInventory) {
       loadLocations();
+      loadRooms();
       loadProjects();
     }
   }, [open, currentInventory]);
@@ -173,6 +179,7 @@ export default function ContainerFormDialog({
           contentsSummary: container.contentsSummary || '',
           photos: container.photos || [],
           locationId: container.locationId || '',
+          roomId: container.roomId || '',
           projectId: container.projectId || '',
           handlingFlags: container.handlingFlags || [],
           status: container.status || ContainerStatusEnum.Empty,
@@ -189,6 +196,7 @@ export default function ContainerFormDialog({
           contentsSummary: '',
           photos: [],
           locationId: '',
+          roomId: '',
           projectId: '',
           handlingFlags: [],
           status: ContainerStatusEnum.Empty,
@@ -208,6 +216,18 @@ export default function ContainerFormDialog({
     } catch (error) {
       console.error('Error loading locations:', error);
       showError('Failed to load locations');
+    }
+  };
+
+  const loadRooms = async () => {
+    if (!currentInventory) return;
+    
+    try {
+      const roomData = await apiClient.getRooms(currentInventory.id);
+      setRooms(roomData);
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      showError('Failed to load rooms');
     }
   };
 
@@ -267,6 +287,15 @@ export default function ContainerFormDialog({
       [field]: value,
     }));
 
+    // Clear roomId when location changes
+    if (field === 'locationId') {
+      setFormData(prev => ({
+        ...prev,
+        locationId: value,
+        roomId: '', // Clear room selection when location changes
+      }));
+    }
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => {
@@ -309,6 +338,7 @@ export default function ContainerFormDialog({
         contentsSummary: formData.contentsSummary.trim() || undefined,
         photos: formData.photos,
         locationId: formData.locationId || undefined,
+        roomId: formData.roomId || undefined,
         projectId: formData.projectId || undefined,
         handlingFlags: formData.handlingFlags,
         status: formData.status,
@@ -353,6 +383,7 @@ export default function ContainerFormDialog({
       contentsSummary: '',
       photos: [],
       locationId: '',
+      roomId: '',
       projectId: '',
       handlingFlags: [],
       status: ContainerStatusEnum.Empty,
@@ -536,68 +567,97 @@ export default function ContainerFormDialog({
     </>
   );
 
-  const renderAssignmentFields = () => (
-    <>
-      {/* Location */}
-      <FormControl fullWidth error={!!errors.locationId}>
-        <InputLabel>Location</InputLabel>
-        <Select
-          value={formData.locationId}
-          label="Location"
-          onChange={(e) => handleFieldChange('locationId', e.target.value)}
-        >
-          <MenuItem value="">
-            <em>None</em>
-          </MenuItem>
-          {locations.map((location) => (
-            <MenuItem key={location.id} value={location.id}>
-              {location.name}
-            </MenuItem>
-          ))}
-        </Select>
-        {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
-      </FormControl>
+  const renderAssignmentFields = () => {
+    // Filter rooms by selected location
+    const filteredRooms = formData.locationId
+      ? rooms.filter(room => room.locationId === formData.locationId)
+      : rooms;
 
-      {/* Project Assignment */}
-      <FormControl fullWidth error={!!errors.projectId}>
-        <InputLabel>Moving Project</InputLabel>
-        <Select
-          value={formData.projectId}
-          label="Moving Project"
-          onChange={(e) => handleFieldChange('projectId', e.target.value)}
-        >
-          <MenuItem value="">
-            <em>None</em>
-          </MenuItem>
-          {projects.map((project) => (
-            <MenuItem key={project.id} value={project.id}>
-              {project.name}
+    return (
+      <>
+        {/* Location */}
+        <FormControl fullWidth error={!!errors.locationId}>
+          <InputLabel>Location</InputLabel>
+          <Select
+            value={formData.locationId}
+            label="Location"
+            onChange={(e) => handleFieldChange('locationId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
             </MenuItem>
-          ))}
-        </Select>
-        <FormHelperText>
-          {errors.projectId || 'Optional: Assign to a moving project'}
-        </FormHelperText>
-      </FormControl>
+            {locations.map((location) => (
+              <MenuItem key={location.id} value={location.id}>
+                {location.name}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
+        </FormControl>
 
-      {/* Status */}
-      <FormControl fullWidth error={!!errors.status}>
-        <InputLabel>Status</InputLabel>
-        <Select
-          value={formData.status}
-          label="Status"
-          onChange={(e) => handleFieldChange('status', e.target.value)}
-        >
-          {statusOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
+        {/* Room */}
+        <FormControl fullWidth error={!!errors.roomId} disabled={!formData.locationId}>
+          <InputLabel>Room</InputLabel>
+          <Select
+            value={formData.roomId}
+            label="Room"
+            onChange={(e) => handleFieldChange('roomId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
             </MenuItem>
-          ))}
-        </Select>
-        {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
-      </FormControl>
-    </>
-  );
+            {filteredRooms.map((room) => (
+              <MenuItem key={room.id} value={room.id}>
+                {room.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {errors.roomId || (formData.locationId ? 'Optional: Select a room within the location' : 'Select a location first')}
+          </FormHelperText>
+        </FormControl>
+
+        {/* Project Assignment */}
+        <FormControl fullWidth error={!!errors.projectId}>
+          <InputLabel>Moving Project</InputLabel>
+          <Select
+            value={formData.projectId}
+            label="Moving Project"
+            onChange={(e) => handleFieldChange('projectId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {projects.map((project) => (
+              <MenuItem key={project.id} value={project.id}>
+                {project.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {errors.projectId || 'Optional: Assign to a moving project'}
+          </FormHelperText>
+        </FormControl>
+
+        {/* Status */}
+        <FormControl fullWidth error={!!errors.status}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={formData.status}
+            label="Status"
+            onChange={(e) => handleFieldChange('status', e.target.value)}
+          >
+            {statusOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.status && <FormHelperText>{errors.status}</FormHelperText>}
+        </FormControl>
+      </>
+    );
+  };
 
   const renderHandlingFields = () => (
     <>

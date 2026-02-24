@@ -58,6 +58,7 @@ class Container {
     this.qrCodeUrl = data.qrCodeUrl;
     this.qrCodeGeneratedAt = data.qrCodeGeneratedAt;
     this.locationId = data.locationId;
+    this.roomId = data.roomId;
     this.handlingFlags = data.handlingFlags || [];
     this.itemCount = data.itemCount || 0;
     this.estimatedValue = data.estimatedValue || 0;
@@ -289,6 +290,7 @@ class Container {
     if (this.qrCodeUrl) item.qrCodeUrl = this.qrCodeUrl;
     if (this.qrCodeGeneratedAt) item.qrCodeGeneratedAt = this.qrCodeGeneratedAt;
     if (this.locationId) item.locationId = this.locationId;
+    if (this.roomId) item.roomId = this.roomId;
     if (this.storageStartDate) item.storageStartDate = this.storageStartDate;
     if (this.storageRate) item.storageRate = this.storageRate;
 
@@ -316,6 +318,7 @@ class Container {
       qrCodeUrl: item.qrCodeUrl,
       qrCodeGeneratedAt: item.qrCodeGeneratedAt,
       locationId: item.locationId,
+      roomId: item.roomId,
       handlingFlags: item.handlingFlags || [],
       itemCount: item.itemCount || 0,
       estimatedValue: item.estimatedValue || 0,
@@ -338,7 +341,7 @@ class Container {
   update(updates, updatedBy) {
     const allowedUpdates = [
       'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'photos', 'locationId',
-      'handlingFlags', 'projectId', 'storageRate', 'metadata'
+      'roomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata'
     ];
 
     allowedUpdates.forEach(field => {

@@ -205,6 +205,7 @@ export interface Container {
   qrCode: string;                // Unique QR code identifier
   qrCodeUrl?: string;            // S3 URL for QR code image
   locationId?: string;           // Current location
+  roomId?: string;               // UUID reference to room
   handlingFlags: HandlingFlag[]; // Fragile, Heavy, Valuable, etc.
   itemCount: number;             // Number of items in container
   estimatedValue: number;        // Total value of contents

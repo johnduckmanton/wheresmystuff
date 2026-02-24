@@ -18,7 +18,6 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  QrCode as QrCodeIcon,
   LocationOn as LocationIcon,
   Inventory as InventoryIcon,
   AttachMoney as MoneyIcon,
@@ -37,7 +36,7 @@ import PrintableLabel from './PrintableLabel';
 import HandlingFlagChip from './HandlingFlagChip';
 import ContainerPhotoUpload from './ContainerPhotoUpload';
 import ContainerSharingDialog from './ContainerSharingDialog';
-import type { Container, Location, ContainerStatus } from '../types/entities';
+import type { Container, Location, Room, ContainerStatus } from '../types/entities';
 import apiClient from '../services/api';
 
 interface ContainerDetailDialogProps {
@@ -62,61 +61,49 @@ export default function ContainerDetailDialog({
   onUpdate: _onUpdate, // Prefix with underscore to indicate intentionally unused
 }: ContainerDetailDialogProps) {
   const [location, setLocation] = useState<Location | null>(null);
+  const [room, setRoom] = useState<Room | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
   const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
-  const [qrCodeImageUrl, setQrCodeImageUrl] = useState<string>('');
 
-  const loadLocation = useCallback(async () => {
+  const loadLocationAndRoom = useCallback(async () => {
     if (!container.locationId) {
       setLocation(null);
+      setRoom(null);
       return;
     }
 
     try {
       const locationData = await apiClient.getLocation(container.locationId, inventoryId);
       setLocation(locationData);
+
+      // Load room if roomId exists
+      if (container.roomId) {
+        try {
+          const roomData = await apiClient.getRoom(container.roomId);
+          setRoom(roomData);
+        } catch (error) {
+          console.error('Error loading room:', error);
+          setRoom(null);
+        }
+      } else {
+        setRoom(null);
+      }
     } catch (error) {
       console.error('Error loading location:', error);
       setLocation(null);
+      setRoom(null);
     }
-  }, [container.locationId, inventoryId]);
+  }, [container.locationId, container.roomId, inventoryId]);
 
-  // Load location when dialog opens
+  // Load location and room when dialog opens
   useEffect(() => {
     if (open && container) {
-      loadLocation();
+      loadLocationAndRoom();
       setUpdatedContainer(container);
     }
-  }, [open, container, loadLocation]);
-
-  // Load QR code image URL when container has qrCodeUrl
-  useEffect(() => {
-    const loadQRCodeUrl = async () => {
-      if (updatedContainer.id && inventoryId) {
-        try {
-          // Call the new getContainerQRCode endpoint
-          const response = await apiClient.getContainerQRCode(updatedContainer.id, inventoryId);
-          
-          if (response.hasQRCode && response.downloadUrl) {
-            setQrCodeImageUrl(response.downloadUrl);
-          } else {
-            setQrCodeImageUrl('');
-          }
-        } catch (error) {
-          console.error('Error loading QR code:', error);
-          setQrCodeImageUrl('');
-        }
-      } else {
-        setQrCodeImageUrl('');
-      }
-    };
-
-    if (open) {
-      loadQRCodeUrl();
-    }
-  }, [open, updatedContainer.id, inventoryId]);
+  }, [open, container, loadLocationAndRoom]);
 
   const getStatusColor = (status: ContainerStatus) => {
     switch (status) {
@@ -340,7 +327,9 @@ export default function ContainerDetailDialog({
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <LocationIcon fontSize="small" color="action" />
                             <Typography variant="body2">
-                              {location?.name || 'No location set'}
+                              {location 
+                                ? (room ? `${location.name} > ${room.name}` : location.name)
+                                : 'No location set'}
                             </Typography>
                           </Box>
                         </Box>
@@ -451,77 +440,6 @@ export default function ContainerDetailDialog({
                             </Typography>
                           </Box>
                         )}
-
-                        {/* QR Code */}
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <QrCodeIcon color="action" />
-                            <Typography variant="body2">
-                              <strong>QR Code</strong>
-                            </Typography>
-                          </Box>
-                          {updatedContainer.qrCodeUrl ? (
-                            <Box 
-                              sx={{ 
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'flex-start',
-                                gap: 1,
-                                pl: 4,
-                              }}
-                            >
-                              {qrCodeImageUrl ? (
-                                <Box
-                                  component="img"
-                                  src={qrCodeImageUrl}
-                                  alt="Container QR Code"
-                                  crossOrigin="anonymous"
-                                  sx={{
-                                    width: 120,
-                                    height: 120,
-                                    objectFit: 'contain',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: 1,
-                                    p: 0.5,
-                                    bgcolor: 'white'
-                                  }}
-                                />
-                              ) : (
-                                <Box
-                                  sx={{
-                                    width: 120,
-                                    height: 120,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: 1,
-                                    bgcolor: 'grey.50'
-                                  }}
-                                >
-                                  <Typography variant="caption" color="text.secondary">
-                                    Loading...
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          ) : (
-                            <Box 
-                              sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: 1,
-                                pl: 4,
-                              }}
-                            >
-                              <Typography variant="body2" color="text.secondary">
-                                No QR code generated yet
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
                       </Box>
                     </CardContent>
                   </Card>
@@ -558,6 +476,8 @@ export default function ContainerDetailDialog({
             container={updatedContainer}
             qrCodeId={updatedContainer.id}
             size="medium"
+            locationName={location?.name}
+            roomName={room?.name}
           />
         </DialogContent>
         <DialogActions>
