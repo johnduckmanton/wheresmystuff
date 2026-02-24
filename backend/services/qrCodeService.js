@@ -174,58 +174,6 @@ class QRCodeService {
   }
 
   /**
-   * Generate multiple QR codes for containers in batch
-   * @param {Array<string>} containerIds - Array of container IDs
-   * @param {string} size - Size: 'small', 'medium', or 'large'
-   * @returns {Promise<Array<Object>>} Array of QR code data
-   */
-  async generateBatchQRCodes(containerIds, size = 'medium') {
-    if (!Array.isArray(containerIds) || containerIds.length === 0) {
-      throw new Error('Container IDs must be a non-empty array');
-    }
-
-    if (containerIds.length > 50) {
-      throw new Error('Batch size cannot exceed 50 containers');
-    }
-
-    const results = [];
-    const errors = [];
-
-    // Process containers in parallel with concurrency limit
-    const concurrencyLimit = 5;
-    for (let i = 0; i < containerIds.length; i += concurrencyLimit) {
-      const batch = containerIds.slice(i, i + concurrencyLimit);
-      
-      const batchPromises = batch.map(async (containerId) => {
-        try {
-          const qrCodeData = await this.generateContainerQRCode(containerId, size);
-          return { success: true, containerId, data: qrCodeData };
-        } catch (error) {
-          return { success: false, containerId, error: error.message };
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      
-      batchResults.forEach(result => {
-        if (result.success) {
-          results.push(result.data);
-        } else {
-          errors.push({ containerId: result.containerId, error: result.error });
-        }
-      });
-    }
-
-    return {
-      successful: results,
-      failed: errors,
-      totalProcessed: containerIds.length,
-      successCount: results.length,
-      failureCount: errors.length
-    };
-  }
-
-  /**
    * Decode QR code ID to extract container information
    * @param {string} qrCodeId - QR code identifier
    * @returns {Object} Decoded container information

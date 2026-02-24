@@ -1585,35 +1585,11 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
-        GenerateBatchQRCodes:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /qr-codes/batch
-            Method: POST
-            Auth:
-              Authorizer: CognitoAuthorizer
         DecodeQRCode:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
             Path: /qr-codes/decode
-            Method: POST
-            Auth:
-              Authorizer: CognitoAuthorizer
-        GenerateLabel:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /containers/{containerId}/label
-            Method: POST
-            Auth:
-              Authorizer: CognitoAuthorizer
-        GenerateBatchLabels:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /labels/batch
             Method: POST
             Auth:
               Authorizer: CognitoAuthorizer

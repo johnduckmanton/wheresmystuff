@@ -1330,72 +1330,10 @@ class ApiClient {
     }
   }
 
-  async generateBatchQRCodes(containerIds: string[], size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
-    successful: Array<{
-      qrCodeId: string;
-      s3Key: string;
-      size: string;
-      containerId: string;
-      generatedAt: string;
-      downloadUrl: string;
-    }>;
-    failed: Array<{
-      containerId: string;
-      error: string;
-    }>;
-    totalProcessed: number;
-    successCount: number;
-    failureCount: number;
-  }> {
-    return this.post<any>('/qr-codes/batch', { containerIds, size });
-  }
-
-  async generateLabel(containerId: string, size: 'small' | 'medium' | 'large' = 'medium', inventoryId?: string): Promise<{
-    containerId: string;
-    s3Key: string;
-    size: string;
-    downloadUrl: string;
-    generatedAt: string;
-  }> {
-    if (!inventoryId) {
-      throw new Error('Inventory ID is required');
-    }
-    return this.post<any>(`/containers/${containerId}/label?size=${size}&inventoryId=${inventoryId}`, {});
-  }
-
-  async generateBatchLabels(containers: Array<{
-    id: string;
-    name: string;
-    type: string;
-    createdAt: string;
-  }>, size: 'small' | 'medium' | 'large' = 'medium', sheetFormat: boolean = false, inventoryId?: string): Promise<{
-    type: 'sheet' | 'individual';
-    s3Key?: string;
-    downloadUrl?: string;
-    containerCount?: number;
-    successful?: Array<{
-      containerId: string;
-      s3Key: string;
-      size: string;
-      downloadUrl: string;
-      generatedAt: string;
-    }>;
-    failed?: Array<{
-      containerId: string;
-      error: string;
-    }>;
-    totalProcessed: number;
-    successCount: number;
-    failureCount: number;
-    size: string;
-    generatedAt: string;
-  }> {
-    if (!inventoryId) {
-      throw new Error('Inventory ID is required');
-    }
-    const containerIds = containers.map(c => c.id);
-    return this.post<any>('/labels/batch', { containerIds, inventoryId, size, sheetFormat });
-  }
+  // Note: QR code and label generation is now handled per-container
+  // - QR codes: Generated via POST /containers/{id}/qr-code
+  // - Labels: Generated client-side using Canvas API in PrintableLabel component
+  // Batch generation methods have been removed to simplify the codebase
 
   // QR Code Scanning API
   async scanQRCode(qrCodeData: string, inventoryId?: string): Promise<{

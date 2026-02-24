@@ -109,75 +109,6 @@ exports.generateQRCode = async (event) => {
 };
 
 /**
- * Generate QR codes for multiple containers in batch
- */
-exports.generateBatchQRCodes = async (event) => {
-  try {
-    // Validate JWT token
-    await authenticate(event);
-    const user = event.user;
-    
-    const body = JSON.parse(event.body || '{}');
-    const { containerIds, size = 'medium' } = body;
-
-    if (!containerIds || !Array.isArray(containerIds)) {
-      return error('Container IDs array is required');
-    }
-
-    if (containerIds.length === 0) {
-      return error('At least one container ID is required');
-    }
-
-    if (containerIds.length > 50) {
-      return error('Cannot process more than 50 containers at once');
-    }
-
-    // Validate size parameter
-    const validSizes = ['small', 'medium', 'large'];
-    if (!validSizes.includes(size)) {
-      return error(`Invalid size. Must be one of: ${validSizes.join(', ')}`);
-    }
-
-    // Generate QR codes in batch
-    const batchResult = await qrCodeService.generateBatchQRCodes(containerIds, size);
-
-    // Generate download URLs for successful QR codes
-    const successfulWithUrls = await Promise.all(
-      batchResult.successful.map(async (qrData) => {
-        const downloadUrl = await generateQRDownloadUrl(qrData.s3Key, false);
-        return {
-          ...qrData,
-          downloadUrl
-        };
-      })
-    );
-
-    // Log the batch QR code generation
-    await logSecurityEvent('BATCH_QR_CODE_GENERATED', {
-      userId: user.userId,
-      containerCount: containerIds.length,
-      successCount: batchResult.successCount,
-      failureCount: batchResult.failureCount,
-      size
-    });
-
-    return success({
-      ...batchResult,
-      successful: successfulWithUrls
-    });
-
-  } catch (err) {
-    console.error('Error generating batch QR codes:', err);
-    
-    await logSecurityEvent('BATCH_QR_CODE_GENERATION_ERROR', {
-      error: err.message
-    });
-
-    return error('Failed to generate batch QR codes', 500);
-  }
-};
-
-/**
  * Decode and validate QR code
  */
 exports.decodeQRCode = async (event) => {
@@ -743,9 +674,6 @@ exports.handler = async (event) => {
     } else if (path.includes('/qr-codes/decode') && method === 'POST') {
       console.log('✅ Routing to decodeQRCode');
       return await exports.decodeQRCode(event);
-    } else if (path.includes('/qr-codes/batch') && method === 'POST') {
-      console.log('✅ Routing to generateBatchQRCodes');
-      return await exports.generateBatchQRCodes(event);
     } else if (path.includes('/qr-codes/history') && method === 'GET') {
       console.log('✅ Routing to getScanHistory');
       return await exports.getScanHistory(event);
@@ -763,7 +691,7 @@ exports.handler = async (event) => {
       return await exports.lookupContainer(event);
     } else {
       console.log('❌ No matching route found');
-      console.log('- Available routes: /qr-code (POST/GET), /qr-codes/batch (POST), etc.');
+      console.log('- Available routes: /qr-code (POST/GET), /qr-codes/scan (POST), etc.');
       return error('Not Found', 404);
     }
   } catch (err) {

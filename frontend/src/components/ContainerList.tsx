@@ -18,8 +18,6 @@ import {
   Inventory as InventoryIcon,
   MoveToInbox as PackIcon,
   QrCode as QrCodeIcon,
-  QrCode2 as BatchQrCodeIcon,
-
   Storage as StorageIcon,
 } from '@mui/icons-material';
 import EntityTable from './EntityTable';
@@ -28,7 +26,6 @@ import ContainerFormDialog from './ContainerFormDialog';
 import ContainerDetailDialog from './ContainerDetailDialog';
 import PackingDialog from './PackingDialog';
 import QRCodeGenerator from './QRCodeGenerator';
-import BatchQRCodeGenerator from './BatchQRCodeGenerator';
 import MobileContainerCard from './MobileContainerCard';
 import HandlingFlagChip from './HandlingFlagChip';
 import StorageManagementDialog from './StorageManagementDialog';
@@ -61,7 +58,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [packingDialogOpen, setPackingDialogOpen] = useState(false);
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
-  const [batchQrCodeDialogOpen, setBatchQrCodeDialogOpen] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   
@@ -88,8 +84,8 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         announceToScreenReader('Showing all containers', 'polite');
         break;
       case 'generateQR':
-        setBatchQrCodeDialogOpen(true);
-        announceToScreenReader('Opening QR code generator', 'polite');
+        // QR codes are generated per-container in the detail dialog
+        announceToScreenReader('Open a container to generate its QR code', 'polite');
         break;
       case 'scanQR':
         // Implement QR scanning
@@ -500,10 +496,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setQrCodeDialogOpen(true);
   };
 
-  const handleBatchQRCode = () => {
-    setBatchQrCodeDialogOpen(true);
-  };
-
   const handleStorageManagement = (container: Container) => {
     setSelectedContainer(container);
     setStorageDialogOpen(true);
@@ -550,21 +542,10 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setSelectedContainer(null);
   };
 
-  const handleBatchQRCodeClose = () => {
-    setBatchQrCodeDialogOpen(false);
-  };
-
   const handleQRCodeGenerated = () => {
     showSuccess(`QR code generated for ${selectedContainer?.name}`);
     // Optionally refresh containers to update QR code info
     loadContainers();
-  };
-
-  const handleBatchQRCodeGenerated = (results: any) => {
-    showSuccess(`Generated ${results.successCount} QR codes successfully`);
-    if (results.failureCount > 0) {
-      showError(`${results.failureCount} QR codes failed to generate`);
-    }
   };
 
   const handleItemsAdded = (itemIds: string[]) => {
@@ -644,16 +625,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
           width: isMobile ? '100%' : 'auto',
           flexDirection: isMobile ? 'column' : 'row',
         }}>
-          <Button
-            variant="outlined"
-            startIcon={<BatchQrCodeIcon />}
-            onClick={handleBatchQRCode}
-            disabled={containers.length === 0}
-            fullWidth={isMobile}
-            className={isMobile ? 'mobile-touch-button' : ''}
-          >
-            Batch QR Codes
-          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -784,15 +755,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
           onQRCodeGenerated={handleQRCodeGenerated}
         />
       )}
-
-      {/* Batch QR Code Generator Dialog */}
-      <BatchQRCodeGenerator
-        open={batchQrCodeDialogOpen}
-        onClose={handleBatchQRCodeClose}
-        containers={containers}
-        inventoryId={currentInventory?.id || ''}
-        onBatchGenerated={handleBatchQRCodeGenerated}
-      />
 
       {/* Storage Management Dialog */}
       <StorageManagementDialog
