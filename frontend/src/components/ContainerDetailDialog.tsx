@@ -33,7 +33,7 @@ import {
 
 
 import ContainerContentsView from './ContainerContentsView';
-import QRCodeGenerator from './QRCodeGenerator';
+import PrintableLabel from './PrintableLabel';
 import HandlingFlagChip from './HandlingFlagChip';
 import ContainerPhotoUpload from './ContainerPhotoUpload';
 import ContainerSharingDialog from './ContainerSharingDialog';
@@ -64,7 +64,7 @@ export default function ContainerDetailDialog({
   const [location, setLocation] = useState<Location | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
-  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
   const [qrCodeImageUrl, setQrCodeImageUrl] = useState<string>('');
 
@@ -208,7 +208,7 @@ export default function ContainerDetailDialog({
           flexShrink: 0, // Don't shrink the buttons
         }}>
           <Tooltip title="Print Label">
-            <IconButton onClick={() => setQrCodeDialogOpen(true)} size="small" color="secondary">
+            <IconButton onClick={() => setPrintLabelDialogOpen(true)} size="small" color="secondary">
               <PrintIcon />
             </IconButton>
           </Tooltip>
@@ -516,14 +516,9 @@ export default function ContainerDetailDialog({
                                 pl: 4,
                               }}
                             >
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => setQrCodeDialogOpen(true)}
-                                startIcon={<QrCodeIcon />}
-                              >
-                                Generate QR Code
-                              </Button>
+                              <Typography variant="body2" color="text.secondary">
+                                No QR code generated yet
+                              </Typography>
                             </Box>
                           )}
                         </Box>
@@ -550,26 +545,25 @@ export default function ContainerDetailDialog({
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
 
-      {/* QR Code Generator Dialog */}
-      <QRCodeGenerator
-        open={qrCodeDialogOpen}
-        onClose={() => setQrCodeDialogOpen(false)}
-        container={updatedContainer}
-        inventoryId={inventoryId}
-        onQRCodeGenerated={async () => {
-          // Refresh container data to show the new QR code
-          try {
-            const refreshedContainer = await apiClient.getContainer(container.id, inventoryId);
-            setUpdatedContainer(refreshedContainer);
-            if (onUpdate) {
-              onUpdate(refreshedContainer);
-            }
-          } catch (err) {
-            console.error('Error refreshing container after QR code generation:', err);
-          }
-          setQrCodeDialogOpen(false);
-        }}
-      />
+      {/* Print Label Dialog */}
+      <Dialog
+        open={printLabelDialogOpen}
+        onClose={() => setPrintLabelDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Print Label - {updatedContainer.name}</DialogTitle>
+        <DialogContent>
+          <PrintableLabel
+            container={updatedContainer}
+            qrCodeId={updatedContainer.id}
+            size="medium"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPrintLabelDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Container Sharing Dialog */}
       <ContainerSharingDialog

@@ -25,7 +25,7 @@ import type { EntityTableColumn } from './EntityTable';
 import ContainerFormDialog from './ContainerFormDialog';
 import ContainerDetailDialog from './ContainerDetailDialog';
 import PackingDialog from './PackingDialog';
-import QRCodeGenerator from './QRCodeGenerator';
+import PrintableLabel from './PrintableLabel';
 import MobileContainerCard from './MobileContainerCard';
 import HandlingFlagChip from './HandlingFlagChip';
 import StorageManagementDialog from './StorageManagementDialog';
@@ -57,7 +57,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [packingDialogOpen, setPackingDialogOpen] = useState(false);
-  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   
@@ -537,15 +537,9 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setSelectedContainer(null);
   };
 
-  const handleQRCodeClose = () => {
-    setQrCodeDialogOpen(false);
+  const handlePrintLabelClose = () => {
+    setPrintLabelDialogOpen(false);
     setSelectedContainer(null);
-  };
-
-  const handleQRCodeGenerated = () => {
-    showSuccess(`QR code generated for ${selectedContainer?.name}`);
-    // Optionally refresh containers to update QR code info
-    loadContainers();
   };
 
   const handleItemsAdded = (itemIds: string[]) => {
@@ -745,15 +739,26 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         </DialogActions>
       </Dialog>
 
-      {/* QR Code Generator Dialog */}
+      {/* Print Label Dialog */}
       {selectedContainer && (
-        <QRCodeGenerator
-          open={qrCodeDialogOpen}
-          onClose={handleQRCodeClose}
-          container={selectedContainer}
-          inventoryId={currentInventory?.id || ''}
-          onQRCodeGenerated={handleQRCodeGenerated}
-        />
+        <Dialog
+          open={printLabelDialogOpen}
+          onClose={handlePrintLabelClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Print Label - {selectedContainer.name}</DialogTitle>
+          <DialogContent>
+            <PrintableLabel
+              container={selectedContainer}
+              qrCodeId={selectedContainer.id}
+              size="medium"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handlePrintLabelClose}>Close</Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {/* Storage Management Dialog */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -76,6 +76,21 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     { value: 'large', label: 'Large (4x4 inches)', description: '300x300 pixels' },
   ];
 
+  // Reset state when dialog opens or container changes
+  useEffect(() => {
+    if (open) {
+      // If container already has a QR code, populate qrCodeData
+      if (container.qrCode && container.qrCodeUrl) {
+        console.log('📦 Container already has QR code:', container.qrCode);
+        // We don't have the full qrCodeData, but we have enough for the label
+      } else {
+        setQRCodeData(null);
+      }
+      setShowLabel(false);
+      setError(null);
+    }
+  }, [open, container.id, container.qrCode]);
+
   const handleGenerateQRCode = async () => {
     setLoading(true);
     setGenerating('qr');
@@ -120,6 +135,16 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   };
 
   const handleGenerateLabel = () => {
+    console.log('🔍 Generate Label Debug:');
+    console.log('- container.qrCode:', container.qrCode);
+    console.log('- qrCodeData:', qrCodeData);
+    console.log('- qrCodeData?.qrCodeId:', qrCodeData?.qrCodeId);
+    
+    if (!container.qrCode && !qrCodeData) {
+      setError('Please generate a QR code first before creating a label');
+      return;
+    }
+    
     setShowLabel(true);
   };
 
@@ -249,12 +274,19 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
             fullWidth
             startIcon={generating === 'label' ? <CircularProgress size={20} /> : <PrintIcon />}
             onClick={handleGenerateLabel}
-            disabled={loading}
+            disabled={loading || (!container.qrCode && !qrCodeData)}
             sx={{ py: 1.5 }}
           >
             {generating === 'label' ? 'Generating...' : 'Generate Printable Label'}
           </Button>
         </Box>
+
+        {/* Info message if no QR code */}
+        {!container.qrCode && !qrCodeData && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Generate a QR code first before creating a printable label.
+          </Alert>
+        )}
 
         {/* QR Code Preview */}
         {qrCodeData && (
