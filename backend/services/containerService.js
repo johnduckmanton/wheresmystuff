@@ -406,77 +406,95 @@ class ContainerService {
    * @returns {Promise<void>}
    */
   async deleteContainer(containerId, inventoryId, userId, force = false) {
-    // Validate inventory access
-    const hasAccess = await hasInventoryAccess(userId, inventoryId);
-    if (!hasAccess) {
-      throw new Error('Access denied to inventory');
-    }
-
-    // Get existing container to check if it's empty
-    const container = await this.getContainer(containerId, inventoryId, userId);
-    if (!container) {
-      throw new Error('Container not found');
-    }
-
-    // Check if container has items
-    if (container.itemCount > 0) {
-      if (!force) {
-        throw new Error('Cannot delete container that contains items. Please remove all items first.');
+    try {
+      // Validate inventory access
+      const hasAccess = await hasInventoryAccess(userId, inventoryId);
+      if (!hasAccess) {
+        throw new Error('Access denied to inventory');
       }
 
-      // Force delete: remove all items from container first
-      const contents = await this.getContainerContents(containerId, inventoryId, userId);
-      
-      if (contents.items && contents.items.length > 0) {
-        // Update each item to remove container reference
-        const updatePromises = contents.items.map(async (item) => {
-          const updatedItem = {
-            ...item,
-            containerId: null,
-            packedAt: null,
-            locationId: item.previousLocationId || container.locationId,
-            previousLocationId: null
-          };
+      // Get existing container to check if it's empty
+      const container = await this.getContainer(containerId, inventoryId, userId);
+      if (!container) {
+        throw new Error('Container not found');
+      }
 
-          await docClient.send(new PutCommand({
-            TableName: TABLE_NAME,
-            Item: {
-              pk: `INVENTORY#${inventoryId}#THINGS`,
-              sk: item.id,
-              data: updatedItem,
-              type: 'THING'
+      // Check if container has items
+      if (container.itemCount > 0) {
+        if (!force) {
+          throw new Error('Cannot delete container that contains items. Please remove all items first.');
+        }
+
+        console.log(`Force deleting container ${containerId} with ${container.itemCount} items`);
+
+        // Force delete: remove all items from container first
+        const contents = await this.getContainerContents(containerId, inventoryId, userId);
+        
+        if (contents.items && contents.items.length > 0) {
+          console.log(`Removing ${contents.items.length} items from container`);
+          
+          // Update each item to remove container reference
+          const updatePromises = contents.items.map(async (item) => {
+            try {
+              const updatedItem = {
+                ...item,
+                containerId: null,
+                packedAt: null,
+                locationId: item.previousLocationId || container.locationId || null,
+                previousLocationId: null
+              };
+
+              await docClient.send(new PutCommand({
+                TableName: TABLE_NAME,
+                Item: {
+                  pk: `INVENTORY#${inventoryId}#THINGS`,
+                  sk: item.id,
+                  data: updatedItem,
+                  type: 'THING'
+                }
+              }));
+              
+              console.log(`Successfully removed item ${item.id} from container`);
+            } catch (itemError) {
+              console.error(`Error removing item ${item.id} from container:`, itemError);
+              throw itemError;
             }
-          }));
-        });
+          });
 
-        await Promise.all(updatePromises);
+          await Promise.all(updatePromises);
 
-        // Log the forced removal of items
-        await logContainerOperation(userId, 'force_delete_items', containerId, inventoryId, {
-          containerName: container.name,
-          itemCount: container.itemCount,
-          itemIds: contents.items.map(item => item.id)
-        });
+          // Log the forced removal of items
+          await logContainerOperation(userId, 'force_delete_items', containerId, inventoryId, {
+            containerName: container.name,
+            itemCount: container.itemCount,
+            itemIds: contents.items.map(item => item.id)
+          });
+        }
       }
+
+      // Delete from DynamoDB
+      await docClient.send(new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          pk: `INVENTORY#${inventoryId}#CONTAINERS`,
+          sk: containerId
+        }
+      }));
+
+      console.log(`Successfully deleted container ${containerId}`);
+
+      // Log the deletion
+      await logContainerOperation(userId, 'delete', containerId, inventoryId, {
+        containerName: container.name,
+        itemCount: container.itemCount,
+        forced: force
+      });
+
+      // CACHING DISABLED - No cache invalidation needed
+    } catch (error) {
+      console.error(`Error in deleteContainer for ${containerId}:`, error);
+      throw error;
     }
-
-    // Delete from DynamoDB
-    await docClient.send(new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        pk: `INVENTORY#${inventoryId}#CONTAINERS`,
-        sk: containerId
-      }
-    }));
-
-    // Log the deletion
-    await logContainerOperation(userId, 'delete', containerId, inventoryId, {
-      containerName: container.name,
-      itemCount: container.itemCount,
-      forced: force
-    });
-
-    // CACHING DISABLED - No cache invalidation needed
   }
 
   /**
