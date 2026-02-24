@@ -254,23 +254,23 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
    * DEFECT 6: Generated labels don't match specification layout
    * 
    * EXPECTED OUTCOME ON UNFIXED CODE: Test FAILS
-   * - Label SVG doesn't include proper handling flag icons
+   * - Label doesn't include proper handling flag icons
    * - Icons don't match specification (fragile glass symbol, keep_upright arrow)
    * - Colors don't match specification (#DC2626 for fragile, #2563EB for keep_upright)
    * 
    * EXPECTED OUTCOME ON FIXED CODE: Test PASSES
-   * - Label SVG includes proper handling flag icons with correct symbols
+   * - Label includes proper handling flag icons with correct symbols
    * - Icons use specification colors
-   * - Layout matches specification with icons at bottom
+   * - Layout matches specification with icons in top right
    */
   it('should generate labels with proper handling flag icons matching specification (Defect 6)', () => {
-    // Read the labelService.js file
-    const labelServicePath = join(__dirname, '../../../../backend/services/labelService.js');
-    const labelServiceContent = readFileSync(labelServicePath, 'utf-8');
+    // Read the PrintableLabel.tsx file
+    const printableLabelPath = join(__dirname, '../PrintableLabel.tsx');
+    const printableLabelContent = readFileSync(printableLabelPath, 'utf-8');
 
-    // Check that _getHandlingIconData returns proper icon data
-    const getHandlingIconDataMatch = labelServiceContent.match(
-      /_getHandlingIconData\(flag, size\) \{[\s\S]*?return icons\[flag\][\s\S]*?\}/
+    // Check that getHandlingIconData returns proper icon data
+    const getHandlingIconDataMatch = printableLabelContent.match(
+      /const getHandlingIconData = \(flag: string\) => \{[\s\S]*?return icons\[flag\][\s\S]*?\};/
     );
     
     expect(getHandlingIconDataMatch).toBeTruthy();
@@ -278,39 +278,40 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
     if (getHandlingIconDataMatch) {
       const getHandlingIconDataFunction = getHandlingIconDataMatch[0];
       
-      // Check for fragile icon with proper color and glass/warning symbol
-      // On UNFIXED code: This might FAIL if icon is simplified or missing proper SVG
-      // On FIXED code: This will PASS with proper glass symbol and #DC2626 color
+      // Check for fragile icon with proper color and label
+      // On UNFIXED code: This might FAIL if icon is simplified or missing proper implementation
+      // On FIXED code: This will PASS with proper color #DC2626
       expect(getHandlingIconDataFunction).toMatch(/fragile:[\s\S]*?color:\s*['"]#DC2626['"]/);
       expect(getHandlingIconDataFunction).toMatch(/fragile:[\s\S]*?label:\s*['"]FRAGILE['"]/);
       
-      // Check for keep_upright icon with proper color and arrow symbol
-      // On UNFIXED code: This might FAIL if icon is simplified or missing proper SVG
+      // Check for keep_upright icon with proper color and label
+      // On UNFIXED code: This might FAIL if icon is simplified or missing proper implementation
       // On FIXED code: This will PASS with proper arrow and #2563EB color
       expect(getHandlingIconDataFunction).toMatch(/keep_upright:[\s\S]*?color:\s*['"]#2563EB['"]/);
       expect(getHandlingIconDataFunction).toMatch(/keep_upright:[\s\S]*?label:\s*['"]THIS WAY UP['"]/);
-      
-      // Verify SVG paths exist for icons (not just text)
-      expect(getHandlingIconDataFunction).toMatch(/fragile:[\s\S]*?svg:[\s\S]*?<path/);
-      expect(getHandlingIconDataFunction).toMatch(/keep_upright:[\s\S]*?svg:[\s\S]*?<path/);
     }
 
-    // Check that _generateHandlingIcons properly positions icons at bottom
-    const generateHandlingIconsMatch = labelServiceContent.match(
-      /_generateHandlingIcons\(handlingFlags, startY, width, fontSize\) \{[\s\S]*?return iconsMarkup;[\s\S]*?\}/
+    // Check that drawHandlingIcon properly draws icons
+    const drawHandlingIconMatch = printableLabelContent.match(
+      /const drawHandlingIcon = \([\s\S]*?\) => \{[\s\S]*?switch \(flag\) \{[\s\S]*?\}/
     );
     
-    expect(generateHandlingIconsMatch).toBeTruthy();
+    expect(drawHandlingIconMatch).toBeTruthy();
     
-    if (generateHandlingIconsMatch) {
-      const generateHandlingIconsFunction = generateHandlingIconsMatch[0];
+    if (drawHandlingIconMatch) {
+      const drawHandlingIconFunction = drawHandlingIconMatch[0];
       
-      // Verify icons are centered and properly spaced
-      expect(generateHandlingIconsFunction).toMatch(/startX = \(width - totalIconsWidth\) \/ 2/);
-      expect(generateHandlingIconsFunction).toMatch(/currentX \+= iconSize \+ iconSpacing/);
+      // Verify fragile case draws wine glass symbol
+      expect(drawHandlingIconFunction).toMatch(/case 'fragile':/);
+      expect(drawHandlingIconFunction).toMatch(/\/\/ Draw wine glass symbol/);
       
-      // Verify text labels are positioned below icons
-      expect(generateHandlingIconsFunction).toMatch(/y="\$\{iconSize \+ fontSize/);
+      // Verify keep_upright case draws upward arrow
+      expect(drawHandlingIconFunction).toMatch(/case 'keep_upright':/);
+      expect(drawHandlingIconFunction).toMatch(/\/\/ Draw upward arrow/);
+      
+      // Verify icons are drawn with proper colors
+      expect(drawHandlingIconFunction).toMatch(/ctx\.fillStyle = iconData\.color/);
+      expect(drawHandlingIconFunction).toMatch(/ctx\.strokeStyle = iconData\.color/);
     }
   });
 
@@ -374,7 +375,7 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
  *    - Container with handlingFlags=['fragile', 'keep_upright']
  *    - Generated label doesn't include proper handling flag icons
  *    - Icons don't match specification (missing glass symbol, arrow, proper colors)
- *    - Root cause: labelService._getHandlingIconData has simplified or incorrect SVG markup
+ *    - Root cause: PrintableLabel.tsx has simplified or incorrect Canvas drawing code
  * 
  * **Fix Required**:
  * - ContainerDetailDialog.tsx: Add conditional rendering for QR image vs text
@@ -382,5 +383,5 @@ describe('Bug Condition Exploration: Container Details QR Display', () => {
  * - ContainerDetailDialog.tsx: Change QrCodeIcon to PrintIcon in menu bar
  * - QRCodeGenerator.tsx: Hide size dropdown when qrCodeUrl exists
  * - QRCodeGenerator.tsx: Hide "Generate QR Code" button when qrCodeUrl exists
- * - labelService.js: Update _getHandlingIconData with proper SVG icons matching specification
+ * - PrintableLabel.tsx: Update getHandlingIconData and drawHandlingIcon with proper Canvas drawing matching specification
  */

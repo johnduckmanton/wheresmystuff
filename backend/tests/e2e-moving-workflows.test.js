@@ -131,10 +131,6 @@ jest.mock('../services/packingService', () => ({
   })
 }));
 
-jest.mock('../services/labelService', () => ({
-  generateLabel: jest.fn().mockResolvedValue(Buffer.from('fake-label-data'))
-}));
-
 jest.mock('../services/qrCodeService', () => {
   return jest.fn().mockImplementation(() => ({
     generateQRCode: jest.fn().mockResolvedValue({
@@ -577,20 +573,13 @@ describe('End-to-End Moving & Storage Workflows', () => {
       expect(qrResult.imageUrl).toContain('s3.amazonaws.com');
       expect(qrResult.qrCodeId).toMatch(/^CONT_/);
 
-      // Step 2: Generate printable label
-      const labelService = require('../services/labelService');
-      const labelBuffer = await labelService.generateLabel(mockContainer, 'medium');
-
-      expect(Buffer.isBuffer(labelBuffer)).toBe(true);
-      expect(labelBuffer.length).toBeGreaterThan(0);
-
-      // Step 3: Scan QR code
+      // Step 2: Scan QR code (label generation moved to frontend)
       const scanResult = qrCodeService.scanQRCode(mockContainer.qrCode);
 
       expect(scanResult.success).toBe(true);
       expect(scanResult.containerId).toBe(mockContainerId);
 
-      // Step 4: Lookup container by QR code
+      // Step 3: Lookup container by QR code
       mockDocClient.send.mockResolvedValueOnce({
         Items: [{ containerId: mockContainerId }]
       });

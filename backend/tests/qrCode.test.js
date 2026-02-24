@@ -1,5 +1,4 @@
 const QRCodeService = require('../services/qrCodeService');
-const LabelService = require('../services/labelService');
 const ScanHistoryService = require('../services/scanHistoryService');
 
 // Mock AWS SDK
@@ -138,76 +137,6 @@ describe('QRCodeService', () => {
       const largeBuffer = await qrCodeService.generateQRCodeImage(qrCodeId, { width: 300 });
       
       expect(smallBuffer.length).toBeLessThan(largeBuffer.length);
-    });
-  });
-});
-
-describe('LabelService', () => {
-  let labelService;
-
-  beforeEach(() => {
-    labelService = new LabelService();
-  });
-
-  describe('getLabelDimensions', () => {
-    test('should return correct dimensions for small size', () => {
-      const dimensions = labelService.getLabelDimensions('small');
-      
-      expect(dimensions.width).toBe(420);
-      expect(dimensions.height).toBe(432);
-      expect(dimensions.qrSize).toBe(180);
-    });
-
-    test('should return correct dimensions for medium size', () => {
-      const dimensions = labelService.getLabelDimensions('medium');
-      
-      expect(dimensions.width).toBe(432);
-      expect(dimensions.height).toBe(576);
-      expect(dimensions.qrSize).toBe(220);
-    });
-
-    test('should return correct dimensions for large size', () => {
-      const dimensions = labelService.getLabelDimensions('large');
-      
-      expect(dimensions.width).toBe(576);
-      expect(dimensions.height).toBe(864);
-      expect(dimensions.qrSize).toBe(280);
-    });
-
-    test('should throw error for invalid size', () => {
-      expect(() => {
-        labelService.getLabelDimensions('invalid');
-      }).toThrow('Invalid label size: invalid');
-    });
-  });
-
-  describe('generateLabel', () => {
-    test('should generate label buffer', async () => {
-      const containerData = {
-        id: 'test-container-123',
-        name: 'Test Container',
-        type: 'Box',
-        createdAt: new Date().toISOString()
-      };
-
-      const labelBuffer = await labelService.generateLabel(containerData, 'medium');
-      
-      expect(Buffer.isBuffer(labelBuffer)).toBe(true);
-      expect(labelBuffer.length).toBeGreaterThan(0);
-    });
-
-    test('should generate different sizes', async () => {
-      const containerData = {
-        id: 'test-container-123',
-        name: 'Test Container',
-        type: 'Box',
-        createdAt: new Date().toISOString()
-      };
-
-      const smallLabel = await labelService.generateLabel(containerData, 'small');
-      const largeLabel = await labelService.generateLabel(containerData, 'large');
-      
-      expect(smallLabel.length).not.toBe(largeLabel.length);
     });
   });
 });

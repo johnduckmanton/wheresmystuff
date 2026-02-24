@@ -21,7 +21,6 @@
     "@aws-sdk/client-ses": "^3.0.0",
     "@aws-sdk/lib-dynamodb": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "canvas": "^2.11.2",
     "jsonwebtoken": "^9.0.0",
     "jwks-rsa": "^3.0.0",
     "qrcode": "^1.5.4",
