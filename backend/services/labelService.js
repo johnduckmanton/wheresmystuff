@@ -57,7 +57,7 @@ class LabelService {
 
   /**
    * Generate a printable label with QR code and container information
-   * This creates a PNG label image from SVG
+   * This creates a PNG label image using Sharp's image composition
    * @param {Object} containerData - Container information
    * @param {string} containerData.id - Container ID
    * @param {string} containerData.name - Container name
@@ -69,6 +69,7 @@ class LabelService {
    */
   async generateLabel(containerData, size = 'medium') {
     const dimensions = this.getLabelDimensions(size);
+    const { width, height, qrSize, fontSize, nameFontSize, padding } = dimensions;
     
     // Generate QR code for the container
     const qrCodeId = qrCodeService.generateQRCodeId(containerData.id);
@@ -77,7 +78,7 @@ class LabelService {
     const QRCode = require('qrcode');
     const qrCodeBuffer = await QRCode.toBuffer(qrCodeId, {
       type: 'png',
-      width: dimensions.qrSize,
+      width: qrSize,
       margin: 1,
       color: {
         dark: '#000000',
@@ -85,31 +86,142 @@ class LabelService {
       }
     });
 
-    // Create SVG label
-    const labelSvg = this.createLabelSVG(containerData, '', dimensions);
+    // Format data
+    const createdDate = new Date(containerData.createdAt).toLocaleDateString();
+    const containerType = containerData.type.charAt(0).toUpperCase() + containerData.type.slice(1);
+    const contentsSummary = containerData.contentsSummary || '';
+    const containerId = containerData.id.substring(0, 16) + '...';
     
-    // Convert SVG to PNG using sharp with text rendering
-    const svgBuffer = Buffer.from(labelSvg, 'utf8');
+    // Calculate layout positions
+    const borderPadding = 15;
+    const innerPadding = 20;
+    const sectionY = borderPadding + innerPadding;
     
-    // Create base label from SVG
-    let labelImage = sharp(svgBuffer)
-      .png();
+    // Handling icons in top right
+    const iconSize = 50;
+    const iconSpacing = 10;
+    const handlingFlags = containerData.handlingFlags || [];
+    const totalIconsWidth = handlingFlags.length > 0 ? (handlingFlags.length * iconSize) + ((handlingFlags.length - 1) * iconSpacing) : 0;
+    const iconsStartX = width - borderPadding - innerPadding - totalIconsWidth;
+    const iconsY = sectionY;
     
-    // Composite the QR code onto the label
-    const { width, height, qrSize, padding } = dimensions;
-    const centerX = width / 2;
-    const qrX = Math.round(centerX - qrSize / 2);
-    const qrY = padding;
+    // QR code at bottom center
+    const qrX = Math.round((width - qrSize) / 2);
+    const qrY = height - borderPadding - innerPadding - qrSize - 50;
     
-    const pngBuffer = await labelImage
-      .composite([{
+    // Create base SVG with borders and text
+    const labelSvg = `
+      <svg width="${width}" height="${height}">
+        <!-- Outer border -->
+        <rect x="${borderPadding}" y="${borderPadding}" 
+              width="${width - borderPadding * 2}" height="${height - borderPadding * 2}" 
+              fill="white" stroke="black" stroke-width="3" rx="8"/>
+        
+        <!-- BOX DETAILS section header -->
+        <text x="${borderPadding + innerPadding}" y="${sectionY + 20}" 
+              font-family="Arial" font-size="${fontSize + 2}" font-weight="bold" fill="#000">BOX DETAILS</text>
+        
+        <!-- Horizontal line after header -->
+        <line x1="${borderPadding + innerPadding}" y1="${sectionY + 30}" 
+              x2="${width - borderPadding - innerPadding}" y2="${sectionY + 30}" 
+              stroke="black" stroke-width="1"/>
+        
+        <!-- Container name (large) -->
+        <text x="${borderPadding + innerPadding}" y="${sectionY + 60}" 
+              font-family="Arial" font-size="${nameFontSize}" font-weight="bold" fill="#000">${this._escapeXml(containerData.name)}</text>
+        
+        <!-- Container type -->
+        <text x="${borderPadding + innerPadding}" y="${sectionY + 90}" 
+              font-family="Arial" font-size="${fontSize}" fill="#333">Type: ${this._escapeXml(containerType)}</text>
+        
+        <!-- Contents summary -->
+        ${contentsSummary ? `<text x="${borderPadding + innerPadding}" y="${sectionY + 115}" 
+              font-family="Arial" font-size="${fontSize - 2}" fill="#333">${this._escapeXml(contentsSummary.substring(0, 40))}</text>` : ''}
+        
+        <!-- Horizontal line before bottom section -->
+        <line x1="${borderPadding + innerPadding}" y1="${qrY - 20}" 
+              x2="${width - borderPadding - innerPadding}" y2="${qrY - 20}" 
+              stroke="black" stroke-width="1"/>
+        
+        <!-- Container ID underneath QR code -->
+        <text x="${width / 2}" y="${qrY + qrSize + 20}" 
+              font-family="Arial" font-size="${fontSize - 2}" font-weight="bold" text-anchor="middle" fill="#000">${this._escapeXml(containerId)}</text>
+        
+        <!-- Creation date at bottom left -->
+        <text x="${borderPadding + innerPadding}" y="${height - borderPadding - innerPadding - 10}" 
+              font-family="Arial" font-size="${fontSize - 4}" fill="#666">Created: ${createdDate}</text>
+      </svg>
+    `;
+
+    // Start with the base label
+    const compositeOps = [
+      {
+        input: Buffer.from(labelSvg),
+        top: 0,
+        left: 0
+      },
+      {
         input: qrCodeBuffer,
         top: qrY,
         left: qrX
-      }])
+      }
+    ];
+
+    // Add handling flag icons in top right
+    if (handlingFlags.length > 0) {
+      let currentX = iconsStartX;
+
+      for (const flag of handlingFlags) {
+        const iconData = this._getHandlingIconData(flag, iconSize);
+        if (iconData) {
+          const iconSvg = `
+            <svg width="${iconSize}" height="${iconSize + 25}">
+              ${iconData.svg}
+              <text x="${iconSize / 2}" y="${iconSize + 18}" 
+                    font-family="Arial" font-size="9" font-weight="bold" 
+                    text-anchor="middle" fill="${iconData.color}">${iconData.label}</text>
+            </svg>
+          `;
+          compositeOps.push({
+            input: Buffer.from(iconSvg),
+            top: iconsY,
+            left: currentX
+          });
+          currentX += iconSize + iconSpacing;
+        }
+      }
+    }
+
+    // Create white background and composite everything
+    const pngBuffer = await sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      }
+    })
+      .composite(compositeOps)
+      .png()
       .toBuffer();
     
     return pngBuffer;
+  }
+
+  /**
+   * Escape XML special characters
+   * @param {string} text - Text to escape
+   * @returns {string} Escaped text
+   * @private
+   */
+  _escapeXml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   /**
