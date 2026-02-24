@@ -32,6 +32,7 @@ import {
 import type { Container } from '../types';
 import apiClient from '../services/api';
 import S3Image from './S3Image';
+import PrintableLabel from './PrintableLabel';
 
 interface QRCodeGeneratorProps {
   open: boolean;
@@ -64,7 +65,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
 }) => {
   const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [qrCodeData, setQRCodeData] = useState<QRCodeData | null>(null);
-  const [labelData, setLabelData] = useState<any>(null);
+  const [showLabel, setShowLabel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState<'qr' | 'label' | null>(null);
@@ -118,21 +119,8 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     }
   };
 
-  const handleGenerateLabel = async () => {
-    setLoading(true);
-    setGenerating('label');
-    setError(null);
-
-    try {
-      const result = await apiClient.generateLabel(container.id, selectedSize, inventoryId);
-      setLabelData(result);
-    } catch (err) {
-      console.error('Error generating label:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate printable label');
-    } finally {
-      setLoading(false);
-      setGenerating(null);
-    }
+  const handleGenerateLabel = () => {
+    setShowLabel(true);
   };
 
   const handleDownload = (downloadUrl: string, filename: string) => {
@@ -156,7 +144,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
 
   const handleClose = () => {
     setQRCodeData(null);
-    setLabelData(null);
+    setShowLabel(false);
     setError(null);
     setGenerating(null);
     onClose();
@@ -326,65 +314,16 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         )}
 
         {/* Label Preview */}
-        {labelData && (
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PrintIcon />
-                Printable Label Generated
-              </Typography>
-              
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                  <S3Image
-                    src={labelData.downloadUrl}
-                    alt="Generated Label"
-                    maxWidth="250px"
-                    maxHeight="250px"
-                    fallbackText="Label generated successfully!"
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Size:</strong> {labelData.size} ({getSizeDescription(labelData.size)})
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Format:</strong> Print-optimized PNG
-                  </Typography>
-                  <Typography variant="body2" gutterBottom>
-                    <strong>Includes:</strong> QR Code, Container Name, Type, Creation Date
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    <strong>Generated:</strong> {new Date(labelData.generatedAt).toLocaleString()}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-            <CardActions>
-              <Button
-                startIcon={<DownloadIcon />}
-                onClick={() => handleDownload(labelData.downloadUrl, `label-${container.name}-${labelData.size}.png`)}
-              >
-                Download
-              </Button>
-              <Button
-                startIcon={<PrintIcon />}
-                onClick={() => handlePrint(labelData.downloadUrl)}
-                variant="contained"
-              >
-                Print Label
-              </Button>
-              <Tooltip title="Generate new label">
-                <IconButton onClick={handleGenerateLabel} disabled={loading}>
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-            </CardActions>
-          </Card>
+        {showLabel && (container.qrCode || qrCodeData) && (
+          <PrintableLabel
+            container={container}
+            qrCodeId={qrCodeData?.qrCodeId || container.qrCode || ''}
+            size={selectedSize}
+          />
         )}
 
         {/* Instructions */}
-        {!qrCodeData && !labelData && !loading && (
+        {!qrCodeData && !showLabel && !loading && (
           <Paper sx={{ p: 2, bgcolor: 'info.light', color: 'info.contrastText' }}>
             <Typography variant="body2">
               <strong>Instructions:</strong>

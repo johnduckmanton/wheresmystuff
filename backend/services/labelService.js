@@ -1,7 +1,7 @@
 const QRCodeService = require('./qrCodeService');
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const sharp = require('sharp');
+const { createCanvas, loadImage } = require('canvas');
 
 const s3Client = new S3Client({});
 const qrCodeService = new QRCodeService();
@@ -67,17 +67,79 @@ class LabelService {
    * @param {string} size - Label size (small, medium, large)
    * @returns {Promise<Buffer>} Label PNG buffer
    */
+  /**
+   * Generate a printable label with QR code and container information
+   * Uses Canvas API for proper text rendering
+   * @param {Object} containerData - Container information
+   * @param {string} containerData.id - Container ID
+   * @param {string} containerData.name - Container name
+   * @param {string} containerData.type - Container type
+   * @param {string} containerData.createdAt - Creation date
+   * @param {Array<string>} containerData.handlingFlags - Special handling flags
+   * @param {string} size - Label size (small, medium, large)
+   * @returns {Promise<Buffer>} Label PNG buffer
+   */
   async generateLabel(containerData, size = 'medium') {
     const dimensions = this.getLabelDimensions(size);
     const { width, height, qrSize, fontSize, nameFontSize, padding } = dimensions;
     
-    // Generate QR code for the container
-    const qrCodeId = qrCodeService.generateQRCodeId(containerData.id);
+    // Create canvas
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
     
-    // Generate QR code as PNG buffer
+    // Fill white background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw outer border with rounded corners
+    const borderPadding = 15;
+    const borderRadius = 8;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    this._roundRect(ctx, borderPadding, borderPadding, 
+                    width - borderPadding * 2, height - borderPadding * 2, borderRadius);
+    ctx.stroke();
+    
+    // Calculate layout
+    const innerPadding = 20;
+    const sectionY = borderPadding + innerPadding;
+    
+    // Draw "BOX DETAILS" header
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold ${fontSize + 2}px Arial`;
+    ctx.fillText('BOX DETAILS', borderPadding + innerPadding, sectionY + 20);
+    
+    // Draw horizontal line after header
+    ctx.beginPath();
+    ctx.moveTo(borderPadding + innerPadding, sectionY + 30);
+    ctx.lineTo(width - borderPadding - innerPadding, sectionY + 30);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Draw container name (large, bold)
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold ${nameFontSize}px Arial`;
+    ctx.fillText(containerData.name, borderPadding + innerPadding, sectionY + 60);
+    
+    // Draw container type
+    ctx.fillStyle = '#333333';
+    ctx.font = `${fontSize}px Arial`;
+    const containerType = containerData.type.charAt(0).toUpperCase() + containerData.type.slice(1);
+    ctx.fillText(`Type: ${containerType}`, borderPadding + innerPadding, sectionY + 90);
+    
+    // Draw contents summary if available
+    if (containerData.contentsSummary) {
+      ctx.fillStyle = '#333333';
+      ctx.font = `${fontSize - 2}px Arial`;
+      const summary = containerData.contentsSummary.substring(0, 40);
+      ctx.fillText(summary, borderPadding + innerPadding, sectionY + 115);
+    }
+    
+    // Generate and draw QR code
+    const qrCodeId = qrCodeService.generateQRCodeId(containerData.id);
     const QRCode = require('qrcode');
-    const qrCodeBuffer = await QRCode.toBuffer(qrCodeId, {
-      type: 'png',
+    const qrCodeDataUrl = await QRCode.toDataURL(qrCodeId, {
       width: qrSize,
       margin: 1,
       color: {
@@ -85,127 +147,232 @@ class LabelService {
         light: '#FFFFFF'
       }
     });
-
-    // Format data
-    const createdDate = new Date(containerData.createdAt).toLocaleDateString();
-    const containerType = containerData.type.charAt(0).toUpperCase() + containerData.type.slice(1);
-    const contentsSummary = containerData.contentsSummary || '';
-    const containerId = containerData.id.substring(0, 16) + '...';
     
-    // Calculate layout positions
-    const borderPadding = 15;
-    const innerPadding = 20;
-    const sectionY = borderPadding + innerPadding;
-    
-    // Handling icons in top right
-    const iconSize = 50;
-    const iconSpacing = 10;
-    const handlingFlags = containerData.handlingFlags || [];
-    const totalIconsWidth = handlingFlags.length > 0 ? (handlingFlags.length * iconSize) + ((handlingFlags.length - 1) * iconSpacing) : 0;
-    const iconsStartX = width - borderPadding - innerPadding - totalIconsWidth;
-    const iconsY = sectionY;
-    
-    // QR code at bottom center
+    const qrImage = await loadImage(qrCodeDataUrl);
     const qrX = Math.round((width - qrSize) / 2);
     const qrY = height - borderPadding - innerPadding - qrSize - 50;
     
-    // Create base SVG with borders and text
-    const labelSvg = `
-      <svg width="${width}" height="${height}">
-        <!-- Outer border -->
-        <rect x="${borderPadding}" y="${borderPadding}" 
-              width="${width - borderPadding * 2}" height="${height - borderPadding * 2}" 
-              fill="white" stroke="black" stroke-width="3" rx="8"/>
-        
-        <!-- BOX DETAILS section header -->
-        <text x="${borderPadding + innerPadding}" y="${sectionY + 20}" 
-              font-family="Arial" font-size="${fontSize + 2}" font-weight="bold" fill="#000">BOX DETAILS</text>
-        
-        <!-- Horizontal line after header -->
-        <line x1="${borderPadding + innerPadding}" y1="${sectionY + 30}" 
-              x2="${width - borderPadding - innerPadding}" y2="${sectionY + 30}" 
-              stroke="black" stroke-width="1"/>
-        
-        <!-- Container name (large) -->
-        <text x="${borderPadding + innerPadding}" y="${sectionY + 60}" 
-              font-family="Arial" font-size="${nameFontSize}" font-weight="bold" fill="#000">${this._escapeXml(containerData.name)}</text>
-        
-        <!-- Container type -->
-        <text x="${borderPadding + innerPadding}" y="${sectionY + 90}" 
-              font-family="Arial" font-size="${fontSize}" fill="#333">Type: ${this._escapeXml(containerType)}</text>
-        
-        <!-- Contents summary -->
-        ${contentsSummary ? `<text x="${borderPadding + innerPadding}" y="${sectionY + 115}" 
-              font-family="Arial" font-size="${fontSize - 2}" fill="#333">${this._escapeXml(contentsSummary.substring(0, 40))}</text>` : ''}
-        
-        <!-- Horizontal line before bottom section -->
-        <line x1="${borderPadding + innerPadding}" y1="${qrY - 20}" 
-              x2="${width - borderPadding - innerPadding}" y2="${qrY - 20}" 
-              stroke="black" stroke-width="1"/>
-        
-        <!-- Container ID underneath QR code -->
-        <text x="${width / 2}" y="${qrY + qrSize + 20}" 
-              font-family="Arial" font-size="${fontSize - 2}" font-weight="bold" text-anchor="middle" fill="#000">${this._escapeXml(containerId)}</text>
-        
-        <!-- Creation date at bottom left -->
-        <text x="${borderPadding + innerPadding}" y="${height - borderPadding - innerPadding - 10}" 
-              font-family="Arial" font-size="${fontSize - 4}" fill="#666">Created: ${createdDate}</text>
-      </svg>
-    `;
-
-    // Start with the base label
-    const compositeOps = [
-      {
-        input: Buffer.from(labelSvg),
-        top: 0,
-        left: 0
-      },
-      {
-        input: qrCodeBuffer,
-        top: qrY,
-        left: qrX
-      }
-    ];
-
-    // Add handling flag icons in top right
+    // Draw horizontal line before QR section
+    ctx.beginPath();
+    ctx.moveTo(borderPadding + innerPadding, qrY - 20);
+    ctx.lineTo(width - borderPadding - innerPadding, qrY - 20);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Draw QR code
+    ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+    
+    // Draw container ID underneath QR code
+    const containerId = containerData.id.substring(0, 16) + '...';
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold ${fontSize - 2}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(containerId, width / 2, qrY + qrSize + 20);
+    
+    // Draw creation date at bottom left
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#666666';
+    ctx.font = `${fontSize - 4}px Arial`;
+    const createdDate = new Date(containerData.createdAt).toLocaleDateString();
+    ctx.fillText(`Created: ${createdDate}`, borderPadding + innerPadding, 
+                 height - borderPadding - innerPadding - 10);
+    
+    // Draw handling flag icons in top right
+    const handlingFlags = containerData.handlingFlags || [];
     if (handlingFlags.length > 0) {
-      let currentX = iconsStartX;
-
+      const iconSize = 50;
+      const iconSpacing = 10;
+      const totalIconsWidth = (handlingFlags.length * iconSize) + 
+                              ((handlingFlags.length - 1) * iconSpacing);
+      let currentX = width - borderPadding - innerPadding - totalIconsWidth;
+      const iconsY = sectionY;
+      
       for (const flag of handlingFlags) {
-        const iconData = this._getHandlingIconData(flag, iconSize);
-        if (iconData) {
-          const iconSvg = `
-            <svg width="${iconSize}" height="${iconSize + 25}">
-              ${iconData.svg}
-              <text x="${iconSize / 2}" y="${iconSize + 18}" 
-                    font-family="Arial" font-size="9" font-weight="bold" 
-                    text-anchor="middle" fill="${iconData.color}">${iconData.label}</text>
-            </svg>
-          `;
-          compositeOps.push({
-            input: Buffer.from(iconSvg),
-            top: iconsY,
-            left: currentX
-          });
-          currentX += iconSize + iconSpacing;
-        }
+        await this._drawHandlingIcon(ctx, flag, currentX, iconsY, iconSize);
+        currentX += iconSize + iconSpacing;
       }
     }
-
-    // Create white background and composite everything
-    const pngBuffer = await sharp({
-      create: {
-        width,
-        height,
-        channels: 4,
-        background: { r: 255, g: 255, b: 255, alpha: 1 }
-      }
-    })
-      .composite(compositeOps)
-      .png()
-      .toBuffer();
     
-    return pngBuffer;
+    // Convert canvas to PNG buffer
+    return canvas.toBuffer('image/png');
+  }
+
+  /**
+   * Draw a rounded rectangle path
+   * @private
+   */
+  _roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
+  /**
+   * Draw a handling flag icon
+   * @private
+   */
+  async _drawHandlingIcon(ctx, flag, x, y, size) {
+    const iconData = this._getHandlingIconData(flag, size);
+    if (!iconData) return;
+    
+    // Draw icon border
+    ctx.strokeStyle = iconData.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, size, size);
+    
+    // Draw icon symbol
+    ctx.fillStyle = iconData.color;
+    ctx.strokeStyle = iconData.color;
+    
+    switch (flag) {
+      case 'fragile':
+        // Draw wine glass symbol
+        ctx.beginPath();
+        ctx.moveTo(x + size/2, y + size*0.2);
+        ctx.lineTo(x + size*0.7, y + size*0.5);
+        ctx.lineTo(x + size*0.6, y + size*0.5);
+        ctx.lineTo(x + size*0.6, y + size*0.8);
+        ctx.lineTo(x + size*0.4, y + size*0.8);
+        ctx.lineTo(x + size*0.4, y + size*0.5);
+        ctx.lineTo(x + size*0.3, y + size*0.5);
+        ctx.closePath();
+        ctx.fill();
+        break;
+        
+      case 'keep_upright':
+        // Draw upward arrow
+        ctx.beginPath();
+        ctx.moveTo(x + size/2, y + size*0.25);
+        ctx.lineTo(x + size*0.7, y + size*0.5);
+        ctx.lineTo(x + size*0.55, y + size*0.5);
+        ctx.lineTo(x + size*0.55, y + size*0.75);
+        ctx.lineTo(x + size*0.45, y + size*0.75);
+        ctx.lineTo(x + size*0.45, y + size*0.5);
+        ctx.lineTo(x + size*0.3, y + size*0.5);
+        ctx.closePath();
+        ctx.fill();
+        break;
+        
+      case 'heavy':
+        // Draw "H"
+        ctx.font = `bold ${size*0.4}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('H', x + size/2, y + size/2);
+        break;
+        
+      case 'valuable':
+        // Draw dollar sign
+        ctx.font = `bold ${size*0.35}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$', x + size/2, y + size/2);
+        break;
+        
+      case 'priority':
+        // Draw exclamation mark
+        ctx.font = `bold ${size*0.35}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('!', x + size/2, y + size/2);
+        break;
+        
+      case 'temperature_sensitive':
+        // Draw thermometer symbol
+        ctx.beginPath();
+        ctx.arc(x + size/2, y + size*0.35, size*0.12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeRect(x + size*0.43, y + size*0.45, size*0.14, size*0.3);
+        break;
+    }
+    
+    // Draw label text below icon
+    ctx.font = `bold 9px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = iconData.color;
+    ctx.fillText(iconData.label, x + size/2, y + size + 5);
+  }
+
+  /**
+   * Escape XML special characters
+   * @param {string} text - Text to escape
+   * @returns {string} Escaped text
+   * @private
+   */
+  _escapeXml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  /**
+   * Create SVG label with container information (QR code added separately)
+   * Includes special handling icons for fragile, keep upright, etc.
+   * @param {Object} containerData - Container information
+   * @param {string} qrCodeSvg - Not used, kept for compatibility
+   * @param {Object} dimensions - Label dimensions
+   * @returns {string} Complete label SVG
+   */
+  createLabelSVG(containerData, qrCodeSvg, dimensions) {
+    const { width, height, qrSize, fontSize, nameFontSize, padding } = dimensions;
+    
+    // Calculate proportional layout that scales with label size
+    const centerX = width / 2;
+    const qrX = centerX - qrSize / 2;
+    const qrY = padding;
+    
+    // Calculate text positions based on proportions of the label height
+    const availableHeight = height - (padding * 2) - qrSize;
+    const textStartY = qrY + qrSize + (availableHeight * 0.15); // 15% of remaining space
+    
+    const nameY = textStartY;
+    const boxDetailsY = nameY + nameFontSize + (availableHeight * 0.12);
+    const typeY = boxDetailsY + fontSize + (availableHeight * 0.1);
+    const contentsY = typeY + fontSize + (availableHeight * 0.08);
+    const dateY = contentsY + fontSize + (availableHeight * 0.08);
+    const idY = dateY + fontSize + (availableHeight * 0.06);
+    
+    // Special handling section at the bottom
+    const handlingY = height - padding - 60;
+    
+    // Format creation date
+    const createdDate = new Date(containerData.createdAt).toLocaleDateString();
+    
+    // Calculate content summary length based on label width and font size
+    const maxContentsLength = Math.floor((width - padding * 2) / (fontSize * 0.6));
+    let contentsSummary = containerData.contentsSummary || '';
+    if (contentsSummary.length > maxContentsLength) {
+      contentsSummary = contentsSummary.substring(0, maxContentsLength - 3) + '...';
+    }
+    
+    // Escape text for SVG
+    const escapeSvgText = (text) => {
+      if (!text) return '';
+      return String(text).replace(/&/g, '&amp;')
+                 .replace(/</g, '&lt;')$', x + size/2, y + size/2);
+        break;
+    }
+    
+    // Draw label text below icon
+    ctx.font = `bold 9px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = iconData.color;
+    ctx.fillText(iconData.label, x + size/2, y + size + 5);
   }
 
   /**
