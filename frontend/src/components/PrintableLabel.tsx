@@ -104,150 +104,100 @@ const drawHandlingIcon = (
   const iconData = getHandlingIconData(flag);
   if (!iconData) return;
 
-  // Draw icon border (square)
-  ctx.strokeStyle = iconData.color;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, iconSize, iconSize);
+  // Draw pill-style chip (rounded rectangle)
+  const pillWidth = iconSize * 2.5; // Wider to accommodate text
+  const pillHeight = iconSize * 0.6;
+  const radius = pillHeight / 2;
 
-  // Draw icon symbol
+  // Draw rounded rectangle background
+  ctx.fillStyle = iconData.color + '20'; // 20 = 12.5% opacity for light background
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + pillWidth - radius, y);
+  ctx.arc(x + pillWidth - radius, y + radius, radius, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x + radius, y + pillHeight);
+  ctx.arc(x + radius, y + radius, radius, Math.PI / 2, -Math.PI / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw border
+  ctx.strokeStyle = iconData.color;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Draw icon symbol on the left side of pill
+  const iconX = x + pillHeight / 2;
+  const iconY = y + pillHeight / 2;
+  const symbolSize = pillHeight * 0.5;
+
   ctx.fillStyle = iconData.color;
   ctx.strokeStyle = iconData.color;
+  ctx.lineWidth = 2;
 
   switch (flag) {
     case 'fragile':
-      // Draw wine glass symbol (standard fragile icon)
+      // Simple triangle warning symbol
       ctx.beginPath();
-      // Glass bowl
-      ctx.moveTo(x + iconSize * 0.35, y + iconSize * 0.25);
-      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.45);
-      ctx.lineTo(x + iconSize * 0.65, y + iconSize * 0.25);
-      // Stem
-      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.45);
-      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.65);
-      // Base
-      ctx.moveTo(x + iconSize * 0.4, y + iconSize * 0.65);
-      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.65);
-      ctx.lineWidth = 3;
+      ctx.moveTo(iconX, iconY - symbolSize * 0.5);
+      ctx.lineTo(iconX - symbolSize * 0.5, iconY + symbolSize * 0.5);
+      ctx.lineTo(iconX + symbolSize * 0.5, iconY + symbolSize * 0.5);
+      ctx.closePath();
       ctx.stroke();
+      // Exclamation mark inside
+      ctx.fillRect(iconX - symbolSize * 0.08, iconY - symbolSize * 0.2, symbolSize * 0.16, symbolSize * 0.35);
+      ctx.fillRect(iconX - symbolSize * 0.08, iconY + symbolSize * 0.25, symbolSize * 0.16, symbolSize * 0.12);
       break;
 
     case 'keep_upright':
-      // Draw "This Way Up" arrows (two arrows pointing up)
-      ctx.lineWidth = 3;
-      // Left arrow
+      // Simple up arrow
       ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.7);
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.55);
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.55);
-      ctx.stroke();
-      // Right arrow
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.7);
-      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.65, y + iconSize * 0.55);
-      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.75, y + iconSize * 0.55);
-      ctx.stroke();
-      // Horizontal line at bottom
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.2, y + iconSize * 0.75);
-      ctx.lineTo(x + iconSize * 0.8, y + iconSize * 0.75);
-      ctx.stroke();
+      ctx.moveTo(iconX, iconY - symbolSize * 0.5);
+      ctx.lineTo(iconX - symbolSize * 0.4, iconY);
+      ctx.lineTo(iconX - symbolSize * 0.15, iconY);
+      ctx.lineTo(iconX - symbolSize * 0.15, iconY + symbolSize * 0.5);
+      ctx.lineTo(iconX + symbolSize * 0.15, iconY + symbolSize * 0.5);
+      ctx.lineTo(iconX + symbolSize * 0.15, iconY);
+      ctx.lineTo(iconX + symbolSize * 0.4, iconY);
+      ctx.closePath();
+      ctx.fill();
       break;
 
     case 'heavy':
-      // Draw person lifting box symbol
-      ctx.lineWidth = 2;
-      // Box
-      ctx.strokeRect(x + iconSize * 0.35, y + iconSize * 0.45, iconSize * 0.3, iconSize * 0.25);
-      // Person (stick figure)
-      ctx.beginPath();
-      // Head
-      ctx.arc(x + iconSize * 0.3, y + iconSize * 0.35, iconSize * 0.08, 0, Math.PI * 2);
-      ctx.stroke();
-      // Body
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.43);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.6);
-      // Arms
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.5);
-      // Legs
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.6);
-      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.75);
-      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.6);
-      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.75);
-      ctx.stroke();
+      // Weight/dumbbell symbol
+      ctx.fillRect(iconX - symbolSize * 0.5, iconY - symbolSize * 0.15, symbolSize * 0.3, symbolSize * 0.3);
+      ctx.fillRect(iconX - symbolSize * 0.15, iconY - symbolSize * 0.08, symbolSize * 0.3, symbolSize * 0.16);
+      ctx.fillRect(iconX + symbolSize * 0.2, iconY - symbolSize * 0.15, symbolSize * 0.3, symbolSize * 0.3);
       break;
 
     case 'valuable':
-      // Draw "Handle with Care" - hands around box
-      ctx.lineWidth = 2;
-      // Box in center
-      ctx.strokeRect(x + iconSize * 0.35, y + iconSize * 0.35, iconSize * 0.3, iconSize * 0.3);
-      // Left hand
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.25, y + iconSize * 0.4);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.45);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.55);
-      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.6);
-      ctx.stroke();
-      // Right hand
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.75, y + iconSize * 0.4);
-      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.45);
-      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.55);
-      ctx.lineTo(x + iconSize * 0.75, y + iconSize * 0.6);
-      ctx.stroke();
+      // Dollar sign
+      ctx.font = `bold ${symbolSize * 1.4}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', iconX, iconY);
       break;
 
     case 'priority':
-      // Draw caution triangle with exclamation mark
-      ctx.lineWidth = 2;
-      // Triangle
-      ctx.beginPath();
-      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.2);
-      ctx.lineTo(x + iconSize * 0.2, y + iconSize * 0.75);
-      ctx.lineTo(x + iconSize * 0.8, y + iconSize * 0.75);
-      ctx.closePath();
-      ctx.stroke();
       // Exclamation mark
-      ctx.fillStyle = iconData.color;
-      ctx.fillRect(x + iconSize * 0.47, y + iconSize * 0.35, iconSize * 0.06, iconSize * 0.25);
-      ctx.fillRect(x + iconSize * 0.47, y + iconSize * 0.65, iconSize * 0.06, iconSize * 0.06);
+      ctx.fillRect(iconX - symbolSize * 0.12, iconY - symbolSize * 0.5, symbolSize * 0.24, symbolSize * 0.7);
+      ctx.fillRect(iconX - symbolSize * 0.12, iconY + symbolSize * 0.35, symbolSize * 0.24, symbolSize * 0.18);
       break;
 
     case 'temperature_sensitive':
-      // Draw umbrella with raindrops (keep dry symbol)
-      ctx.lineWidth = 2;
-      // Umbrella
+      // Thermometer symbol
       ctx.beginPath();
-      ctx.arc(x + iconSize * 0.5, y + iconSize * 0.4, iconSize * 0.2, Math.PI, 0, false);
-      // Handle
-      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.4);
-      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.65);
-      ctx.arc(x + iconSize * 0.55, y + iconSize * 0.65, iconSize * 0.05, Math.PI, 0, false);
-      ctx.stroke();
-      // Raindrops
-      ctx.fillStyle = iconData.color;
-      ctx.beginPath();
-      ctx.arc(x + iconSize * 0.35, y + iconSize * 0.55, iconSize * 0.03, 0, Math.PI * 2);
-      ctx.arc(x + iconSize * 0.5, y + iconSize * 0.6, iconSize * 0.03, 0, Math.PI * 2);
-      ctx.arc(x + iconSize * 0.65, y + iconSize * 0.55, iconSize * 0.03, 0, Math.PI * 2);
+      ctx.arc(iconX, iconY + symbolSize * 0.3, symbolSize * 0.25, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillRect(iconX - symbolSize * 0.12, iconY - symbolSize * 0.5, symbolSize * 0.24, symbolSize * 0.7);
       break;
   }
 
-  // Draw label text below icon
-  ctx.font = `bold 9px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
+  // Draw label text on the right side of pill
+  ctx.font = `bold ${pillHeight * 0.45}px Arial`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
   ctx.fillStyle = iconData.color;
-  ctx.fillText(iconData.label, x + iconSize / 2, y + iconSize + 5);
+  ctx.fillText(iconData.label, x + pillHeight * 1.2, y + pillHeight / 2);
 };
 
 /**
@@ -311,20 +261,21 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         // Draw handling flag icons at the top if present
         const handlingFlags = container.handlingFlags || [];
         if (handlingFlags.length > 0) {
-          const iconSize = 50;
-          const iconSpacing = 10;
-          const totalIconsWidth = handlingFlags.length * iconSize + (handlingFlags.length - 1) * iconSpacing;
-          // Center the icons horizontally
-          let currentX = (width - totalIconsWidth) / 2;
-          const iconsY = currentY;
+          const pillHeight = 30;
+          const pillWidth = pillHeight * 2.5;
+          const pillSpacing = 8;
+          const totalPillsWidth = handlingFlags.length * pillWidth + (handlingFlags.length - 1) * pillSpacing;
+          // Center the pills horizontally
+          let currentX = (width - totalPillsWidth) / 2;
+          const pillsY = currentY;
 
           for (const flag of handlingFlags) {
-            drawHandlingIcon(ctx, flag, currentX, iconsY, iconSize);
-            currentX += iconSize + iconSpacing;
+            drawHandlingIcon(ctx, flag, currentX, pillsY, pillHeight);
+            currentX += pillWidth + pillSpacing;
           }
 
-          // Move Y position down past icons and their labels (icon + label text height + spacing)
-          currentY += iconSize + 20 + 15; // icon height + label text + spacing
+          // Move Y position down past pills
+          currentY += pillHeight + 15; // pill height + spacing
         }
 
         // Draw horizontal line after icons (if present) or at top
@@ -353,42 +304,40 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        currentY += 15; // Space after line
+        currentY += 20; // Space after line
 
-        // Draw container name (large, bold)
+        // Draw container name (large, bold) - increased size
         ctx.fillStyle = '#000000';
-        ctx.font = `bold ${nameFontSize}px Arial`;
+        ctx.font = `bold ${nameFontSize + 6}px Arial`;
         ctx.fillText(container.name, borderPadding + innerPadding, currentY + 15);
 
-        currentY += 40; // Space after name
-
-        // Draw container type
-        ctx.fillStyle = '#333333';
-        ctx.font = `${fontSize}px Arial`;
-        const containerType = container.type.charAt(0).toUpperCase() + container.type.slice(1);
-        ctx.fillText(`Type: ${containerType}`, borderPadding + innerPadding, currentY);
-
-        currentY += 25; // Space after type
+        currentY += 45; // Space after name
 
         // Draw contents summary if available
         if (container.contentsSummary) {
           ctx.fillStyle = '#333333';
-          ctx.font = `${fontSize - 2}px Arial`;
-          const summary = container.contentsSummary.substring(0, 40);
+          ctx.font = `${fontSize}px Arial`;
+          const summary = container.contentsSummary.substring(0, 50);
           ctx.fillText(summary, borderPadding + innerPadding, currentY);
           currentY += 25; // Space after summary
         }
 
         console.log('PrintableLabel: Starting QR code generation with ID:', qrCodeId);
 
+        // Generate QR code with URL to authenticated container page
+        // User must be logged in to view the container details
+        const containerUrl = `${window.location.origin}/inventory/${container.inventoryId}/container/${qrCodeId}`;
+        console.log('PrintableLabel: QR code URL:', containerUrl);
+
         // Generate and draw QR code
-        const qrCodeDataUrl = await QRCode.toDataURL(qrCodeId, {
+        const qrCodeDataUrl = await QRCode.toDataURL(containerUrl, {
           width: qrSize,
           margin: 1,
           color: {
             dark: '#000000',
             light: '#FFFFFF',
           },
+          errorCorrectionLevel: 'M', // Medium error correction for URLs
         });
 
         console.log('PrintableLabel: QR code generated, data URL length:', qrCodeDataUrl.length);
@@ -431,12 +380,11 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         // Draw QR code
         ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
-        // Draw container ID underneath QR code
-        const containerId = container.id.substring(0, 16) + '...';
+        // Draw full container ID underneath QR code
         ctx.fillStyle = '#000000';
-        ctx.font = `bold ${fontSize - 2}px Arial`;
+        ctx.font = `${fontSize - 2}px monospace`; // Use monospace for ID
         ctx.textAlign = 'center';
-        ctx.fillText(containerId, width / 2, qrY + qrSize + 20);
+        ctx.fillText(container.id, width / 2, qrY + qrSize + 20);
 
         // Draw creation date at bottom left
         ctx.textAlign = 'left';
