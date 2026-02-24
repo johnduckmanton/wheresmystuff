@@ -135,9 +135,10 @@ describe('LabelService', () => {
       expect(svg).toContain('BOX DETAILS');
     });
 
-    it('should generate SVG with QR code', () => {
+    it('should generate SVG with QR code placeholder', () => {
       const svg = labelService.createLabelSVG(mockContainerData, mockQrCodeSvg, mockDimensions);
-      expect(svg).toContain('viewBox="0 0 100 100"');
+      expect(svg).toContain('QR Code placeholder');
+      expect(svg).toContain('rect x="106" y="25" width="220" height="220"');
     });
 
     it('should include fragile icon when fragile flag is present', () => {
