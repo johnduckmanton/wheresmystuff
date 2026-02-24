@@ -104,7 +104,7 @@ const drawHandlingIcon = (
   const iconData = getHandlingIconData(flag);
   if (!iconData) return;
 
-  // Draw icon border
+  // Draw icon border (square)
   ctx.strokeStyle = iconData.color;
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, iconSize, iconSize);
@@ -115,63 +115,130 @@ const drawHandlingIcon = (
 
   switch (flag) {
     case 'fragile':
-      // Draw wine glass symbol
+      // Draw wine glass symbol (standard fragile icon)
       ctx.beginPath();
-      ctx.moveTo(x + iconSize / 2, y + iconSize * 0.2);
-      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.8);
-      ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.8);
-      ctx.lineTo(x + iconSize * 0.4, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.closePath();
-      ctx.fill();
+      // Glass bowl
+      ctx.moveTo(x + iconSize * 0.35, y + iconSize * 0.25);
+      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.45);
+      ctx.lineTo(x + iconSize * 0.65, y + iconSize * 0.25);
+      // Stem
+      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.45);
+      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.65);
+      // Base
+      ctx.moveTo(x + iconSize * 0.4, y + iconSize * 0.65);
+      ctx.lineTo(x + iconSize * 0.6, y + iconSize * 0.65);
+      ctx.lineWidth = 3;
+      ctx.stroke();
       break;
 
     case 'keep_upright':
-      // Draw upward arrow
+      // Draw "This Way Up" arrows (two arrows pointing up)
+      ctx.lineWidth = 3;
+      // Left arrow
       ctx.beginPath();
-      ctx.moveTo(x + iconSize / 2, y + iconSize * 0.25);
-      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.55, y + iconSize * 0.75);
-      ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.75);
-      ctx.lineTo(x + iconSize * 0.45, y + iconSize * 0.5);
-      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.5);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.7);
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.55);
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.55);
+      ctx.stroke();
+      // Right arrow
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.7);
+      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.65, y + iconSize * 0.55);
+      ctx.moveTo(x + iconSize * 0.7, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.75, y + iconSize * 0.55);
+      ctx.stroke();
+      // Horizontal line at bottom
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.2, y + iconSize * 0.75);
+      ctx.lineTo(x + iconSize * 0.8, y + iconSize * 0.75);
+      ctx.stroke();
       break;
 
     case 'heavy':
-      // Draw "H"
-      ctx.font = `bold ${iconSize * 0.4}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('H', x + iconSize / 2, y + iconSize / 2);
+      // Draw person lifting box symbol
+      ctx.lineWidth = 2;
+      // Box
+      ctx.strokeRect(x + iconSize * 0.35, y + iconSize * 0.45, iconSize * 0.3, iconSize * 0.25);
+      // Person (stick figure)
+      ctx.beginPath();
+      // Head
+      ctx.arc(x + iconSize * 0.3, y + iconSize * 0.35, iconSize * 0.08, 0, Math.PI * 2);
+      ctx.stroke();
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.43);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.6);
+      // Arms
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.5);
+      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.5);
+      // Legs
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.6);
+      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.75);
+      ctx.moveTo(x + iconSize * 0.3, y + iconSize * 0.6);
+      ctx.lineTo(x + iconSize * 0.35, y + iconSize * 0.75);
+      ctx.stroke();
       break;
 
     case 'valuable':
-      // Draw dollar sign
-      ctx.font = `bold ${iconSize * 0.35}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$', x + iconSize / 2, y + iconSize / 2);
+      // Draw "Handle with Care" - hands around box
+      ctx.lineWidth = 2;
+      // Box in center
+      ctx.strokeRect(x + iconSize * 0.35, y + iconSize * 0.35, iconSize * 0.3, iconSize * 0.3);
+      // Left hand
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.25, y + iconSize * 0.4);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.45);
+      ctx.lineTo(x + iconSize * 0.3, y + iconSize * 0.55);
+      ctx.lineTo(x + iconSize * 0.25, y + iconSize * 0.6);
+      ctx.stroke();
+      // Right hand
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.75, y + iconSize * 0.4);
+      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.45);
+      ctx.lineTo(x + iconSize * 0.7, y + iconSize * 0.55);
+      ctx.lineTo(x + iconSize * 0.75, y + iconSize * 0.6);
+      ctx.stroke();
       break;
 
     case 'priority':
-      // Draw exclamation mark
-      ctx.font = `bold ${iconSize * 0.35}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('!', x + iconSize / 2, y + iconSize / 2);
+      // Draw caution triangle with exclamation mark
+      ctx.lineWidth = 2;
+      // Triangle
+      ctx.beginPath();
+      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.2);
+      ctx.lineTo(x + iconSize * 0.2, y + iconSize * 0.75);
+      ctx.lineTo(x + iconSize * 0.8, y + iconSize * 0.75);
+      ctx.closePath();
+      ctx.stroke();
+      // Exclamation mark
+      ctx.fillStyle = iconData.color;
+      ctx.fillRect(x + iconSize * 0.47, y + iconSize * 0.35, iconSize * 0.06, iconSize * 0.25);
+      ctx.fillRect(x + iconSize * 0.47, y + iconSize * 0.65, iconSize * 0.06, iconSize * 0.06);
       break;
 
     case 'temperature_sensitive':
-      // Draw thermometer symbol
+      // Draw umbrella with raindrops (keep dry symbol)
+      ctx.lineWidth = 2;
+      // Umbrella
       ctx.beginPath();
-      ctx.arc(x + iconSize / 2, y + iconSize * 0.35, iconSize * 0.12, 0, Math.PI * 2);
+      ctx.arc(x + iconSize * 0.5, y + iconSize * 0.4, iconSize * 0.2, Math.PI, 0, false);
+      // Handle
+      ctx.moveTo(x + iconSize * 0.5, y + iconSize * 0.4);
+      ctx.lineTo(x + iconSize * 0.5, y + iconSize * 0.65);
+      ctx.arc(x + iconSize * 0.55, y + iconSize * 0.65, iconSize * 0.05, Math.PI, 0, false);
       ctx.stroke();
-      ctx.strokeRect(x + iconSize * 0.43, y + iconSize * 0.45, iconSize * 0.14, iconSize * 0.3);
+      // Raindrops
+      ctx.fillStyle = iconData.color;
+      ctx.beginPath();
+      ctx.arc(x + iconSize * 0.35, y + iconSize * 0.55, iconSize * 0.03, 0, Math.PI * 2);
+      ctx.arc(x + iconSize * 0.5, y + iconSize * 0.6, iconSize * 0.03, 0, Math.PI * 2);
+      ctx.arc(x + iconSize * 0.65, y + iconSize * 0.55, iconSize * 0.03, 0, Math.PI * 2);
+      ctx.fill();
       break;
   }
 
@@ -239,39 +306,77 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
 
         // Calculate layout
         const innerPadding = 20;
-        const sectionY = borderPadding + innerPadding;
+        let currentY = borderPadding + innerPadding;
+
+        // Draw handling flag icons at the top if present
+        const handlingFlags = container.handlingFlags || [];
+        if (handlingFlags.length > 0) {
+          const iconSize = 50;
+          const iconSpacing = 10;
+          const totalIconsWidth = handlingFlags.length * iconSize + (handlingFlags.length - 1) * iconSpacing;
+          // Center the icons horizontally
+          let currentX = (width - totalIconsWidth) / 2;
+          const iconsY = currentY;
+
+          for (const flag of handlingFlags) {
+            drawHandlingIcon(ctx, flag, currentX, iconsY, iconSize);
+            currentX += iconSize + iconSpacing;
+          }
+
+          // Move Y position down past icons and their labels (icon + label text height + spacing)
+          currentY += iconSize + 20 + 15; // icon height + label text + spacing
+        }
+
+        // Draw horizontal line after icons (if present) or at top
+        ctx.beginPath();
+        ctx.moveTo(borderPadding + innerPadding, currentY);
+        ctx.lineTo(width - borderPadding - innerPadding, currentY);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        currentY += 15; // Space after line
 
         // Draw "BOX DETAILS" header
         ctx.fillStyle = '#000000';
         ctx.font = `bold ${fontSize + 2}px Arial`;
         ctx.textAlign = 'left';
-        ctx.fillText('BOX DETAILS', borderPadding + innerPadding, sectionY + 20);
+        ctx.fillText('BOX DETAILS', borderPadding + innerPadding, currentY + 15);
+
+        currentY += 30; // Space after header
 
         // Draw horizontal line after header
         ctx.beginPath();
-        ctx.moveTo(borderPadding + innerPadding, sectionY + 30);
-        ctx.lineTo(width - borderPadding - innerPadding, sectionY + 30);
+        ctx.moveTo(borderPadding + innerPadding, currentY);
+        ctx.lineTo(width - borderPadding - innerPadding, currentY);
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1;
         ctx.stroke();
 
+        currentY += 15; // Space after line
+
         // Draw container name (large, bold)
         ctx.fillStyle = '#000000';
         ctx.font = `bold ${nameFontSize}px Arial`;
-        ctx.fillText(container.name, borderPadding + innerPadding, sectionY + 60);
+        ctx.fillText(container.name, borderPadding + innerPadding, currentY + 15);
+
+        currentY += 40; // Space after name
 
         // Draw container type
         ctx.fillStyle = '#333333';
         ctx.font = `${fontSize}px Arial`;
         const containerType = container.type.charAt(0).toUpperCase() + container.type.slice(1);
-        ctx.fillText(`Type: ${containerType}`, borderPadding + innerPadding, sectionY + 90);
+        ctx.fillText(`Type: ${containerType}`, borderPadding + innerPadding, currentY);
+
+        currentY += 25; // Space after type
 
         // Draw contents summary if available
         if (container.contentsSummary) {
           ctx.fillStyle = '#333333';
           ctx.font = `${fontSize - 2}px Arial`;
           const summary = container.contentsSummary.substring(0, 40);
-          ctx.fillText(summary, borderPadding + innerPadding, sectionY + 115);
+          ctx.fillText(summary, borderPadding + innerPadding, currentY);
+          currentY += 25; // Space after summary
         }
 
         console.log('PrintableLabel: Starting QR code generation with ID:', qrCodeId);
@@ -339,21 +444,6 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         ctx.font = `${fontSize - 4}px Arial`;
         const createdDate = new Date(container.createdAt).toLocaleDateString();
         ctx.fillText(`Created: ${createdDate}`, borderPadding + innerPadding, height - borderPadding - innerPadding - 10);
-
-        // Draw handling flag icons in top right
-        const handlingFlags = container.handlingFlags || [];
-        if (handlingFlags.length > 0) {
-          const iconSize = 50;
-          const iconSpacing = 10;
-          const totalIconsWidth = handlingFlags.length * iconSize + (handlingFlags.length - 1) * iconSpacing;
-          let currentX = width - borderPadding - innerPadding - totalIconsWidth;
-          const iconsY = sectionY;
-
-          for (const flag of handlingFlags) {
-            drawHandlingIcon(ctx, flag, currentX, iconsY, iconSize);
-            currentX += iconSize + iconSpacing;
-          }
-        }
 
         console.log('PrintableLabel: Converting canvas to data URL');
 
@@ -450,10 +540,14 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
               Generating label...
             </Typography>
           </Box>
-        ) : (
+        ) : labelUrl ? (
           <>
             <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1, mb: 2 }}>
-              <canvas ref={canvasRef} style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd' }} />
+              <img 
+                src={labelUrl} 
+                alt="Container Label Preview" 
+                style={{ maxWidth: '100%', height: 'auto', border: '1px solid #ddd' }} 
+              />
             </Box>
 
             <Typography variant="body2" gutterBottom>
@@ -466,16 +560,12 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
               <strong>Includes:</strong> QR Code, Container Name, Type, Handling Flags, Creation Date
             </Typography>
           </>
-        )}
+        ) : null}
 
-        {/* Canvas always rendered but hidden during loading */}
+        {/* Hidden canvas used for generation */}
         <canvas 
           ref={canvasRef} 
-          style={{ 
-            display: loading ? 'none' : 'none',  // Always hidden, only used for generation
-            position: 'absolute',
-            left: '-9999px'
-          }} 
+          style={{ display: 'none' }} 
         />
       </CardContent>
       {!loading && (
