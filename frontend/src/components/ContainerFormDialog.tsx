@@ -223,7 +223,7 @@ export default function ContainerFormDialog({
     if (!currentInventory) return;
     
     try {
-      const roomData = await apiClient.getRooms(currentInventory.id);
+      const roomData = await apiClient.getRooms(undefined, currentInventory.id);
       setRooms(roomData);
     } catch (error) {
       console.error('Error loading rooms:', error);

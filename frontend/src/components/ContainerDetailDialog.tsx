@@ -28,6 +28,7 @@ import {
   Share as ShareIcon,
   Add as AddIcon,
   Print as PrintIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material';
 
 
@@ -36,6 +37,7 @@ import PrintableLabel from './PrintableLabel';
 import HandlingFlagChip from './HandlingFlagChip';
 import ContainerPhotoUpload from './ContainerPhotoUpload';
 import ContainerSharingDialog from './ContainerSharingDialog';
+import StorageManagementDialog from './StorageManagementDialog';
 import type { Container, Location, Room, ContainerStatus } from '../types/entities';
 import apiClient from '../services/api';
 
@@ -66,6 +68,7 @@ export default function ContainerDetailDialog({
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
   const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
+  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
 
   const loadLocationAndRoom = useCallback(async () => {
     if (!container.locationId) {
@@ -199,6 +202,11 @@ export default function ContainerDetailDialog({
               <PrintIcon />
             </IconButton>
           </Tooltip>
+          <Tooltip title="Storage Management">
+            <IconButton onClick={() => setStorageDialogOpen(true)} size="small" color="secondary">
+              <StorageIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Share Container">
             <IconButton onClick={() => setSharingDialogOpen(true)} size="small" color="primary">
               <ShareIcon />
@@ -316,6 +324,16 @@ export default function ContainerDetailDialog({
                               />
                               <Typography variant="body2">{updatedContainer.color}</Typography>
                             </Box>
+                          </Box>
+                        )}
+
+                        {/* Weight */}
+                        {updatedContainer.weight && updatedContainer.weight > 0 && (
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                              Weight:
+                            </Typography>
+                            <Typography variant="body2">{updatedContainer.weight}kg</Typography>
                           </Box>
                         )}
 
@@ -491,6 +509,18 @@ export default function ContainerDetailDialog({
         onClose={() => setSharingDialogOpen(false)}
         container={updatedContainer}
         inventoryId={inventoryId}
+      />
+
+      {/* Storage Management Dialog */}
+      <StorageManagementDialog
+        open={storageDialogOpen}
+        onClose={() => setStorageDialogOpen(false)}
+        container={updatedContainer}
+        inventoryId={inventoryId}
+        onStorageUpdated={() => {
+          // Reload container data after storage update
+          // The parent component should handle refreshing
+        }}
       />
     </Dialog>
   );

@@ -287,6 +287,7 @@ class Container {
     if (this.projectId) item.projectId = this.projectId;
     if (this.size) item.size = this.size;
     if (this.color) item.color = this.color;
+    if (this.weight !== undefined) item.weight = this.weight;
     if (this.qrCodeUrl) item.qrCodeUrl = this.qrCodeUrl;
     if (this.qrCodeGeneratedAt) item.qrCodeGeneratedAt = this.qrCodeGeneratedAt;
     if (this.locationId) item.locationId = this.locationId;
@@ -311,6 +312,7 @@ class Container {
       type: item.type,
       size: item.size,
       color: item.color,
+      weight: item.weight,
       description: item.description,
       contentsSummary: item.contentsSummary,
       photos: item.photos || [],
@@ -340,7 +342,7 @@ class Container {
    */
   update(updates, updatedBy) {
     const allowedUpdates = [
-      'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'photos', 'locationId',
+      'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'weight', 'photos', 'locationId',
       'roomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata'
     ];
 

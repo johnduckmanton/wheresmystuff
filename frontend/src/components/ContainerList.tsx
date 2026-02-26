@@ -17,8 +17,7 @@ import {
   Delete as DeleteIcon,
   Inventory as InventoryIcon,
   MoveToInbox as PackIcon,
-  QrCode as QrCodeIcon,
-  Storage as StorageIcon,
+  Print as PrintIcon,
 } from '@mui/icons-material';
 import EntityTable from './EntityTable';
 import type { EntityTableColumn } from './EntityTable';
@@ -28,7 +27,6 @@ import PackingDialog from './PackingDialog';
 import PrintableLabel from './PrintableLabel';
 import MobileContainerCard from './MobileContainerCard';
 import HandlingFlagChip from './HandlingFlagChip';
-import StorageManagementDialog from './StorageManagementDialog';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
@@ -39,7 +37,7 @@ import ContainerPhotoThumbnail from './ContainerPhotoThumbnail';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 
 import apiClient from '../services/api';
-import type { Container, Location, ContainerStatus, HandlingFlag, MovingProject } from '../types/entities';
+import type { Container, Location, Room, ContainerStatus, HandlingFlag, MovingProject } from '../types/entities';
 
 interface ContainerListProps {
   onContainerSelect?: (container: Container) => void;
@@ -51,6 +49,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
   const { isMobile } = useMobileDetection();
   const [containers, setContainers] = useState<Container[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [projects, setProjects] = useState<MovingProject[]>([]);
   const [loading, setLoading] = useState(false);
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -58,7 +57,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [packingDialogOpen, setPackingDialogOpen] = useState(false);
   const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
-  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   
   // Accessibility features
@@ -99,6 +97,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     if (currentInventory) {
       loadContainers();
       loadLocations();
+      loadRooms();
       loadProjects();
     }
   }, [currentInventory]);
@@ -150,6 +149,19 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     }
   };
 
+  const loadRooms = async () => {
+    if (!currentInventory) return;
+
+    try {
+      const data = await apiClient.getRooms(undefined, currentInventory.id);
+      // Ensure we have an array, fallback to empty array if not
+      const safeData = Array.isArray(data) ? data : [];
+      setRooms(safeData);
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+    }
+  };
+
   const loadProjects = async () => {
     if (!currentInventory) return;
 
@@ -173,6 +185,17 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     });
     return map;
   }, [locations]);
+
+  // Create room lookup map
+  const roomMap = useMemo(() => {
+    const map = new Map<string, Room>();
+    // Ensure rooms is an array before calling forEach
+    const safeRooms = Array.isArray(rooms) ? rooms : [];
+    safeRooms.forEach(room => {
+      map.set(room.id, room);
+    });
+    return map;
+  }, [rooms]);
 
   // Create project lookup map
   const projectMap = useMemo(() => {
@@ -351,48 +374,13 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
       },
     },
     {
-      field: 'projectId',
-      headerName: 'Project',
-      width: 150,
-      renderCell: (params) => {
-        if (!params.value) return (
-          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.2 }}>No Project</Typography>
-          </Box>
-        );
-        const project = projectMap.get(params.value);
-        return (
-          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <Chip
-              label={project?.name || 'Unknown Project'}
-              size="small"
-              color="primary"
-              variant="outlined"
-            />
-          </Box>
-        );
-      },
-    },
-    {
-      field: 'estimatedValue',
-      headerName: 'Value',
-      width: 100,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <Typography variant="body2" sx={{ lineHeight: 1.2 }}>
-            {params.value ? `£${params.value.toFixed(2)}` : '-'}
-          </Typography>
-        </Box>
-      ),
-    },
-    {
       field: 'actions',
       headerName: 'Actions',
       width: 200,
       sortable: false,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, height: '100%' }}>
-          <Tooltip title="Generate QR Code">
+          <Tooltip title="Print Label">
             <IconButton
               size="small"
               onClick={(e) => {
@@ -400,7 +388,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
                 handlePrintLabel(params.row);
               }}
             >
-              <QrCodeIcon fontSize="small" color="secondary" />
+              <PrintIcon fontSize="small" color="secondary" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Pack Items">
@@ -412,17 +400,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
               }}
             >
               <PackIcon fontSize="small" color="primary" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Storage Management">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleStorageManagement(params.row);
-              }}
-            >
-              <StorageIcon fontSize="small" color="secondary" />
             </IconButton>
           </Tooltip>
           <Tooltip title="View Details">
@@ -494,11 +471,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
   const handlePrintLabel = (container: Container) => {
     setSelectedContainer(container);
     setPrintLabelDialogOpen(true);
-  };
-
-  const handleStorageManagement = (container: Container) => {
-    setSelectedContainer(container);
-    setStorageDialogOpen(true);
   };
 
   const handleFormSuccess = (container: Container) => {
@@ -753,6 +725,8 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
               container={selectedContainer}
               qrCodeId={selectedContainer.id}
               size="medium"
+              locationName={locationMap.get(selectedContainer.locationId || '')?.name}
+              roomName={roomMap.get(selectedContainer.roomId || '')?.name}
             />
           </DialogContent>
           <DialogActions>
@@ -760,15 +734,6 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
           </DialogActions>
         </Dialog>
       )}
-
-      {/* Storage Management Dialog */}
-      <StorageManagementDialog
-        open={storageDialogOpen}
-        onClose={() => setStorageDialogOpen(false)}
-        container={selectedContainer}
-        inventoryId={currentInventory?.id || ''}
-        onStorageUpdated={loadContainers}
-      />
     </Box>
   );
 }

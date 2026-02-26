@@ -37,7 +37,7 @@ const getLabelDimensions = (labelSize: string): LabelDimensions => {
     small: {
       width: 420,
       height: 432,
-      qrSize: 180,
+      qrSize: 140, // Smaller QR code
       fontSize: 12,
       nameFontSize: 18,
       padding: 20,
@@ -45,7 +45,7 @@ const getLabelDimensions = (labelSize: string): LabelDimensions => {
     medium: {
       width: 432,
       height: 576,
-      qrSize: 220,
+      qrSize: 180, // Smaller QR code
       fontSize: 14,
       nameFontSize: 22,
       padding: 25,
@@ -53,7 +53,7 @@ const getLabelDimensions = (labelSize: string): LabelDimensions => {
     large: {
       width: 576,
       height: 864,
-      qrSize: 280,
+      qrSize: 220, // Smaller QR code
       fontSize: 16,
       nameFontSize: 28,
       padding: 30,
@@ -306,17 +306,27 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
 
         currentY += 50; // Space after name
 
-        // Draw location and room if present (same size as container name for visibility)
+        // Draw location and room - location smaller, room name large
         if (locationName) {
-          ctx.fillStyle = '#000000';
-          ctx.font = `bold ${nameFontSize + 8}px Arial`;
-          const locationText = roomName ? `${locationName} > ${roomName}` : locationName;
-          ctx.fillText(locationText, borderPadding + innerPadding, currentY);
-          currentY += 50; // Space after location
+          // Location name (smaller)
+          ctx.fillStyle = '#666666';
+          ctx.font = `${fontSize + 2}px Arial`;
+          ctx.fillText(locationName, borderPadding + innerPadding, currentY);
+          currentY += 25; // Space after location
+          
+          // Room name (large, same as container name)
+          if (roomName) {
+            ctx.fillStyle = '#000000';
+            ctx.font = `bold ${nameFontSize + 8}px Arial`;
+            ctx.fillText(roomName, borderPadding + innerPadding, currentY);
+            currentY += 50; // Space after room
+          } else {
+            currentY += 10; // Less space if no room
+          }
         }
 
         // Draw weight if present (large text)
-        if (container.weight) {
+        if (container.weight && container.weight > 0) {
           ctx.fillStyle = '#000000';
           ctx.font = `bold ${fontSize + 6}px Arial`;
           ctx.fillText(`Weight: ${container.weight}kg`, borderPadding + innerPadding, currentY);
