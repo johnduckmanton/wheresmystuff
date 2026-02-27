@@ -322,35 +322,43 @@ export default function ContainerFormDialog({
     setLoading(true);
 
     try {
+      // Helper to convert string to number, handling empty strings
+      const toNumber = (value: string): number | undefined => {
+        const trimmed = value.trim();
+        if (trimmed === '') return undefined;
+        const num = Number(trimmed);
+        return isNaN(num) ? undefined : num;
+      };
+
       const containerData = {
         inventoryId: currentInventory.id,
         name: formData.name.trim(),
         type: formData.type,
-        size: formData.size || undefined,
-        weight: formData.weight ? Number(formData.weight) : undefined,
-        color: formData.color || undefined,
+        size: formData.size.trim() || undefined,
+        weight: toNumber(formData.weight),
+        color: formData.color.trim() || undefined,
         contentsSummary: formData.contentsSummary.trim() || undefined,
         photos: formData.photos,
-        locationId: formData.locationId || undefined,
-        roomId: formData.roomId || undefined,
-        projectId: formData.projectId || undefined,
+        locationId: formData.locationId.trim() || undefined,
+        roomId: formData.roomId.trim() || undefined,
+        projectId: formData.projectId.trim() || undefined,
         handlingFlags: formData.handlingFlags,
         status: formData.status,
-        storageRate: formData.storageRate ? Number(formData.storageRate) : undefined,
+        storageRate: toNumber(formData.storageRate),
         metadata: {},
       };
       
       console.log('📝 Form data before cleanup:', {
         weight: formData.weight,
-        weightType: typeof formData.weight,
-        weightNumber: Number(formData.weight),
+        weightConverted: toNumber(formData.weight),
         roomId: formData.roomId,
-        roomIdType: typeof formData.roomId
+        roomIdTrimmed: formData.roomId.trim()
       });
       
-      // Remove undefined and empty string values
+      // Remove undefined values (but keep null, 0, false, empty arrays)
       Object.keys(containerData).forEach(key => {
-        if (containerData[key as keyof typeof containerData] === undefined || containerData[key as keyof typeof containerData] === '') {
+        const value = containerData[key as keyof typeof containerData];
+        if (value === undefined) {
           delete containerData[key as keyof typeof containerData];
         }
       });
