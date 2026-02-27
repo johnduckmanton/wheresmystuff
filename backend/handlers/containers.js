@@ -341,8 +341,21 @@ async function handleUpdate(event, id, origin) {
     
     const sanitizedData = validation.data;
     
+    console.log('📥 Sanitized data received:', {
+      weight: sanitizedData.weight,
+      weightType: typeof sanitizedData.weight,
+      roomId: sanitizedData.roomId,
+      roomIdType: typeof sanitizedData.roomId,
+      allFields: Object.keys(sanitizedData)
+    });
+    
     // Update the container
     const container = await containerService.updateContainer(id, sanitizedData.inventoryId, sanitizedData, event.user.userId);
+    
+    console.log('✅ Container after update:', {
+      weight: container.weight,
+      roomId: container.roomId
+    });
     
     return success(container, 200, origin);
   } catch (err) {

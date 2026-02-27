@@ -340,12 +340,22 @@ export default function ContainerFormDialog({
         metadata: {},
       };
       
+      console.log('📝 Form data before cleanup:', {
+        weight: formData.weight,
+        weightType: typeof formData.weight,
+        weightNumber: Number(formData.weight),
+        roomId: formData.roomId,
+        roomIdType: typeof formData.roomId
+      });
+      
       // Remove undefined and empty string values
       Object.keys(containerData).forEach(key => {
         if (containerData[key as keyof typeof containerData] === undefined || containerData[key as keyof typeof containerData] === '') {
           delete containerData[key as keyof typeof containerData];
         }
       });
+      
+      console.log('📦 Container data after cleanup:', containerData);
 
       let result: Container;
       if (isEditing && container) {
