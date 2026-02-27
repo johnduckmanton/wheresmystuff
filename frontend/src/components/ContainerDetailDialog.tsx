@@ -100,13 +100,23 @@ export default function ContainerDetailDialog({
     }
   }, [container.locationId, container.roomId, inventoryId]);
 
-  // Load location and room when dialog opens
+  const loadFullContainer = useCallback(async () => {
+    try {
+      const fullContainer = await apiClient.getContainer(container.id, inventoryId);
+      setUpdatedContainer(fullContainer);
+    } catch (error) {
+      console.error('Error loading full container:', error);
+      setUpdatedContainer(container);
+    }
+  }, [container.id, container, inventoryId]);
+
+  // Load location, room, and full container data when dialog opens
   useEffect(() => {
     if (open && container) {
       loadLocationAndRoom();
-      setUpdatedContainer(container);
+      loadFullContainer();
     }
-  }, [open, container, loadLocationAndRoom]);
+  }, [open, container, loadLocationAndRoom, loadFullContainer]);
 
   const getStatusColor = (status: ContainerStatus) => {
     switch (status) {
