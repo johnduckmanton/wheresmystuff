@@ -91,7 +91,6 @@ interface FormData {
   size: string;
   weight: string;
   color: string;
-  description: string;
   contentsSummary: string;
   photos: string[];
   locationId: string;
@@ -108,7 +107,6 @@ interface FormErrors {
   size?: string;
   weight?: string;
   color?: string;
-  description?: string;
   contentsSummary?: string;
   photos?: string;
   locationId?: string;
@@ -138,7 +136,6 @@ export default function ContainerFormDialog({
     size: '',
     weight: '',
     color: '',
-    description: '',
     contentsSummary: '',
     photos: [],
     locationId: '',
@@ -175,7 +172,6 @@ export default function ContainerFormDialog({
           size: container.size || '',
           weight: container.weight?.toString() || '',
           color: container.color || '',
-          description: container.description || '',
           contentsSummary: container.contentsSummary || '',
           photos: container.photos || [],
           locationId: container.locationId || '',
@@ -192,7 +188,6 @@ export default function ContainerFormDialog({
           size: '',
           weight: '',
           color: '',
-          description: '',
           contentsSummary: '',
           photos: [],
           locationId: '',
@@ -334,7 +329,6 @@ export default function ContainerFormDialog({
         size: formData.size || undefined,
         weight: formData.weight ? Number(formData.weight) : undefined,
         color: formData.color || undefined,
-        description: formData.description || undefined,
         contentsSummary: formData.contentsSummary.trim() || undefined,
         photos: formData.photos,
         locationId: formData.locationId || undefined,
@@ -345,6 +339,13 @@ export default function ContainerFormDialog({
         storageRate: formData.storageRate ? Number(formData.storageRate) : undefined,
         metadata: {},
       };
+      
+      // Remove undefined and empty string values
+      Object.keys(containerData).forEach(key => {
+        if (containerData[key as keyof typeof containerData] === undefined || containerData[key as keyof typeof containerData] === '') {
+          delete containerData[key as keyof typeof containerData];
+        }
+      });
 
       let result: Container;
       if (isEditing && container) {
@@ -379,7 +380,6 @@ export default function ContainerFormDialog({
       size: '',
       weight: '',
       color: '',
-      description: '',
       contentsSummary: '',
       photos: [],
       locationId: '',
@@ -736,19 +736,6 @@ export default function ContainerFormDialog({
           helperText="Add photos to help identify this container"
         />
       </Box>
-
-      {/* Description */}
-      <TextField
-        fullWidth
-        label="Description"
-        value={formData.description}
-        onChange={(e) => handleFieldChange('description', e.target.value)}
-        error={!!errors.description}
-        helperText={errors.description}
-        multiline
-        rows={3}
-        placeholder="Additional notes about this container..."
-      />
     </>
   );
 

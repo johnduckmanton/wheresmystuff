@@ -379,25 +379,42 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           ctx.fillText(locationName, borderPadding + innerPadding, currentY);
           currentY += 25; // Space after location
           
-          // Room name (large, same as container name)
+          // Room name (large, same as container name) and weight on same line
           if (roomName) {
             ctx.fillStyle = '#000000';
             ctx.font = `bold ${nameFontSize + 8}px Arial`;
+            ctx.textAlign = 'left';
             ctx.fillText(roomName, borderPadding + innerPadding, currentY);
-            currentY += 50; // Space after room
+            
+            // Draw weight on the same line, right-aligned
+            if (container.weight && container.weight > 0) {
+              ctx.textAlign = 'right';
+              ctx.fillText(`${container.weight}kg`, width - borderPadding - innerPadding, currentY);
+              ctx.textAlign = 'left'; // Reset alignment
+            }
+            
+            currentY += 50; // Space after room/weight line
           } else {
-            currentY += 10; // Less space if no room
+            // No room, just show weight if present
+            if (container.weight && container.weight > 0) {
+              ctx.fillStyle = '#000000';
+              ctx.font = `bold ${nameFontSize + 8}px Arial`;
+              ctx.textAlign = 'right';
+              ctx.fillText(`${container.weight}kg`, width - borderPadding - innerPadding, currentY);
+              ctx.textAlign = 'left'; // Reset alignment
+              currentY += 50;
+            } else {
+              currentY += 10; // Less space if no room or weight
+            }
           }
-        }
-
-        // Draw weight if present (bottom right, large text, same size as title)
-        if (container.weight && container.weight > 0) {
+        } else if (container.weight && container.weight > 0) {
+          // No location but has weight
           ctx.fillStyle = '#000000';
           ctx.font = `bold ${nameFontSize + 8}px Arial`;
           ctx.textAlign = 'right';
           ctx.fillText(`${container.weight}kg`, width - borderPadding - innerPadding, currentY);
           ctx.textAlign = 'left'; // Reset alignment
-          currentY += 50; // Space after weight
+          currentY += 50;
         }
 
         console.log('PrintableLabel: Starting QR code generation with ID:', qrCodeId);
