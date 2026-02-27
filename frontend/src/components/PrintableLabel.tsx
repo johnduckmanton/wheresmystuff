@@ -101,13 +101,12 @@ const drawHandlingIcon = (
   flag: string,
   x: number,
   y: number,
-  pillHeight: number
+  pillHeight: number,
+  pillWidth: number
 ) => {
   const iconData = getHandlingIconData(flag);
-  if (!iconData) return;
+  if (!iconData) return 0;
 
-  // Calculate pill dimensions
-  const pillWidth = pillHeight * 3.5; // Wider pill for better text fit
   const radius = pillHeight / 2;
 
   // Draw rounded rectangle background with light tint
@@ -198,6 +197,8 @@ const drawHandlingIcon = (
   ctx.textBaseline = 'middle';
   ctx.fillStyle = iconData.color;
   ctx.fillText(iconData.label, x + pillHeight * 1.1, y + pillHeight / 2);
+  
+  return pillWidth;
 };
 
 /**
@@ -260,32 +261,87 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         const innerPadding = 20;
         let currentY = borderPadding + innerPadding;
 
-        // Draw handling flag icons at the top if present (with wrapping)
+        // Draw handling flag icons at the top if present (centered with dynamic sizing)
         const handlingFlags = container.handlingFlags || [];
         if (handlingFlags.length > 0) {
-          const pillHeight = 45; // Bigger pills
-          const pillWidth = pillHeight * 3.5;
+          const pillAreaHeight = height * 0.2; // Top 20% of label for pills
+          const availableWidth = width - (borderPadding + innerPadding) * 2;
           const pillSpacing = 10;
           
-          let currentX = borderPadding + innerPadding;
-          let rowY = currentY;
+          // Calculate pill dimensions based on text width
+          ctx.font = `bold ${14}px Arial`; // Font for measuring
+          const pillData = handlingFlags.map(flag => {
+            const iconData = getHandlingIconData(flag);
+            if (!iconData) return null;
+            const textWidth = ctx.measureText(iconData.label).width;
+            const pillHeight = 38; // Fixed height
+            const iconSpace = pillHeight * 1.1; // Space for icon
+            const padding = 20; // Padding on right side
+            const pillWidth = iconSpace + textWidth + padding;
+            return { flag, pillWidth, pillHeight };
+          }).filter(Boolean) as Array<{ flag: string; pillWidth: number; pillHeight: number }>;
           
-          for (let i = 0; i < handlingFlags.length; i++) {
-            const flag = handlingFlags[i];
+          // Arrange pills in rows
+          const rows: Array<Array<{ flag: string; pillWidth: number; pillHeight: number; x: number }>> = [];
+          let currentRow: Array<{ flag: string; pillWidth: number; pillHeight: number; x: number }> = [];
+          let currentRowWidth = 0;
+          
+          pillData.forEach((pill) => {
+            const neededWidth = currentRowWidth + pill.pillWidth + (currentRow.length > 0 ? pillSpacing : 0);
             
-            // Check if pill fits in current row
-            if (currentX + pillWidth > width - borderPadding - innerPadding && i > 0) {
-              // Move to next row
-              currentX = borderPadding + innerPadding;
-              rowY += pillHeight + pillSpacing;
+            if (neededWidth <= availableWidth) {
+              currentRow.push({ ...pill, x: 0 }); // x will be calculated later
+              currentRowWidth = neededWidth;
+            } else {
+              // Start new row
+              if (currentRow.length > 0) {
+                rows.push(currentRow);
+              }
+              currentRow = [{ ...pill, x: 0 }];
+              currentRowWidth = pill.pillWidth;
             }
-            
-            drawHandlingIcon(ctx, flag, currentX, rowY, pillHeight);
-            currentX += pillWidth + pillSpacing;
+          });
+          
+          if (currentRow.length > 0) {
+            rows.push(currentRow);
           }
+          
+          // Calculate total height needed
+          const totalPillHeight = rows.reduce((sum, row) => {
+            const maxHeight = Math.max(...row.map(p => p.pillHeight));
+            return sum + maxHeight + pillSpacing;
+          }, 0) - pillSpacing;
+          
+          // Scale down if needed to fit in pill area
+          let scaleFactor = 1;
+          if (totalPillHeight > pillAreaHeight - 20) {
+            scaleFactor = (pillAreaHeight - 20) / totalPillHeight;
+          }
+          
+          // Draw pills
+          let rowY = currentY;
+          rows.forEach(row => {
+            const rowWidth = row.reduce((sum, pill, idx) => 
+              sum + pill.pillWidth * scaleFactor + (idx > 0 ? pillSpacing * scaleFactor : 0), 0
+            );
+            
+            // Center the row
+            let currentX = borderPadding + innerPadding + (availableWidth - rowWidth) / 2;
+            
+            const maxHeightInRow = Math.max(...row.map(p => p.pillHeight));
+            
+            row.forEach(pill => {
+              const scaledHeight = pill.pillHeight * scaleFactor;
+              const scaledWidth = pill.pillWidth * scaleFactor;
+              drawHandlingIcon(ctx, pill.flag, currentX, rowY, scaledHeight, scaledWidth);
+              currentX += scaledWidth + pillSpacing * scaleFactor;
+            });
+            
+            rowY += maxHeightInRow * scaleFactor + pillSpacing * scaleFactor;
+          });
 
           // Move Y position down past all pill rows
-          currentY = rowY + pillHeight + 20;
+          currentY = rowY + 10;
         }
 
         // Draw horizontal line after pills
@@ -304,7 +360,16 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         ctx.textAlign = 'left';
         ctx.fillText(container.name, borderPadding + innerPadding, currentY + 20);
 
-        currentY += 50; // Space after name
+        currentY += 40; // Space after name
+
+        // Draw contents summary if available (right under the title)
+        if (container.contentsSummary) {
+          ctx.fillStyle = '#666666';
+          ctx.font = `${fontSize}px Arial`;
+          const summary = container.contentsSummary.substring(0, 50);
+          ctx.fillText(summary, borderPadding + innerPadding, currentY);
+          currentY += 30; // Space after summary
+        }
 
         // Draw location and room - location smaller, room name large
         if (locationName) {
@@ -325,21 +390,14 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
           }
         }
 
-        // Draw weight if present (large text)
+        // Draw weight if present (bottom right, large text, same size as title)
         if (container.weight && container.weight > 0) {
           ctx.fillStyle = '#000000';
-          ctx.font = `bold ${fontSize + 6}px Arial`;
-          ctx.fillText(`Weight: ${container.weight}kg`, borderPadding + innerPadding, currentY);
-          currentY += 35; // Space after weight
-        }
-
-        // Draw contents summary if available
-        if (container.contentsSummary) {
-          ctx.fillStyle = '#333333';
-          ctx.font = `${fontSize}px Arial`;
-          const summary = container.contentsSummary.substring(0, 50);
-          ctx.fillText(summary, borderPadding + innerPadding, currentY);
-          currentY += 25; // Space after summary
+          ctx.font = `bold ${nameFontSize + 8}px Arial`;
+          ctx.textAlign = 'right';
+          ctx.fillText(`${container.weight}kg`, width - borderPadding - innerPadding, currentY);
+          ctx.textAlign = 'left'; // Reset alignment
+          currentY += 50; // Space after weight
         }
 
         console.log('PrintableLabel: Starting QR code generation with ID:', qrCodeId);
