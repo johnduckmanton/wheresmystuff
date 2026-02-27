@@ -239,7 +239,7 @@ class ContainerService {
 
     // Add projection expression to reduce data transfer
     // Note: Container data is stored at root level, not in nested 'data' field
-    queryParams.ProjectionExpression = 'pk, sk, id, #name, #type, #status, locationId, projectId, description, contentsSummary, itemCount, estimatedValue, handlingFlags, photos, qrCode, size, createdAt, updatedAt, createdBy, updatedBy, inventoryId';
+    queryParams.ProjectionExpression = 'pk, sk, id, #name, #type, #status, locationId, roomId, projectId, description, contentsSummary, itemCount, estimatedValue, handlingFlags, photos, qrCode, size, weight, createdAt, updatedAt, createdBy, updatedBy, inventoryId';
     queryParams.ExpressionAttributeNames = { 
       '#name': 'name',
       '#type': 'type', 

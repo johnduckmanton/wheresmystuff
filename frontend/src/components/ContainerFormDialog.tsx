@@ -348,13 +348,6 @@ export default function ContainerFormDialog({
         metadata: {},
       };
       
-      console.log('📝 Form data before cleanup:', {
-        weight: formData.weight,
-        weightConverted: toNumber(formData.weight),
-        roomId: formData.roomId,
-        roomIdTrimmed: formData.roomId.trim()
-      });
-      
       // Remove undefined values (but keep null, 0, false, empty arrays)
       Object.keys(containerData).forEach(key => {
         const value = containerData[key as keyof typeof containerData];
@@ -362,23 +355,15 @@ export default function ContainerFormDialog({
           delete containerData[key as keyof typeof containerData];
         }
       });
-      
-      console.log('📦 Container data after cleanup:', containerData);
 
       let result: Container;
       if (isEditing && container) {
-        console.log('🔄 Updating container:', container.id, containerData);
         result = await apiClient.updateContainer(container.id, containerData);
-        console.log('✅ Container updated:', result);
         showSuccess('Container updated successfully');
       } else {
-        console.log('➕ Creating container:', containerData);
         result = await apiClient.createContainer(containerData);
-        console.log('✅ Container created:', result);
         showSuccess('Container created successfully');
       }
-
-      console.log('🎉 Calling onSuccess with result:', result);
       onSuccess(result);
       onClose();
     } catch (error) {
