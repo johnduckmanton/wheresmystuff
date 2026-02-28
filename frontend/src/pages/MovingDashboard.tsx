@@ -386,8 +386,16 @@ export default function MovingDashboard() {
 
   const handleScanSuccess = (result: typeof scanResult) => {
     setScanResult(result);
-    setScanResultsOpen(true);
-    showSuccess('QR code scanned successfully!');
+    // Navigate directly to container details instead of showing scan results dialog
+    if (result && result.container) {
+      setSelectedContainer(result.container);
+      setContainerDetailOpen(true);
+      showSuccess('QR code scanned successfully!');
+    } else {
+      // Fallback: show scan results dialog if container data is missing
+      setScanResultsOpen(true);
+      showSuccess('QR code scanned successfully!');
+    }
   };
 
   const handleNavigateToContainer = () => {

@@ -92,6 +92,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const hasScannedRef = useRef<boolean>(false); // Track if we've already processed a scan
   const scannerDivId = 'qr-reader';
 
   // Initialize scanner
@@ -247,8 +248,14 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
   // Handle successful QR code scan
   const handleScanResult = useCallback(async (qrCodeData: string) => {
-    if (isProcessing) return;
+    // Prevent multiple scans
+    if (isProcessing || hasScannedRef.current) {
+      console.log('⏭️ Skipping duplicate scan');
+      return;
+    }
 
+    console.log('📸 Processing QR code scan');
+    hasScannedRef.current = true;
     setIsProcessing(true);
     setScanError(null);
     setManualError(null);
@@ -270,8 +277,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         setManualError(errorMessage);
       }
       
+      // Reset the flag so user can try again
+      hasScannedRef.current = false;
       setIsProcessing(false);
-      // Don't auto-restart scanning - let user manually restart if needed
     }
   }, [isProcessing, inventoryId, onScanSuccess, onClose, tabValue, stopScanning]);
 
@@ -299,22 +307,20 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   // Initialize scanner when dialog opens
   useEffect(() => {
     if (open && tabValue === 0) {
-      // Delay initialization to ensure DOM is ready
-      const timer = setTimeout(async () => {
-        await initializeScanner();
-        // Auto-start scanning after initialization if we have a device
-        if (selectedDeviceId) {
-          setTimeout(() => startScanning(), 500);
-        }
-      }, 300);
-      
-      return () => {
-        clearTimeout(timer);
-        cleanupScanner();
-      };
+      // Reset the scanned flag when opening
+      hasScannedRef.current = false;
+      initializeScanner();
+      // Auto-start scanning after initialization if we have a device
+      if (selectedDeviceId) {
+        setTimeout(() => startScanning(), 500);
+      }
     } else if (!open) {
       cleanupScanner();
     }
+    
+    return () => {
+      cleanupScanner();
+    };
   }, [open, tabValue, selectedDeviceId, initializeScanner, startScanning, cleanupScanner]);
 
   return (
