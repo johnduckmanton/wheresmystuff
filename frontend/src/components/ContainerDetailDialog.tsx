@@ -87,7 +87,8 @@ export default function ContainerDetailDialog({
           const roomData = await apiClient.getRoom(container.roomId);
           setRoom(roomData);
         } catch (error) {
-          console.error('Error loading room:', error);
+          // Silently handle room loading errors - room might not exist or be accessible
+          console.warn('Could not load room:', error);
           setRoom(null);
         }
       } else {
