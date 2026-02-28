@@ -179,7 +179,7 @@ exports.scanQRCode = async (event) => {
 
     // Note: inventoryId is optional for QR scanning - we'll find the container across all user inventories
 
-    // Scan and validate QR code
+    // Scan and validate QR code (synchronous call)
     const scanResult = qrCodeService.scanQRCode(qrCodeData);
     console.log('🔍 QR code validation result:', scanResult);
     
