@@ -309,19 +309,31 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     if (open && tabValue === 0) {
       // Reset the scanned flag when opening
       hasScannedRef.current = false;
-      initializeScanner();
-      // Auto-start scanning after initialization if we have a device
-      if (selectedDeviceId) {
-        setTimeout(() => startScanning(), 500);
-      }
+      
+      // Delay initialization to ensure DOM is ready
+      const timer = setTimeout(async () => {
+        await initializeScanner();
+      }, 300);
+      
+      return () => {
+        clearTimeout(timer);
+        cleanupScanner();
+      };
     } else if (!open) {
       cleanupScanner();
     }
-    
-    return () => {
-      cleanupScanner();
-    };
-  }, [open, tabValue, selectedDeviceId, initializeScanner, startScanning, cleanupScanner]);
+  }, [open, tabValue, initializeScanner, cleanupScanner]);
+
+  // Auto-start scanning when device is selected
+  useEffect(() => {
+    if (open && tabValue === 0 && selectedDeviceId && !isScanning && !isProcessing) {
+      const timer = setTimeout(() => {
+        startScanning();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [open, tabValue, selectedDeviceId, isScanning, isProcessing, startScanning]);
 
   return (
     <Dialog
