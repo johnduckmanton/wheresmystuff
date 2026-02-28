@@ -198,7 +198,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     // Use decodeFromVideoDevice for continuous scanning
     codeReader.decodeFromVideoDevice(
-      selectedDeviceId || undefined,
+      selectedDeviceId || null,
       videoElement,
       (result, error) => {
         if (result) {
