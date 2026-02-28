@@ -191,32 +191,29 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
   // Start QR code scanning
   const startScanning = useCallback(() => {
-    if (!readerRef.current || !videoRef.current) return;
+    if (!readerRef.current || !videoRef.current || !isScanning) return;
 
-    const scanFrame = async () => {
-      if (!isScanning || !videoRef.current || !readerRef.current) return;
+    const codeReader = readerRef.current;
+    const videoElement = videoRef.current;
 
-      try {
-        await readerRef.current.decodeFromVideoDevice(
-          selectedDeviceId || null,
-          videoRef.current,
-          (result) => {
-            if (result) {
-              handleScanResult(result.getText());
-            }
-            // Continue scanning on error (normal for no QR code in frame)
+    // Use decodeFromVideoDevice for continuous scanning
+    codeReader.decodeFromVideoDevice(
+      selectedDeviceId || undefined,
+      videoElement,
+      (result, error) => {
+        if (result) {
+          // Successfully decoded a QR code
+          const text = result.getText();
+          if (text) {
+            handleScanResult(text);
           }
-        );
-      } catch (error) {
-        // Ignore scanning errors - they're normal when no QR code is visible
-        if (!(error instanceof NotFoundException)) {
+        }
+        // Ignore errors - they're normal when no QR code is in frame
+        if (error && !(error instanceof NotFoundException)) {
           console.error('Scanning error:', error);
         }
       }
-    };
-
-    // Start continuous scanning
-    scanFrame();
+    );
   }, [isScanning, selectedDeviceId, handleScanResult]);
 
   // Start camera stream
@@ -225,7 +222,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     try {
       setScanError(null);
-      setIsScanning(true);
+
+      // Reset the reader first
+      readerRef.current.reset();
 
       // Stop any existing stream
       if (streamRef.current) {
@@ -250,9 +249,16 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
 
-      // Start scanning
+      // Wait for video to be ready and start scanning
       await videoRef.current.play();
-      startScanning();
+      
+      // Set scanning state after video is playing
+      setIsScanning(true);
+      
+      // Start scanning after a short delay to ensure video is ready
+      setTimeout(() => {
+        startScanning();
+      }, 100);
 
     } catch (error) {
       console.error('Error starting camera:', error);
