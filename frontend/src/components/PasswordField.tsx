@@ -10,6 +10,7 @@ export interface PasswordFieldProps extends Omit<TextFieldProps, 'type'> {
 export default function PasswordField({
   showToggle = true,
   resetVisibility = false,
+  inputProps,
   ...textFieldProps
 }: PasswordFieldProps) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -41,6 +42,10 @@ export default function PasswordField({
         {...textFieldProps}
         type={inputType}
         id={fieldId}
+        inputProps={{
+          ...inputProps,
+          'aria-label': inputProps?.['aria-label'] || 'Password',
+        }}
         InputProps={{
           ...textFieldProps.InputProps,
           endAdornment: showToggle ? (
