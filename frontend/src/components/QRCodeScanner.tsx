@@ -201,29 +201,49 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
   // Stop scanning
   const stopScanning = useCallback(async () => {
-    if (scannerRef.current && isScanning) {
+    if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        // Check if scanner is actually running before trying to stop
+        const state = scannerRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          await scannerRef.current.stop();
+          console.log('✅ Camera stopped successfully');
+        }
         setIsScanning(false);
       } catch (error) {
         console.error('Error stopping scanner:', error);
+        // Force state update even if stop fails
+        setIsScanning(false);
       }
+    } else {
+      setIsScanning(false);
     }
-  }, [isScanning]);
+  }, []);
 
   // Cleanup scanner
   const cleanupScanner = useCallback(async () => {
-    await stopScanning();
-    
     if (scannerRef.current) {
       try {
+        // Check if scanner is running and stop it
+        const state = scannerRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          await scannerRef.current.stop();
+          console.log('✅ Camera stopped during cleanup');
+        }
+        
+        // Clear the scanner instance
         await scannerRef.current.clear();
+        console.log('✅ Scanner cleared');
       } catch (error) {
-        // Ignore cleanup errors
+        console.error('Error during cleanup:', error);
+        // Continue cleanup even if there's an error
       }
+      
       scannerRef.current = null;
     }
-  }, [stopScanning]);
+    
+    setIsScanning(false);
+  }, []);
 
   // Handle successful QR code scan
   const handleScanResult = useCallback(async (qrCodeData: string) => {
