@@ -390,7 +390,7 @@ export default function MovingDashboard() {
     showSuccess('QR code scanned successfully!');
   };
 
-  const handleNavigateToContainer = (containerId: string) => {
+  const handleNavigateToContainer = () => {
     // Always use the scan result data when navigating from a QR scan
     if (scanResult && scanResult.container) {
       setSelectedContainer(scanResult.container);
@@ -750,7 +750,7 @@ export default function MovingDashboard() {
                             boxShadow: 4,
                           },
                         }}
-                        onClick={() => handleNavigateToContainer(container.id)}
+                        onClick={() => handleNavigateToContainer()}
                       >
                         <CardContent>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>

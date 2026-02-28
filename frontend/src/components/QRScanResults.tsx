@@ -44,7 +44,7 @@ interface QRScanResultsProps {
   open: boolean;
   onClose: () => void;
   scanResult: ScanResult | null;
-  onNavigateToContainer: (containerId: string) => void;
+  onNavigateToContainer: () => void;
   onNavigateToItem: (itemId: string) => void;
   inventoryId: string;
 }
@@ -119,7 +119,7 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
 
   const handleViewContainer = () => {
     if (scanResult?.container.id) {
-      onNavigateToContainer(scanResult.container.id);
+      onNavigateToContainer();
       onClose();
     }
   };
@@ -129,8 +129,8 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
     onClose();
   };
 
-  const handleViewRecentContainer = (containerId: string) => {
-    onNavigateToContainer(containerId);
+  const handleViewRecentContainer = () => {
+    onNavigateToContainer();
     onClose();
   };
 
@@ -424,7 +424,7 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
                     <React.Fragment key={`${scan.containerId}-${scan.timestamp}`}>
                       <ListItem
                         component="button"
-                        onClick={() => handleViewRecentContainer(scan.containerId)}
+                        onClick={() => handleViewRecentContainer()}
                         sx={{ cursor: 'pointer' }}
                       >
                         <ListItemAvatar>
@@ -454,7 +454,7 @@ const QRScanResults: React.FC<QRScanResultsProps> = ({
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleViewRecentContainer(scan.containerId);
+                              handleViewRecentContainer();
                             }}
                           >
                             <ViewIcon fontSize="small" />
