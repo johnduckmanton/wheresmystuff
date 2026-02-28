@@ -195,36 +195,46 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
     const codeReader = readerRef.current;
     const videoElement = videoRef.current;
+    const deviceId = selectedDeviceId || null;
+
+    console.log('Starting QR code scanning with device:', deviceId);
 
     // Use decodeFromVideoDevice for continuous scanning
     codeReader.decodeFromVideoDevice(
-      selectedDeviceId || null,
+      deviceId,
       videoElement,
       (result, error) => {
         if (result) {
           // Successfully decoded a QR code
           const text = result.getText();
+          console.log('QR code detected:', text);
           if (text) {
             handleScanResult(text);
           }
         }
-        // Ignore errors - they're normal when no QR code is in frame
+        // Ignore NotFoundException - it's normal when no QR code is in frame
         if (error && !(error instanceof NotFoundException)) {
           console.error('Scanning error:', error);
         }
       }
-    );
+    ).catch((err) => {
+      console.error('Failed to start decoding:', err);
+      setScanError('Failed to start QR code detection');
+    });
   }, [isScanning, selectedDeviceId, handleScanResult]);
 
   // Start camera stream
   const startCamera = useCallback(async () => {
     if (!videoRef.current || !readerRef.current) return;
 
+    console.log('Starting camera...');
+
     try {
       setScanError(null);
 
       // Reset the reader first
       readerRef.current.reset();
+      console.log('Reader reset');
 
       // Stop any existing stream
       if (streamRef.current) {
@@ -240,6 +250,8 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         }
       };
 
+      console.log('Camera constraints:', constraints);
+
       // Add flash constraint if supported
       if (flashEnabled) {
         (constraints.video as MediaTrackConstraints & { torch?: boolean }).torch = true;
@@ -248,15 +260,18 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
+      console.log('Camera stream obtained');
 
       // Wait for video to be ready and start scanning
       await videoRef.current.play();
+      console.log('Video playing');
       
       // Set scanning state after video is playing
       setIsScanning(true);
       
       // Start scanning after a short delay to ensure video is ready
       setTimeout(() => {
+        console.log('Calling startScanning...');
         startScanning();
       }, 100);
 
