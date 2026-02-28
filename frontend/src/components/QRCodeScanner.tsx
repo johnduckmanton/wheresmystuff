@@ -134,21 +134,24 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   // Initialize the scanner
   const initializeScanner = useCallback(async () => {
     try {
+      // Wait for DOM element to be available
+      const element = document.getElementById(scannerDivId);
+      if (!element) {
+        console.error('Scanner div not found, retrying...');
+        setTimeout(() => initializeScanner(), 100);
+        return;
+      }
+
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(scannerDivId);
       }
       
       await getDevices();
-      
-      // Auto-start scanning if we have a device
-      if (selectedDeviceId) {
-        setTimeout(() => startScanning(), 500);
-      }
     } catch (error) {
       console.error('Error initializing scanner:', error);
       setScanError('Failed to initialize camera');
     }
-  }, [selectedDeviceId]);
+  }, [getDevices]);
 
   // Start scanning
   const startScanning = useCallback(async () => {
@@ -280,13 +283,23 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   // Initialize scanner when dialog opens
   useEffect(() => {
     if (open && tabValue === 0) {
-      initializeScanner();
-    }
-
-    return () => {
+      // Delay initialization to ensure DOM is ready
+      const timer = setTimeout(async () => {
+        await initializeScanner();
+        // Auto-start scanning after initialization if we have a device
+        if (selectedDeviceId) {
+          setTimeout(() => startScanning(), 500);
+        }
+      }, 300);
+      
+      return () => {
+        clearTimeout(timer);
+        cleanupScanner();
+      };
+    } else if (!open) {
       cleanupScanner();
-    };
-  }, [open, tabValue, initializeScanner, cleanupScanner]);
+    }
+  }, [open, tabValue, selectedDeviceId, initializeScanner, startScanning, cleanupScanner]);
 
   return (
     <Dialog
