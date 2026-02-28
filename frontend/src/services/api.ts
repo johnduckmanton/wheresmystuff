@@ -480,8 +480,9 @@ class ApiClient {
     return this.get<Room[]>(url);
   }
 
-  async getRoom(id: string): Promise<Room> {
-    return this.get<Room>(`/rooms/${id}`);
+  async getRoom(id: string, inventoryId?: string): Promise<Room> {
+    const params = inventoryId ? `?inventoryId=${inventoryId}` : '';
+    return this.get<Room>(`/rooms/${id}${params}`);
   }
 
   async createRoom(data: Omit<Room, 'id' | 'dateAdded'>): Promise<Room> {

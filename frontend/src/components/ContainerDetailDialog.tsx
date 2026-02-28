@@ -84,7 +84,7 @@ export default function ContainerDetailDialog({
       // Load room if roomId exists
       if (container.roomId) {
         try {
-          const roomData = await apiClient.getRoom(container.roomId);
+          const roomData = await apiClient.getRoom(container.roomId, inventoryId);
           setRoom(roomData);
         } catch (error) {
           // Silently handle room loading errors - room might not exist or be accessible
