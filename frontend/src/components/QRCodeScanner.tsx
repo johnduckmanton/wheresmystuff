@@ -251,13 +251,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
       }
       
       setIsProcessing(false);
-      
-      // Restart scanning after error
-      if (tabValue === 0) {
-        setTimeout(() => startScanning(), 1000);
-      }
+      // Don't auto-restart scanning - let user manually restart if needed
     }
-  }, [isProcessing, inventoryId, onScanSuccess, onClose, tabValue, stopScanning, startScanning]);
+  }, [isProcessing, inventoryId, onScanSuccess, onClose, tabValue, stopScanning]);
 
   // Handle tab change
   const handleTabChange = async (_event: React.SyntheticEvent, newValue: number) => {

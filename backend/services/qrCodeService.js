@@ -254,12 +254,57 @@ class QRCodeService {
   /**
    * Scan and validate QR code, returning container information
    * Logs security events for invalid QR codes
-   * @param {string} qrCodeData - Raw QR code data from scanner
+   * @param {string} qrCodeData - Raw QR code data from scanner (can be URL or QR code ID)
    * @param {string} userId - User ID for security logging (optional)
    * @returns {Object} Scan result with container ID and validation status
    */
-  async scanQRCode(qrCodeData, userId = 'anonymous') {
+  scanQRCode(qrCodeData, userId = 'anonymous') {
     try {
+      // Check if qrCodeData is a URL (contains http:// or https://)
+      if (qrCodeData.startsWith('http://') || qrCodeData.startsWith('https://')) {
+        // Parse URL to extract container ID
+        // Expected format: {origin}/inventory/{inventoryId}/container/{containerId}
+        try {
+          const url = new URL(qrCodeData);
+          const pathParts = url.pathname.split('/').filter(p => p);
+          
+          // Find 'container' in path and get the next part as container ID
+          const containerIndex = pathParts.indexOf('container');
+          if (containerIndex === -1 || containerIndex === pathParts.length - 1) {
+            return {
+              success: false,
+              error: 'INVALID_URL_FORMAT',
+              message: 'URL does not contain a valid container path'
+            };
+          }
+          
+          const containerId = pathParts[containerIndex + 1];
+          
+          // Also extract inventory ID if present
+          const inventoryIndex = pathParts.indexOf('inventory');
+          const inventoryId = inventoryIndex !== -1 && inventoryIndex < pathParts.length - 1 
+            ? pathParts[inventoryIndex + 1] 
+            : null;
+          
+          return {
+            success: true,
+            containerId,
+            inventoryId,
+            qrCodeId: qrCodeData, // Store the full URL as the QR code ID
+            generatedAt: new Date().toISOString(), // We don't have the original timestamp
+            timestamp: Date.now(),
+            source: 'url'
+          };
+        } catch (urlError) {
+          return {
+            success: false,
+            error: 'URL_PARSE_ERROR',
+            message: `Failed to parse QR code URL: ${urlError.message}`
+          };
+        }
+      }
+      
+      // Original QR code ID format validation
       // Validate QR code format and authenticity
       const validation = this.validateQRCode(qrCodeData);
       
@@ -275,7 +320,7 @@ class QRCodeService {
 
         // Import audit log service for security logging
         const auditLogService = require('./auditLogService');
-        await auditLogService.logSecurityEvent(userId, 'invalid_qr_scan', 'qr_code', {
+        auditLogService.logSecurityEvent(userId, 'invalid_qr_scan', 'qr_code', {
           qrCodePrefix: qrCodeData.substring(0, 20),
           validationError: validation.error,
           errorMessage: validation.message
@@ -296,7 +341,8 @@ class QRCodeService {
         containerId: decoded.containerId,
         qrCodeId: qrCodeData,
         generatedAt: decoded.generatedAt,
-        timestamp: decoded.timestamp
+        timestamp: decoded.timestamp,
+        source: 'qr_id'
       };
     } catch (error) {
       // Log security event for unexpected errors
@@ -307,7 +353,7 @@ class QRCodeService {
       });
 
       const auditLogService = require('./auditLogService');
-      await auditLogService.logSecurityEvent(userId, 'qr_scan_error', 'qr_code', {
+      auditLogService.logSecurityEvent(userId, 'qr_scan_error', 'qr_code', {
         errorMessage: error.message,
         errorStack: error.stack
       });
