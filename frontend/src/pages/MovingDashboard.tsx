@@ -391,20 +391,13 @@ export default function MovingDashboard() {
   };
 
   const handleNavigateToContainer = (containerId: string) => {
-    // If we have scan result data and the container ID matches, use that data
-    if (scanResult && scanResult.scanResult.containerId === containerId) {
+    // Always use the scan result data when navigating from a QR scan
+    if (scanResult && scanResult.container) {
       setSelectedContainer(scanResult.container);
       setContainerDetailOpen(true);
-      return;
-    }
-    
-    // Find the container in our current dashboard data and open the detail dialog
-    const container = containers.find(c => c.id === containerId);
-    if (container) {
-      setSelectedContainer(container);
-      setContainerDetailOpen(true);
+      setScanResultsOpen(false);
     } else {
-      showError('Container not found');
+      showError('Container data not available');
     }
   };
 
