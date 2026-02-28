@@ -207,55 +207,31 @@ exports.scanQRCode = async (event) => {
 
     console.log('✅ QR code validated, container ID:', scanResult.containerId);
 
-    // Get container service to lookup container across all user inventories
+    // Get container service to lookup container
     const ContainerService = require('../services/containerService');
     
     try {
-      // Find the container across all inventories the user has access to
-      console.log('🔍 Searching for container across inventories...');
-      const containerResult = await ContainerService.findContainerAcrossInventories(
-        scanResult.containerId, 
-        user.userId
-      );
-
-      if (!containerResult) {
-        console.log('❌ Container not found in any accessible inventory');
-        // Container not found in any accessible inventory
-        if (inventoryId) {
-          await ScanHistoryService.recordScan(user.userId, inventoryId, {
-            type: 'qr_scan',
-            success: false,
-            containerId: scanResult.containerId,
-            qrCodeId: qrCodeData,
-            method: 'camera',
-            error: 'Container not found or access denied'
-          });
-        }
-
-        await logSecurityEvent('QR_CODE_CONTAINER_NOT_FOUND', {
-          userId: user.userId,
-          containerId: scanResult.containerId,
-          inventoryId
-        });
-
-        return error('Container not found or you do not have access to it', 404);
+      // Use the inventory ID from the scan result (extracted from URL) or from request body
+      const targetInventoryId = scanResult.inventoryId || inventoryId;
+      
+      if (!targetInventoryId) {
+        console.log('❌ No inventory ID available');
+        return error('Inventory ID is required', 400);
       }
 
-      console.log('✅ Container found in inventory:', containerResult.inventoryId);
-      const { container, inventoryId: actualInventoryId } = containerResult;
-
-      // Get container contents using the actual inventory ID
-      console.log('📋 Getting container contents...');
+      console.log('🔍 Looking up container in inventory:', targetInventoryId);
+      
+      // Get container contents directly using the inventory ID from the QR code URL
       const containerContents = await ContainerService.getContainerContents(
         scanResult.containerId, 
-        actualInventoryId, 
+        targetInventoryId, 
         user.userId
       );
 
       console.log('✅ Container contents retrieved, item count:', containerContents.itemCount);
 
       // Record successful scan in history
-      await ScanHistoryService.recordScan(user.userId, actualInventoryId, {
+      await ScanHistoryService.recordScan(user.userId, targetInventoryId, {
         type: 'qr_scan',
         success: true,
         containerId: scanResult.containerId,
@@ -269,7 +245,7 @@ exports.scanQRCode = async (event) => {
       await logSecurityEvent('QR_CODE_SCAN_SUCCESS', {
         userId: user.userId,
         containerId: scanResult.containerId,
-        inventoryId: actualInventoryId,
+        inventoryId: targetInventoryId,
         itemCount: containerContents.itemCount
       });
 
@@ -278,15 +254,19 @@ exports.scanQRCode = async (event) => {
         container: containerContents.container,
         items: containerContents.items,
         itemCount: containerContents.itemCount,
-        inventoryId: actualInventoryId, // Include the actual inventory ID
+        inventoryId: targetInventoryId, // Include the inventory ID from QR code
         scannedAt: new Date().toISOString()
       });
 
     } catch (containerError) {
       console.error('❌ Container access error:', containerError);
+      
+      // Use the inventory ID from scan result or request body for error logging
+      const targetInventoryId = scanResult.inventoryId || inventoryId;
+      
       // Record failed container access in history
-      if (inventoryId) {
-        await ScanHistoryService.recordScan(user.userId, inventoryId, {
+      if (targetInventoryId) {
+        await ScanHistoryService.recordScan(user.userId, targetInventoryId, {
           type: 'qr_scan',
           success: false,
           containerId: scanResult.containerId,
@@ -300,7 +280,7 @@ exports.scanQRCode = async (event) => {
       await logSecurityEvent('QR_CODE_CONTAINER_ACCESS_ERROR', {
         userId: user.userId,
         containerId: scanResult.containerId,
-        inventoryId,
+        inventoryId: targetInventoryId,
         error: containerError.message
       });
 
