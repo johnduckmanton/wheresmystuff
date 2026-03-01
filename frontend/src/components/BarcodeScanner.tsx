@@ -250,6 +250,11 @@ export default function BarcodeScanner({
       maxWidth="sm"
       fullWidth
       aria-labelledby="barcode-scanner-dialog-title"
+      sx={{
+        '& .MuiDialog-paper': {
+          minHeight: '500px',
+        }
+      }}
     >
       <DialogTitle
         id="barcode-scanner-dialog-title"
