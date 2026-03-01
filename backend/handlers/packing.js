@@ -696,11 +696,18 @@ async function handleGetInterfaceData(event, origin) {
   } catch (err) {
     console.error('Error getting packing interface data:', err);
     
-    if (err.message.includes('Access denied')) {
+    if (err.message && err.message.includes('Access denied')) {
       return error(err.message, 403, origin);
     }
     
-    throw new Error('Failed to retrieve packing interface data');
+    // Return secure error response instead of throwing
+    return secureError(err, {
+      endpoint: '/packing/interface-data',
+      method: 'GET',
+      userId: event.user?.userId,
+      errorType: 'PackingInterfaceDataError',
+      userAction: 'Loading packing interface data',
+    }, origin);
   }
 }
 

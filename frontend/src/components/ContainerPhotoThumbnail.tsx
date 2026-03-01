@@ -27,22 +27,38 @@ export default function ContainerPhotoThumbnail({
       return;
     }
 
-    const loadPhoto = async () => {
+    const loadPhoto = async (retryCount = 0) => {
       try {
         setLoading(true);
         setError(false);
         const response = await apiClient.generateDownloadUrl(photoKey);
         setPhotoUrl(response.downloadUrl);
-      } catch (error) {
+      } catch (error: any) {
         console.warn('Failed to load container photo:', error);
+        
+        // Retry on 503 errors (service unavailable) up to 3 times
+        if (error.message?.includes('Service Unavailable') && retryCount < 3) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+          console.log(`Retrying container photo load in ${delay}ms (attempt ${retryCount + 1}/3)`);
+          setTimeout(() => loadPhoto(retryCount + 1), delay);
+          return;
+        }
+        
         setPhotoUrl(null);
         setError(true);
-      } finally {
         setLoading(false);
+      } finally {
+        if (retryCount === 0 || error) {
+          setLoading(false);
+        }
       }
     };
 
-    loadPhoto();
+    // Add a small random delay to stagger requests (0-500ms)
+    const delay = Math.random() * 500;
+    const timer = setTimeout(() => loadPhoto(), delay);
+    
+    return () => clearTimeout(timer);
   }, [photoKey]);
 
   const hasImage = photoUrl && !error;

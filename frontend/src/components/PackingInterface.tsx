@@ -368,23 +368,36 @@ export default function PackingInterface({
   }, [currentInventory]);
 
   const loadData = async () => {
-    if (!currentInventory) return;
+    if (!currentInventory) {
+      console.log('PackingInterface: No current inventory');
+      return;
+    }
 
+    console.log('PackingInterface: Loading data for inventory:', currentInventory.id);
     setLocalLoading(true);
     try {
       // Use optimized single API call to get all packing interface data
       // This avoids Lambda throttling from 6 parallel requests
       const data = await apiClient.getPackingInterfaceData(currentInventory.id);
+      
+      console.log('PackingInterface: Data loaded:', {
+        things: data.things?.length || 0,
+        categories: data.categories?.length || 0,
+        locations: data.locations?.length || 0,
+        rooms: data.rooms?.length || 0,
+        people: data.people?.length || 0,
+        containers: data.containers?.length || 0,
+      });
 
-      setAllItems(data.things);
-      setCategories(data.categories);
-      setLocations(data.locations);
-      setRooms(data.rooms);
-      setPeople(data.people);
-      setContainers(data.containers);
+      setAllItems(data.things || []);
+      setCategories(data.categories || []);
+      setLocations(data.locations || []);
+      setRooms(data.rooms || []);
+      setPeople(data.people || []);
+      setContainers(data.containers || []);
 
       // Transform items for packing interface
-      const packingItemsData: PackingItem[] = data.things.map((item: Thing) => {
+      const packingItemsData: PackingItem[] = (data.things || []).map((item: Thing) => {
         const extendedItem = item as any;
         const alreadyPacked = !!extendedItem.containerId;
 
@@ -398,8 +411,11 @@ export default function PackingInterface({
       });
 
       setPackingItems(packingItemsData);
-      setFilteredItems(data.things); // Initialize filtered items
+      setFilteredItems(data.things || []); // Initialize filtered items
+      
+      console.log('PackingInterface: State updated with', data.things?.length || 0, 'items');
     } catch (error: any) {
+      console.error('PackingInterface: Error loading data:', error);
       // Log error with context
       errorLogger.logError(
         error as Error,
