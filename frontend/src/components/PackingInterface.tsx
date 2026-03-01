@@ -193,12 +193,17 @@ export default function PackingInterface({
     setScannedBarcode('');
     setBarcodeLookupError('');
     
-    // For now, just show success message
-    // Full integration with ThingFormDialog and create-and-pack will be in later tasks
-    showSuccess(`Product "${itemData.name}" found! Full form integration coming in task 6.`);
+    // Set the AI analysis data with barcode info
+    setAiAnalysisData({
+      name: itemData.name || '',
+      description: itemData.description || '',
+      make: itemData.brand || itemData.manufacturer || '',
+      model: itemData.model || '',
+      barcode: itemData.barcode || scannedBarcode,
+    });
     
-    // Reset to method selector
-    setCreationMethod(null);
+    // Open the thing form dialog with pre-filled data
+    setThingFormOpen(true);
   };
 
   // Handle retry barcode scan
