@@ -51,6 +51,7 @@ class Container {
     this.type = data.type || ContainerType.BOX;
     this.size = data.size;
     this.color = data.color;
+    this.weight = data.weight;
     this.description = data.description || '';
     this.contentsSummary = data.contentsSummary || '';
     this.photos = data.photos || [];
