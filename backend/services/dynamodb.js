@@ -10,6 +10,33 @@ const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
 
 /**
+ * Recursively remove undefined values from an object or array
+ * DynamoDB doesn't accept undefined values
+ */
+function removeUndefinedValues(obj) {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj
+      .filter(item => item !== undefined)
+      .map(item => removeUndefinedValues(item));
+  }
+  
+  if (typeof obj === 'object') {
+    return Object.entries(obj).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = removeUndefinedValues(value);
+      }
+      return acc;
+    }, {});
+  }
+  
+  return obj;
+}
+
+/**
  * Create a new entity in DynamoDB
  * @param {string} entityType - Entity type (THINGS, LOCATIONS, ROOMS, CATEGORIES, PEOPLE)
  * @param {object} data - Entity data (must include inventoryId)
@@ -165,13 +192,8 @@ async function updateEntity(entityType, inventoryId, id, data) {
     throw new Error('Entity not found');
   }
   
-  // Remove undefined values from data to avoid DynamoDB errors
-  const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
-    if (value !== undefined) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {});
+  // Remove undefined values from data recursively to avoid DynamoDB errors
+  const cleanData = removeUndefinedValues(data);
   
   const updatedData = {
     ...existing,
@@ -181,18 +203,21 @@ async function updateEntity(entityType, inventoryId, id, data) {
     dateAdded: existing.dateAdded // Preserve original dateAdded
   };
   
+  // Clean the final merged data as well
+  const finalData = removeUndefinedValues(updatedData);
+  
   await docClient.send(new PutCommand({
     TableName: TABLE_NAME,
     Item: {
       pk: `INVENTORY#${inventoryId}#${entityType}`,
       sk: id,
-      data: updatedData
+      data: finalData
     }
   }));
   
   return {
     id,
-    ...updatedData
+    ...finalData
   };
 }
 
