@@ -199,7 +199,10 @@ export default function PackingInterface({
       description: itemData.description || '',
       make: itemData.brand || itemData.manufacturer || '',
       model: itemData.model || '',
-      barcode: itemData.barcode || scannedBarcode,
+      metadata: {
+        barcode: itemData.barcode || scannedBarcode,
+        barcodeSource: 'scan',
+      },
     });
     
     // Open the thing form dialog with pre-filled data

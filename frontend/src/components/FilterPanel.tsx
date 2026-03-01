@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import {
   Box,
   TextField,
-  Typography,
   Paper,
   IconButton,
 } from '@mui/material';
@@ -19,7 +17,7 @@ interface FilterPanelProps {
   onColumnFilterChange: (field: string, value: string) => void;
   filteredCount: number;
   totalCount: number;
-  dropdownFilters?: Record<string, FilterOption[]>;
+  dropdownFilters?: Record<string, any>;
   // New props for tag search integration
   inventoryId?: string;
   enableTagSearch?: boolean;
@@ -28,7 +26,6 @@ interface FilterPanelProps {
 }
 
 export default function FilterPanel({
-  columns,
   globalSearch,
   onGlobalSearchChange,
   inventoryId,
