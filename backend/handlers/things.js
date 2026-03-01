@@ -388,6 +388,12 @@ async function handleUpdate(event, id, origin) {
     return success(decodedThing, 200, origin);
   } catch (err) {
     console.error('Error updating thing:', err);
+    console.error('Error stack:', err.stack);
+    console.error('Error details:', JSON.stringify({
+      message: err.message,
+      statusCode: err.statusCode,
+      name: err.name
+    }));
     
     if (err.message === 'Entity not found') {
       return error('Thing not found', 404, origin);
@@ -397,7 +403,7 @@ async function handleUpdate(event, id, origin) {
       return error(err.message || 'Access denied', 403, origin);
     }
     
-    throw new Error('Failed to update thing');
+    return error('Failed to update thing: ' + err.message, 500, origin);
   }
 }
 
