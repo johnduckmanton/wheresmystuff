@@ -673,7 +673,7 @@ async function handleGetInterfaceData(event, origin) {
     await authorizeInventoryAccess(event, inventoryId);
 
     // Import required services
-    const { listEntities } = require('../utils/dynamodb');
+    const { listEntities } = require('../services/dynamodb');
     
     // Fetch all data in parallel from DynamoDB (single Lambda execution)
     const [things, categories, locations, rooms, people, containers] = await Promise.all([

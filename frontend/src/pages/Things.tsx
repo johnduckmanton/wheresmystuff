@@ -2,11 +2,13 @@ import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogCont
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
 import AIPhotoUpload from '../components/AIPhotoUpload';
+import BarcodeUpload from '../components/BarcodeUpload';
 import QuickFilters from '../components/QuickFilters';
 import PhotoThumbnail from '../components/PhotoThumbnail';
 import type { SearchQuery } from '../components/SearchBar';
@@ -14,7 +16,7 @@ import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
-import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
+import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 
 const columns: EntityTableColumn[] = [
   { 
@@ -32,6 +34,7 @@ const columns: EntityTableColumn[] = [
   { field: 'name', headerName: 'Name', flex: 1 },
   { field: 'location', headerName: 'Location', flex: 1 },
   { field: 'room', headerName: 'Room', flex: 1 },
+  { field: 'container', headerName: 'Container', flex: 1 },
   { field: 'owner', headerName: 'Owner', flex: 1 },
   { field: 'category', headerName: 'Category', flex: 1 },
 ];
@@ -42,6 +45,7 @@ interface ThingTableRow {
   name: string;
   location: string;
   room: string;
+  container: string;
   owner: string;
   category: string;
   firstPhotoKey?: string;
@@ -55,6 +59,7 @@ export default function Things() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [projects, setProjects] = useState<MovingProject[]>([]);
+  const [containers, setContainers] = useState<Container[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   
@@ -66,6 +71,9 @@ export default function Things() {
   
   // AI Upload states
   const [showAIUpload, setShowAIUpload] = useState(false);
+  
+  // Barcode Upload states
+  const [showBarcodeUpload, setShowBarcodeUpload] = useState(false);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<SearchQuery>({
@@ -78,6 +86,7 @@ export default function Things() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [nameFilter, setNameFilter] = useState<string>('');
   const [showQuickFilters, setShowQuickFilters] = useState(false);
 
   // Contexts
@@ -102,13 +111,14 @@ export default function Things() {
     try {
       setLoading(true);
       setGlobalLoading(true);
-      const [thingsData, locationsData, roomsData, categoriesData, peopleData, projectsData] = await Promise.all([
+      const [thingsData, locationsData, roomsData, categoriesData, peopleData, projectsData, containersData] = await Promise.all([
         apiClient.getThings(currentInventory.id),
         apiClient.getLocations(currentInventory.id),
         apiClient.getRooms(undefined, currentInventory.id),
         apiClient.getCategories(currentInventory.id),
         apiClient.getPeople(currentInventory.id),
         apiClient.getProjects(currentInventory.id),
+        apiClient.getContainers(currentInventory.id),
       ]);
       
       // Ensure all data are arrays, fallback to empty arrays if not
@@ -120,6 +130,7 @@ export default function Things() {
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       setPeople(Array.isArray(peopleData) ? peopleData : []);
       setProjects(Array.isArray(projectsData) ? projectsData : []);
+      setContainers(Array.isArray(containersData) ? containersData : []);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
@@ -154,6 +165,12 @@ export default function Things() {
     return category?.name || 'Unknown';
   };
 
+  const getContainerName = (containerId?: string): string => {
+    if (!containerId) return '';
+    const container = containers.find(c => c.id === containerId);
+    return container?.name || 'Unknown';
+  };
+
   // Transform Things data for table display
   const tableData: ThingTableRow[] = things.map(thing => ({
     id: thing.id,
@@ -163,6 +180,7 @@ export default function Things() {
     room: getRoomName(thing.roomId),
     owner: getOwnerName(thing.ownerId),
     category: getCategoryName(thing.categoryId),
+    container: getContainerName(thing.containerId),
     firstPhotoKey: thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined,
   }));
 
@@ -174,12 +192,20 @@ export default function Things() {
     applyFilters(query, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags);
   };
 
-  // Apply all filters (search, category, location, room, owner, tags)
-  const applyFilters = (query: SearchQuery, categoryId?: string, locationId?: string, roomId?: string, ownerId?: string, tags: string[] = []) => {
+  // Apply all filters (search, category, location, room, owner, tags, name)
+  const applyFilters = (query: SearchQuery, categoryId?: string, locationId?: string, roomId?: string, ownerId?: string, tags: string[] = [], nameFilterText: string = '') => {
     try {
       setSearchLoading(true);
       
       let filteredThings = [...allThings];
+
+      // Apply name filter (from Quick Filters)
+      if (nameFilterText.trim()) {
+        const nameLower = nameFilterText.toLowerCase();
+        filteredThings = filteredThings.filter(thing => 
+          thing.name.toLowerCase().includes(nameLower)
+        );
+      }
 
       // Apply text search
       if (query.text) {
@@ -275,31 +301,37 @@ export default function Things() {
   // Handle category filter
   const handleCategoryFilter = (categoryId: string | undefined) => {
     setSelectedCategoryId(categoryId);
-    applyFilters(searchQuery, categoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags);
+    applyFilters(searchQuery, categoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags, nameFilter);
   };
 
   // Handle location filter
   const handleLocationFilter = (locationId: string | undefined) => {
     setSelectedLocationId(locationId);
-    applyFilters(searchQuery, selectedCategoryId, locationId, selectedRoomId, selectedOwnerId, selectedTags);
+    applyFilters(searchQuery, selectedCategoryId, locationId, selectedRoomId, selectedOwnerId, selectedTags, nameFilter);
   };
 
   // Handle room filter
   const handleRoomFilter = (roomId: string | undefined) => {
     setSelectedRoomId(roomId);
-    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, roomId, selectedOwnerId, selectedTags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, roomId, selectedOwnerId, selectedTags, nameFilter);
   };
 
   // Handle owner filter
   const handleOwnerFilter = (ownerId: string | undefined) => {
     setSelectedOwnerId(ownerId);
-    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, ownerId, selectedTags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, ownerId, selectedTags, nameFilter);
   };
 
   // Handle tag filter
   const handleTagFilter = (tags: string[]) => {
     setSelectedTags(tags);
-    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, tags);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, tags, nameFilter);
+  };
+
+  // Handle name filter
+  const handleNameFilter = (name: string) => {
+    setNameFilter(name);
+    applyFilters(searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags, name);
   };
 
   // Clear all filters
@@ -309,24 +341,9 @@ export default function Things() {
     setSelectedRoomId(undefined);
     setSelectedOwnerId(undefined);
     setSelectedTags([]);
+    setNameFilter('');
     setSearchQuery({ tagMode: 'and' });
     setThings(allThings);
-  };
-
-  // Create dropdown filter options
-  const dropdownFilters = {
-    location: locations.map(location => ({
-      value: location.name,
-      label: location.name,
-    })),
-    owner: people.map(person => ({
-      value: person.name,
-      label: person.name,
-    })),
-    category: categories.map(category => ({
-      value: category.name,
-      label: category.name,
-    })),
   };
 
   const handleAdd = () => {
@@ -449,22 +466,89 @@ export default function Things() {
               <FilterListIcon />
             </IconButton>
           </Tooltip>
-          <Button 
-            variant="outlined" 
-            startIcon={<AutoAwesomeIcon />} 
-            onClick={() => setShowAIUpload(!showAIUpload)}
-            color={showAIUpload ? 'primary' : 'primary'}
-            sx={{
-              color: showAIUpload ? 'primary.main' : 'text.primary',
-              borderColor: showAIUpload ? 'primary.main' : 'text.primary',
-              '&:hover': {
-                backgroundColor: 'primary.50',
-                borderColor: 'primary.main',
-              }
-            }}
-          >
-            AI Photo Upload
-          </Button>
+          
+          {/* Desktop: Full buttons, Mobile: Icon buttons */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+            <Button 
+              variant="outlined" 
+              startIcon={<AutoAwesomeIcon />} 
+              onClick={() => {
+                setShowAIUpload(!showAIUpload);
+                if (!showAIUpload) setShowBarcodeUpload(false);
+              }}
+              color={showAIUpload ? 'primary' : 'primary'}
+              sx={{
+                color: showAIUpload ? 'primary.main' : 'text.primary',
+                borderColor: showAIUpload ? 'primary.main' : 'text.primary',
+                '&:hover': {
+                  backgroundColor: 'primary.50',
+                  borderColor: 'primary.main',
+                }
+              }}
+            >
+              AI Photo Upload
+            </Button>
+            <Button 
+              variant="outlined" 
+              startIcon={<QrCodeScannerIcon />} 
+              onClick={() => {
+                setShowBarcodeUpload(!showBarcodeUpload);
+                if (!showBarcodeUpload) setShowAIUpload(false);
+              }}
+              color={showBarcodeUpload ? 'primary' : 'primary'}
+              sx={{
+                color: showBarcodeUpload ? 'primary.main' : 'text.primary',
+                borderColor: showBarcodeUpload ? 'primary.main' : 'text.primary',
+                '&:hover': {
+                  backgroundColor: 'primary.50',
+                  borderColor: 'primary.main',
+                }
+              }}
+            >
+              Barcode Scan
+            </Button>
+          </Box>
+          
+          {/* Mobile: Icon buttons only */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 1 }}>
+            <Tooltip title="AI Photo Upload">
+              <IconButton
+                onClick={() => {
+                  setShowAIUpload(!showAIUpload);
+                  if (!showAIUpload) setShowBarcodeUpload(false);
+                }}
+                sx={{
+                  border: '1px solid',
+                  borderColor: showAIUpload ? 'primary.main' : 'divider',
+                  '&:hover': {
+                    backgroundColor: 'primary.50',
+                    borderColor: 'primary.main',
+                  }
+                }}
+              >
+                <AutoAwesomeIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Barcode Scan">
+              <IconButton
+                onClick={() => {
+                  setShowBarcodeUpload(!showBarcodeUpload);
+                  if (!showBarcodeUpload) setShowAIUpload(false);
+                }}
+                sx={{
+                  border: '1px solid',
+                  borderColor: showBarcodeUpload ? 'primary.main' : 'divider',
+                  '&:hover': {
+                    backgroundColor: 'primary.50',
+                    borderColor: 'primary.main',
+                  }
+                }}
+              >
+                <QrCodeScannerIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          
           <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
             Add Thing
           </Button>
@@ -476,10 +560,25 @@ export default function Things() {
         <Box sx={{ mb: 3 }}>
           <AIPhotoUpload 
             categories={categories}
-            onAnalysisComplete={(_analysisData, _photoKey) => {
-              // For now, just show a message - full integration coming later
-              showSuccess('AI analysis complete! Full integration with thing creation coming soon.');
+            onAnalysisComplete={(analysisData, _photoKey) => {
+              // Open the form dialog with pre-filled data
+              setEditingThing(analysisData as Thing);
+              setFormDialogOpen(true);
               setShowAIUpload(false);
+            }}
+          />
+        </Box>
+      </Collapse>
+
+      {/* Barcode Upload Section */}
+      <Collapse in={showBarcodeUpload}>
+        <Box sx={{ mb: 3 }}>
+          <BarcodeUpload 
+            onBarcodeComplete={(itemData) => {
+              // Open the form dialog with pre-filled data
+              setEditingThing(itemData as Thing);
+              setFormDialogOpen(true);
+              setShowBarcodeUpload(false);
             }}
           />
         </Box>
@@ -508,11 +607,13 @@ export default function Things() {
               selectedRoomId={selectedRoomId}
               selectedOwnerId={selectedOwnerId}
               selectedTags={selectedTags}
+              nameFilter={nameFilter}
               onCategoryFilter={handleCategoryFilter}
               onLocationFilter={handleLocationFilter}
               onRoomFilter={handleRoomFilter}
               onOwnerFilter={handleOwnerFilter}
               onTagFilter={handleTagFilter}
+              onNameFilter={handleNameFilter}
               onClearFilters={handleClearFilters}
             />
           )}
@@ -527,7 +628,6 @@ export default function Things() {
             onDelete={handleDelete}
             onRowClick={handleRowClick}
             loading={loading || searchLoading}
-            dropdownFilters={dropdownFilters}
             inventoryId={currentInventory.id}
             enableTagSearch={true}
             onTagSearch={handleTagSearch}

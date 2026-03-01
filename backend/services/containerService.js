@@ -3,6 +3,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const { hasInventoryAccess, getUserInventories } = require('./dynamodb');
 const { logDataAccess, logContainerOperation, logBulkOperation } = require('./auditLogService');
+const { decodeHtmlEntities } = require('../utils/validation');
 const cacheService = require('./cacheService');
 const dbOptimizationService = require('./databaseOptimizationService');
 const performanceMonitoring = require('./performanceMonitoringService');
@@ -755,10 +756,32 @@ class ContainerService {
       }
     }));
 
-    const items = itemsResult.Items ? itemsResult.Items.map(item => ({
-      id: item.sk,
-      ...item.data
-    })) : [];
+    const items = itemsResult.Items ? itemsResult.Items.map(item => {
+      const itemData = {
+        id: item.sk,
+        ...item.data
+      };
+      
+      // Decode HTML entities in text fields
+      if (itemData.name) itemData.name = decodeHtmlEntities(itemData.name);
+      if (itemData.description) itemData.description = decodeHtmlEntities(itemData.description);
+      if (itemData.notes) itemData.notes = decodeHtmlEntities(itemData.notes);
+      if (itemData.brand) itemData.brand = decodeHtmlEntities(itemData.brand);
+      if (itemData.model) itemData.model = decodeHtmlEntities(itemData.model);
+      if (itemData.serialNumber) itemData.serialNumber = decodeHtmlEntities(itemData.serialNumber);
+      
+      // Decode photo keys
+      if (itemData.photos && Array.isArray(itemData.photos)) {
+        itemData.photos = itemData.photos.map(photo => decodeHtmlEntities(photo));
+      }
+      
+      // Decode tags
+      if (itemData.tags && Array.isArray(itemData.tags)) {
+        itemData.tags = itemData.tags.map(tag => decodeHtmlEntities(tag));
+      }
+      
+      return itemData;
+    }) : [];
 
     // Fetch location information if container has a locationId
     let locationData = null;

@@ -157,6 +157,7 @@ class BarcodeService {
       data: {
         itemName: book.title || 'Unknown Book',
         description: this.buildBookDescription(book),
+        notes: this.buildBookNotes(book),
         suggestedCategory: 'Books',
         brand: book.publishers?.[0]?.name || null,
         manufacturer: book.publishers?.[0]?.name || null,
@@ -202,6 +203,47 @@ class BarcodeService {
     }
     
     return parts.join('. ') + '.';
+  }
+
+  /**
+   * Build notes field with additional metadata for a book
+   * @param {Object} book - Book data from API
+   * @returns {string} Formatted notes with metadata
+   */
+  buildBookNotes(book) {
+    const notes = [];
+    
+    if (book.authors && book.authors.length > 0) {
+      const authorNames = book.authors.map(a => a.name).join(', ');
+      notes.push(`Author(s): ${authorNames}`);
+    }
+    
+    if (book.publishers && book.publishers.length > 0) {
+      notes.push(`Publisher: ${book.publishers[0].name}`);
+    }
+    
+    if (book.publish_date) {
+      notes.push(`Published: ${book.publish_date}`);
+    }
+    
+    if (book.number_of_pages) {
+      notes.push(`Pages: ${book.number_of_pages}`);
+    }
+    
+    if (book.identifiers?.isbn_10?.[0]) {
+      notes.push(`ISBN-10: ${book.identifiers.isbn_10[0]}`);
+    }
+    
+    if (book.identifiers?.isbn_13?.[0]) {
+      notes.push(`ISBN-13: ${book.identifiers.isbn_13[0]}`);
+    }
+    
+    if (book.subjects && book.subjects.length > 0) {
+      const subjects = book.subjects.slice(0, 5).map(s => s.name).join(', ');
+      notes.push(`Subjects: ${subjects}`);
+    }
+    
+    return notes.join('\n');
   }
 
   /**
@@ -259,6 +301,7 @@ class BarcodeService {
       data: {
         itemName: product.title || 'Unknown Product',
         description: this.buildProductDescription(product),
+        notes: this.buildProductNotes(product),
         suggestedCategory: this.mapUPCCategory(product.category),
         brand: product.brand || null,
         manufacturer: product.brand || null,
@@ -300,6 +343,41 @@ class BarcodeService {
     }
     
     return parts.join('. ') + (parts.length > 0 ? '.' : 'Product information from barcode scan.');
+  }
+
+  /**
+   * Build notes field with additional metadata for a product
+   * @param {Object} product - Product data from API
+   * @returns {string} Formatted notes with metadata
+   */
+  buildProductNotes(product) {
+    const notes = [];
+    
+    if (product.category) {
+      notes.push(`Category: ${product.category}`);
+    }
+    
+    if (product.upc) {
+      notes.push(`UPC: ${product.upc}`);
+    }
+    
+    if (product.ean) {
+      notes.push(`EAN: ${product.ean}`);
+    }
+    
+    if (product.description) {
+      notes.push(`Description: ${product.description}`);
+    }
+    
+    if (product.brand) {
+      notes.push(`Brand: ${product.brand}`);
+    }
+    
+    if (product.model) {
+      notes.push(`Model: ${product.model}`);
+    }
+    
+    return notes.join('\n');
   }
 
   /**

@@ -11,6 +11,8 @@ import {
   Badge,
   Paper,
   Divider,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   ExpandLess,
@@ -21,6 +23,7 @@ import {
   LocationOn as LocationIcon,
   Person as PersonIcon,
   MeetingRoom as RoomIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import type { Thing, Category, Location, Person, Room } from '../types';
 
@@ -35,11 +38,13 @@ interface QuickFiltersProps {
   selectedRoomId?: string;
   selectedOwnerId?: string;
   selectedTags: string[];
+  nameFilter: string;
   onCategoryFilter: (categoryId: string | undefined) => void;
   onLocationFilter: (locationId: string | undefined) => void;
   onRoomFilter: (roomId: string | undefined) => void;
   onOwnerFilter: (ownerId: string | undefined) => void;
   onTagFilter: (tags: string[]) => void;
+  onNameFilter: (name: string) => void;
   onClearFilters: () => void;
 }
 
@@ -54,11 +59,13 @@ export default function QuickFilters({
   selectedRoomId,
   selectedOwnerId,
   selectedTags,
+  nameFilter,
   onCategoryFilter,
   onLocationFilter,
   onRoomFilter,
   onOwnerFilter,
   onTagFilter,
+  onNameFilter,
   onClearFilters,
 }: QuickFiltersProps) {
   const [categoriesExpanded, setCategoriesExpanded] = useState(true);
@@ -220,7 +227,7 @@ export default function QuickFilters({
     }
   };
 
-  const hasActiveFilters = selectedCategoryId || selectedLocationId || selectedRoomId || selectedOwnerId || selectedTags.length > 0;
+  const hasActiveFilters = selectedCategoryId || selectedLocationId || selectedRoomId || selectedOwnerId || selectedTags.length > 0 || nameFilter.trim().length > 0;
 
   return (
     <Paper 
@@ -256,6 +263,40 @@ export default function QuickFilters({
 
       {/* Scrollable content */}
       <Box sx={{ flex: 1, overflow: 'auto' }}>
+        {/* Name Search */}
+        <Box sx={{ p: 2, pb: 1 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by name..."
+            value={nameFilter}
+            onChange={(e) => onNameFilter(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: nameFilter && (
+                <InputAdornment position="end">
+                  <ClearIcon 
+                    fontSize="small" 
+                    sx={{ cursor: 'pointer', color: 'text.secondary' }}
+                    onClick={() => onNameFilter('')}
+                  />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontSize: '0.875rem',
+              }
+            }}
+          />
+        </Box>
+
+        <Divider />
+
         {/* Categories Section */}
         <List dense sx={{ py: 0 }}>
           <ListItem disablePadding>

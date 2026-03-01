@@ -31,12 +31,16 @@ class AIAnalysisService {
       // Call OpenAI GPT-4 Vision API
       const analysis = await this.callOpenAIVision(photoUrl, prompt);
       
+      // Build notes from extracted text
+      const notes = this.buildNotesFromExtractedText(analysis.extractedText);
+      
       const processingTime = Date.now() - startTime;
       
       return {
         success: true,
         analysis: {
           ...analysis,
+          notes,
           confidence: this.calculateConfidence(analysis)
         },
         processingTimeMs: processingTime
@@ -56,6 +60,35 @@ class AIAnalysisService {
         processingTimeMs: Date.now() - startTime
       };
     }
+  }
+
+  /**
+   * Build notes field from extracted text data
+   * @param {Object} extractedText - Extracted text from AI analysis
+   * @returns {string} Formatted notes
+   */
+  buildNotesFromExtractedText(extractedText) {
+    if (!extractedText) return '';
+    
+    const notes = [];
+    
+    if (extractedText.brandNames && extractedText.brandNames.length > 0) {
+      notes.push(`Brand(s): ${extractedText.brandNames.join(', ')}`);
+    }
+    
+    if (extractedText.modelNumbers && extractedText.modelNumbers.length > 0) {
+      notes.push(`Model Number(s): ${extractedText.modelNumbers.join(', ')}`);
+    }
+    
+    if (extractedText.serialNumbers && extractedText.serialNumbers.length > 0) {
+      notes.push(`Serial Number(s): ${extractedText.serialNumbers.join(', ')}`);
+    }
+    
+    if (extractedText.otherText && extractedText.otherText.length > 0) {
+      notes.push(`Additional Info: ${extractedText.otherText.join(', ')}`);
+    }
+    
+    return notes.join('\n');
   }
 
   /**
@@ -369,6 +402,7 @@ Example for wireless headphones:
       success: true,
       analysis: {
         ...selectedItem,
+        notes: this.buildNotesFromExtractedText(selectedItem.extractedText),
         confidence: {
           overall: Math.round((baseConfidence + 0.1) * 100) / 100,
           itemName: Math.round((baseConfidence + 0.15) * 100) / 100,

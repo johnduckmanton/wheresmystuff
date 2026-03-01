@@ -54,13 +54,15 @@ const roomsHandler = async (event) => {
 };
 
 /**
- * Handle GET request - List all rooms for an inventory, optionally filter by locationId
+ * Handle GET request - Get a single room by ID or list all rooms for an inventory
  */
 async function handleGet(event) {
   try {
+    const pathParameters = event.pathParameters || {};
     const queryParams = event.queryStringParameters || {};
     const inventoryId = queryParams.inventoryId;
     const locationId = queryParams.locationId;
+    const roomId = pathParameters.id;
     
     if (!inventoryId) {
       return error('inventoryId query parameter is required', 400);
@@ -72,6 +74,29 @@ async function handleGet(event) {
     
     // Check inventory access
     await authorizeInventoryAccess(event, inventoryId);
+    
+    // If roomId is provided, get a single room
+    if (roomId) {
+      if (!validateUUID(roomId)) {
+        return error('Invalid room ID format', 400);
+      }
+      
+      const room = await getEntity(ENTITY_TYPE, inventoryId, roomId);
+      
+      if (!room) {
+        return error('Room not found', 404);
+      }
+      
+      // Decode HTML entities in photo keys for backward compatibility
+      if (room.photos && Array.isArray(room.photos)) {
+        room.photos = room.photos.map(photo => decodeHtmlEntities(photo));
+      }
+      
+      // Log data access
+      await logDataAccess(event.user.userId, 'read', 'rooms', roomId, inventoryId);
+      
+      return success(room);
+    }
     
     // Get all rooms for the inventory
     const rooms = await listEntities(ENTITY_TYPE, inventoryId);
