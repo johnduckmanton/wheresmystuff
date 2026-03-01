@@ -165,9 +165,17 @@ async function updateEntity(entityType, inventoryId, id, data) {
     throw new Error('Entity not found');
   }
   
+  // Remove undefined values from data to avoid DynamoDB errors
+  const cleanData = Object.entries(data).reduce((acc, [key, value]) => {
+    if (value !== undefined) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+  
   const updatedData = {
     ...existing,
-    ...data,
+    ...cleanData,
     id: existing.id, // Preserve original id
     inventoryId: existing.inventoryId, // Preserve original inventoryId
     dateAdded: existing.dateAdded // Preserve original dateAdded
