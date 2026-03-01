@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -22,8 +22,6 @@ import {
 import { Html5Qrcode } from 'html5-qrcode';
 import {
   detectIOSContext,
-  getIOSCameraConstraints,
-  requestIOSCameraPermission,
   getIOSCameraDevices,
   selectPreferredIOSCamera,
   stopIOSCameraStream,
@@ -46,29 +44,64 @@ export default function BarcodeScanner({
   const [manualBarcode, setManualBarcode] = useState('');
   const [error, setError] = useState<string>('');
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [scanner, setScanner] = useState<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const scannerId = 'barcode-scanner-reader';
 
   // Initialize scanner when dialog opens
   useEffect(() => {
-    if (open && !manualEntry && !scanner) {
-      initializeScanner();
+    if (open && !manualEntry) {
+      // Wait for DOM to be ready before initializing scanner
+      const timer = setTimeout(() => {
+        const element = document.getElementById(scannerId);
+        if (element) {
+          initializeScanner();
+        } else {
+          console.error('Scanner element not found in DOM');
+          setError('Failed to initialize scanner. Please try again.');
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
 
     return () => {
-      if (scanner) {
-        stopScanning();
-      }
-      if (cameraStream) {
-        stopIOSCameraStream(cameraStream);
-        setCameraStream(null);
-      }
+      cleanupScanner();
     };
   }, [open, manualEntry]);
 
+  // Auto-start scanning when initialized
+  useEffect(() => {
+    if (open && !manualEntry && isInitialized && !scanning) {
+      const timer = setTimeout(() => {
+        startScanning();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [open, manualEntry, isInitialized, scanning]);
+
   const initializeScanner = async () => {
+    try {
+      setError('');
+      setPermissionDenied(false);
+      
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode(scannerId);
+      }
+      
+      setIsInitialized(true);
+    } catch (err: any) {
+      console.error('Failed to initialize barcode scanner:', err);
+      setError('Failed to initialize scanner. Please try again.');
+    }
+  };
+
+  const startScanning = async () => {
+    if (!scannerRef.current || scanning) return;
+
     try {
       setError('');
       setPermissionDenied(false);
@@ -76,38 +109,12 @@ export default function BarcodeScanner({
       // Detect iOS context
       const iosContext = detectIOSContext();
       
-      // For iOS, request camera permission with iOS-specific handling
-      if (iosContext.isIOS) {
-        // Get available cameras and select preferred one (back camera)
-        const devices = await getIOSCameraDevices();
-        const preferredDeviceId = selectPreferredIOSCamera(devices);
-        
-        // Request permission with iOS-optimized constraints
-        const permissionResult = await requestIOSCameraPermission(preferredDeviceId);
-        
-        if (!permissionResult.success) {
-          setPermissionDenied(true);
-          setError(permissionResult.error || 'Camera access denied');
-          return;
-        }
-        
-        // Store the stream for cleanup
-        if (permissionResult.stream) {
-          setCameraStream(permissionResult.stream);
-        }
-      }
-
-      const html5QrCode = new Html5Qrcode(scannerId);
-      setScanner(html5QrCode);
-
-      // Get iOS-optimized constraints or standard constraints
+      // Get available cameras and select preferred one (back camera)
       const devices = await getIOSCameraDevices();
       const preferredDeviceId = selectPreferredIOSCamera(devices);
-      // Note: constraints are used internally by the camera system
-      getIOSCameraConstraints(preferredDeviceId);
 
       // Start scanning with appropriate constraints
-      await html5QrCode.start(
+      await scannerRef.current.start(
         preferredDeviceId || { facingMode: 'environment' },
         {
           fps: iosContext.isIOS ? 30 : 10, // iOS performs better with 30fps
@@ -126,7 +133,7 @@ export default function BarcodeScanner({
 
       setScanning(true);
     } catch (err: any) {
-      console.error('Failed to initialize barcode scanner:', err);
+      console.error('Failed to start barcode scanner:', err);
       
       // Use iOS-specific error messages
       const errorMessage = getIOSCameraErrorMessage(err);
@@ -147,15 +154,49 @@ export default function BarcodeScanner({
   };
 
   const stopScanning = async () => {
-    if (scanner && scanning) {
+    if (scannerRef.current && scanning) {
       try {
-        await scanner.stop();
-        scanner.clear();
+        // Check if scanner is actually running before trying to stop
+        const state = scannerRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          await scannerRef.current.stop();
+          console.log('✅ Camera stopped successfully');
+        }
       } catch (err) {
         console.error('Error stopping scanner:', err);
       }
       setScanning(false);
     }
+    
+    // Clean up iOS camera stream
+    if (cameraStream) {
+      stopIOSCameraStream(cameraStream);
+      setCameraStream(null);
+    }
+  };
+
+  const cleanupScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        // Check if scanner is running and stop it
+        const state = scannerRef.current.getState();
+        if (state === 2) { // 2 = SCANNING state
+          await scannerRef.current.stop();
+          console.log('✅ Camera stopped during cleanup');
+        }
+        
+        // Clear the scanner instance
+        await scannerRef.current.clear();
+        console.log('✅ Scanner cleared');
+      } catch (err) {
+        console.error('Error during cleanup:', err);
+      }
+      
+      scannerRef.current = null;
+    }
+    
+    setScanning(false);
+    setIsInitialized(false);
     
     // Clean up iOS camera stream
     if (cameraStream) {
@@ -181,7 +222,7 @@ export default function BarcodeScanner({
   };
 
   const handleClose = async () => {
-    await stopScanning();
+    await cleanupScanner();
     setManualEntry(false);
     setManualBarcode('');
     setError('');
@@ -192,13 +233,13 @@ export default function BarcodeScanner({
   const toggleManualEntry = async () => {
     if (!manualEntry) {
       // Switching to manual entry - stop scanner
-      await stopScanning();
+      await cleanupScanner();
       setManualEntry(true);
     } else {
       // Switching to camera - restart scanner
       setManualEntry(false);
       setManualBarcode('');
-      initializeScanner();
+      // Will auto-initialize via useEffect
     }
   };
 

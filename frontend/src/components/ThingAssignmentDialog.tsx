@@ -63,6 +63,7 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [nameFilter, setNameFilter] = useState<string>('');
 
   useEffect(() => {
     if (open) {
@@ -73,7 +74,7 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
   // Apply filters whenever filter state changes
   useEffect(() => {
     applyFilters();
-  }, [allThings, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags]);
+  }, [allThings, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags, nameFilter]);
 
   const loadData = async () => {
     try {
@@ -104,6 +105,14 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
 
   const applyFilters = () => {
     let filtered = [...allThings];
+
+    // Apply name filter
+    if (nameFilter.trim()) {
+      const nameLower = nameFilter.toLowerCase();
+      filtered = filtered.filter(thing =>
+        thing.name.toLowerCase().includes(nameLower)
+      );
+    }
 
     // Apply text search
     if (searchQuery) {
@@ -203,6 +212,7 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
     setSelectedRoomId(undefined);
     setSelectedOwnerId(undefined);
     setSelectedTags([]);
+    setNameFilter('');
     setSearchQuery('');
   };
 
@@ -254,11 +264,13 @@ const ThingAssignmentDialog: React.FC<ThingAssignmentDialogProps> = ({
                   selectedRoomId={selectedRoomId}
                   selectedOwnerId={selectedOwnerId}
                   selectedTags={selectedTags}
+                  nameFilter={nameFilter}
                   onCategoryFilter={setSelectedCategoryId}
                   onLocationFilter={setSelectedLocationId}
                   onRoomFilter={setSelectedRoomId}
                   onOwnerFilter={setSelectedOwnerId}
                   onTagFilter={setSelectedTags}
+                  onNameFilter={setNameFilter}
                   onClearFilters={handleClearFilters}
                 />
               </Box>

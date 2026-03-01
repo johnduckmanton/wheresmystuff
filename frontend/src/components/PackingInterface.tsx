@@ -109,6 +109,7 @@ export default function PackingInterface({
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | undefined>(undefined);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [nameFilter, setNameFilter] = useState<string>('');
 
   // UI state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -513,6 +514,7 @@ export default function PackingInterface({
     setSelectedRoomId(undefined);
     setSelectedOwnerId(undefined);
     setSelectedTags([]);
+    setNameFilter('');
     setSearchQuery('');
   };
 
@@ -784,11 +786,13 @@ export default function PackingInterface({
                 selectedRoomId={selectedRoomId}
                 selectedOwnerId={selectedOwnerId}
                 selectedTags={selectedTags}
+                nameFilter={nameFilter}
                 onCategoryFilter={setSelectedCategoryId}
                 onLocationFilter={setSelectedLocationId}
                 onRoomFilter={setSelectedRoomId}
                 onOwnerFilter={setSelectedOwnerId}
                 onTagFilter={setSelectedTags}
+                onNameFilter={setNameFilter}
                 onClearFilters={handleClearFilters}
               />
             </Box>

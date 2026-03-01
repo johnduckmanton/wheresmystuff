@@ -26,7 +26,7 @@ import {
   ViewList as ContentsIcon,
   Info as InfoIcon,
   Share as ShareIcon,
-  Add as AddIcon,
+  MoveToInbox as PackIcon,
   Print as PrintIcon,
   Storage as StorageIcon,
 } from '@mui/icons-material';
@@ -226,7 +226,7 @@ export default function ContainerDetailDialog({
           {onPack && (
             <Tooltip title="Pack Items">
               <IconButton onClick={onPack} size="small" color="info">
-                <AddIcon />
+                <PackIcon />
               </IconButton>
             </Tooltip>
           )}

@@ -798,6 +798,14 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuthorizer
+        GetRoomById:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /rooms/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
         CreateRoom:
           Type: HttpApi
           Properties:

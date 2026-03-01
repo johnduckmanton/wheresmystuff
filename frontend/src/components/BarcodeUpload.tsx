@@ -8,7 +8,6 @@ import {
   TextField,
   Alert,
   Stack,
-  CircularProgress,
 } from '@mui/material';
 import {
   QrCodeScanner as BarcodeScanIcon,
@@ -29,7 +28,6 @@ export default function BarcodeUpload({ onBarcodeComplete }: BarcodeUploadProps)
   const [barcodePreviewOpen, setBarcodePreviewOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
-  const [isLookingUp, setIsLookingUp] = useState(false);
 
   const { showError, showSuccess } = useNotification();
   const { currentInventory } = useInventory();
@@ -107,13 +105,12 @@ export default function BarcodeUpload({ onBarcodeComplete }: BarcodeUploadProps)
                       handleManualLookup();
                     }
                   }}
-                  disabled={isLookingUp}
                 />
                 <Button
                   variant="outlined"
                   onClick={handleManualLookup}
-                  disabled={isLookingUp || !manualBarcode.trim()}
-                  startIcon={isLookingUp ? <CircularProgress size={16} /> : <SearchIcon />}
+                  disabled={!manualBarcode.trim()}
+                  startIcon={<SearchIcon />}
                 >
                   Lookup
                 </Button>
