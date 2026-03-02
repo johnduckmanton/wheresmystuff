@@ -699,6 +699,11 @@ async function handleGetInterfaceData(event, origin) {
       people: people.length,
       containers: containers.length,
     });
+    
+    // Debug: Log first container to see what data we're getting
+    if (containers.length > 0) {
+      console.log('First container from DB:', JSON.stringify(containers[0], null, 2));
+    }
 
     return success({
       things,

@@ -408,7 +408,7 @@ export default function PackingInterface({
       
       console.log('PackingInterface: Containers loaded:', data.containers?.length || 0);
       if (data.containers && data.containers.length > 0) {
-        console.log('Sample container:', data.containers[0]);
+        console.log('Sample container:', JSON.stringify(data.containers[0], null, 2));
       }
 
       // Transform items for packing interface
@@ -484,20 +484,16 @@ export default function PackingInterface({
     console.log('applyFilters: hideAlreadyPacked =', hideAlreadyPacked, 'container =', container?.id);
 
     // Apply hide already packed filter
-    if (hideAlreadyPacked && container) {
+    if (hideAlreadyPacked) {
       const beforeCount = filtered.length;
       filtered = filtered.filter(thing => {
         const extendedItem = thing as any;
         const hasContainerId = !!extendedItem.containerId;
-        const isInCurrentContainer = extendedItem.containerId === container.id;
-        const shouldKeep = !extendedItem.containerId || extendedItem.containerId === container.id;
+        const shouldKeep = !extendedItem.containerId; // Only keep items with no container
         
         if (hasContainerId) {
-          console.log('Item with container:', thing.name, {
+          console.log('Item with container (filtered out):', thing.name, {
             containerId: extendedItem.containerId,
-            currentContainerId: container.id,
-            isInCurrentContainer,
-            shouldKeep
           });
         }
         
@@ -785,10 +781,12 @@ export default function PackingInterface({
   };
 
   const getContainerName = (containerId: string) => {
-    const containerName = containerMap.get(containerId)?.name || containerId;
+    const container = containerMap.get(containerId);
+    const containerName = container?.name || containerId;
     console.log(`getContainerName: ${containerId} -> ${containerName}`, {
       hasContainer: containerMap.has(containerId),
       totalContainers: containerMap.size,
+      container: container ? { id: container.id, name: container.name, hasName: !!container.name } : null,
     });
     return containerName;
   };
@@ -810,9 +808,10 @@ export default function PackingInterface({
       
       {/* Mode Selector */}
       <Box sx={{ 
-        p: { xs: 1, sm: 2 }, 
+        p: { xs: 1, sm: 1.5 }, 
         borderBottom: 1, 
-        borderColor: 'divider' 
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
       }}>
         <ModeSelector mode={mode} onModeChange={handleModeChange} />
       </Box>
@@ -865,33 +864,31 @@ export default function PackingInterface({
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {/* Header with Stats */}
           <Box sx={{ 
-            p: { xs: 2, sm: 3 }, 
+            p: { xs: 1.5, sm: 2 }, 
             borderBottom: 1, 
             borderColor: 'divider',
           }}>
-            <Typography 
-              variant="h5" 
-              gutterBottom
-              sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}
-            >
-              Pack Items into {container.name}
-            </Typography>
-            
-            {/* Statistics - Only show selected count */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              <Chip
-                icon={<CheckCircleIcon />}
-                label={`${stats.selectedCount} selected`}
-                color="primary"
-                variant={stats.selectedCount > 0 ? 'filled' : 'outlined'}
-                size="small"
-              />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' }, fontWeight: 600 }}
+              >
+                Pack Items into {container.name}
+              </Typography>
+              {stats.selectedCount > 0 && (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label={`${stats.selectedCount} selected`}
+                  color="primary"
+                  size="small"
+                />
+              )}
             </Box>
           </Box>
 
           {/* Search Bar and Controls */}
-          <Box sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+          <Box sx={{ p: { xs: 1, sm: 1.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
               <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
                 <IconButton
                   onClick={() => setShowQuickFilters(!showQuickFilters)}
@@ -974,7 +971,7 @@ export default function PackingInterface({
           </Box>
 
           {/* Items List */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 1.5, sm: 2 } }}>
+          <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 1, sm: 1.5 } }}>
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <Typography>Loading items...</Typography>
@@ -1007,7 +1004,7 @@ export default function PackingInterface({
       {/* Action Buttons */}
       <Box 
         sx={{ 
-          p: { xs: 2, sm: 3 }, 
+          p: { xs: 1.5, sm: 2 }, 
           borderTop: 1, 
           borderColor: 'divider', 
           display: 'flex', 
