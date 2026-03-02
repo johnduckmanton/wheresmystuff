@@ -405,6 +405,11 @@ export default function PackingInterface({
       setRooms(data.rooms || []);
       setPeople(data.people || []);
       setContainers(data.containers || []);
+      
+      console.log('PackingInterface: Containers loaded:', data.containers?.length || 0);
+      if (data.containers && data.containers.length > 0) {
+        console.log('Sample container:', data.containers[0]);
+      }
 
       // Transform items for packing interface
       const packingItemsData: PackingItem[] = (data.things || []).map((item: Thing) => {
@@ -475,13 +480,30 @@ export default function PackingInterface({
   const applyFilters = () => {
     let filtered = [...allItems];
 
+    console.log('applyFilters: Starting with', filtered.length, 'items');
+    console.log('applyFilters: hideAlreadyPacked =', hideAlreadyPacked, 'container =', container?.id);
+
     // Apply hide already packed filter
     if (hideAlreadyPacked && container) {
+      const beforeCount = filtered.length;
       filtered = filtered.filter(thing => {
         const extendedItem = thing as any;
-        // Keep items that are not packed, or are packed in the current container
-        return !extendedItem.containerId || extendedItem.containerId === container.id;
+        const hasContainerId = !!extendedItem.containerId;
+        const isInCurrentContainer = extendedItem.containerId === container.id;
+        const shouldKeep = !extendedItem.containerId || extendedItem.containerId === container.id;
+        
+        if (hasContainerId) {
+          console.log('Item with container:', thing.name, {
+            containerId: extendedItem.containerId,
+            currentContainerId: container.id,
+            isInCurrentContainer,
+            shouldKeep
+          });
+        }
+        
+        return shouldKeep;
       });
+      console.log('applyFilters: After hide packed filter:', beforeCount, '->', filtered.length);
     }
 
     // Apply text search
