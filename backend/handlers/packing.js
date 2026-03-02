@@ -678,18 +678,36 @@ async function handleGetInterfaceData(event, origin) {
 
     // Import required services
     const { listEntities } = require('../services/dynamodb');
+    const { Container } = require('../models/container');
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+    
+    const client = new DynamoDBClient({});
+    const docClient = DynamoDBDocumentClient.from(client);
+    const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
     
     console.log('Fetching entities from DynamoDB...');
     
     // Fetch all data in parallel from DynamoDB (single Lambda execution)
-    const [things, categories, locations, rooms, people, containers] = await Promise.all([
+    // Note: Containers use a different data structure and need special handling
+    const [things, categories, locations, rooms, people, containersResult] = await Promise.all([
       listEntities('THINGS', inventoryId),
       listEntities('CATEGORIES', inventoryId),
       listEntities('LOCATIONS', inventoryId),
       listEntities('ROOMS', inventoryId),
       listEntities('PEOPLE', inventoryId),
-      listEntities('CONTAINERS', inventoryId),
+      // Containers store data directly on the item, not under 'data' property
+      docClient.send(new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: 'pk = :pk',
+        ExpressionAttributeValues: {
+          ':pk': `INVENTORY#${inventoryId}#CONTAINERS`
+        }
+      }))
     ]);
+    
+    // Convert container items using Container.fromDynamoDBItem
+    const containers = (containersResult.Items || []).map(item => Container.fromDynamoDBItem(item));
     
     console.log('Entities fetched:', {
       things: things.length,
