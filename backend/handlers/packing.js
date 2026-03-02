@@ -683,12 +683,12 @@ async function handleGetInterfaceData(event, origin) {
     
     // Fetch all data in parallel from DynamoDB (single Lambda execution)
     const [things, categories, locations, rooms, people, containers] = await Promise.all([
-      listEntities('THING', inventoryId),
-      listEntities('CATEGORY', inventoryId),
-      listEntities('LOCATION', inventoryId),
-      listEntities('ROOM', inventoryId),
-      listEntities('PERSON', inventoryId),
-      listEntities('CONTAINER', inventoryId),
+      listEntities('THINGS', inventoryId),
+      listEntities('CATEGORIES', inventoryId),
+      listEntities('LOCATIONS', inventoryId),
+      listEntities('ROOMS', inventoryId),
+      listEntities('PEOPLE', inventoryId),
+      listEntities('CONTAINERS', inventoryId),
     ]);
     
     console.log('Entities fetched:', {
