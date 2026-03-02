@@ -661,6 +661,8 @@ async function handleGetInterfaceData(event, origin) {
   try {
     const inventoryId = event.queryStringParameters?.inventoryId;
     
+    console.log('handleGetInterfaceData called with inventoryId:', inventoryId);
+    
     if (!inventoryId) {
       return error('inventoryId query parameter is required', 400, origin);
     }
@@ -671,9 +673,13 @@ async function handleGetInterfaceData(event, origin) {
 
     // Check inventory access
     await authorizeInventoryAccess(event, inventoryId);
+    
+    console.log('Inventory access authorized for user:', event.user?.userId);
 
     // Import required services
     const { listEntities } = require('../services/dynamodb');
+    
+    console.log('Fetching entities from DynamoDB...');
     
     // Fetch all data in parallel from DynamoDB (single Lambda execution)
     const [things, categories, locations, rooms, people, containers] = await Promise.all([
@@ -684,6 +690,15 @@ async function handleGetInterfaceData(event, origin) {
       listEntities('PERSON', inventoryId),
       listEntities('CONTAINER', inventoryId),
     ]);
+    
+    console.log('Entities fetched:', {
+      things: things.length,
+      categories: categories.length,
+      locations: locations.length,
+      rooms: rooms.length,
+      people: people.length,
+      containers: containers.length,
+    });
 
     return success({
       things,
