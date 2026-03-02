@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography } from '@mui/material';
 import apiClient from '../services/api';
+import { photoQueue } from '../services/photoQueue';
 
 interface ContainerPhotoThumbnailProps {
   photoKey?: string;
@@ -27,38 +28,22 @@ export default function ContainerPhotoThumbnail({
       return;
     }
 
-    const loadPhoto = async (retryCount = 0) => {
+    const loadPhoto = async () => {
       try {
         setLoading(true);
         setError(false);
-        const response = await apiClient.generateDownloadUrl(photoKey);
-        setPhotoUrl(response.downloadUrl);
+        const url = await photoQueue.loadPhoto(photoKey, apiClient);
+        setPhotoUrl(url);
+        setLoading(false);
       } catch (error: any) {
         console.warn('Failed to load container photo:', error);
-        
-        // Retry on 503 errors (service unavailable) up to 3 times
-        if (error.message?.includes('Service Unavailable') && retryCount < 3) {
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
-          console.log(`Retrying container photo load in ${delay}ms (attempt ${retryCount + 1}/3)`);
-          setTimeout(() => loadPhoto(retryCount + 1), delay);
-          return;
-        }
-        
         setPhotoUrl(null);
         setError(true);
         setLoading(false);
-      } finally {
-        if (retryCount === 0 || error) {
-          setLoading(false);
-        }
       }
     };
 
-    // Add a small random delay to stagger requests (0-500ms)
-    const delay = Math.random() * 500;
-    const timer = setTimeout(() => loadPhoto(), delay);
-    
-    return () => clearTimeout(timer);
+    loadPhoto();
   }, [photoKey]);
 
   const hasImage = photoUrl && !error;

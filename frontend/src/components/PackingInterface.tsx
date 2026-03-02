@@ -16,6 +16,7 @@ import {
   TextField,
   InputAdornment,
   Tooltip,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -104,6 +105,7 @@ export default function PackingInterface({
 
   // Filter state
   const [showQuickFilters, setShowQuickFilters] = useState(false);
+  const [hideAlreadyPacked, setHideAlreadyPacked] = useState(true); // Default to hiding packed items
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
   const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>(undefined);
@@ -443,7 +445,7 @@ export default function PackingInterface({
   // Apply filters
   useEffect(() => {
     applyFilters();
-  }, [allItems, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags]);
+  }, [allItems, searchQuery, selectedCategoryId, selectedLocationId, selectedRoomId, selectedOwnerId, selectedTags, hideAlreadyPacked, container]);
 
   // Create lookup maps
   const categoryMap = useMemo(() => {
@@ -472,6 +474,15 @@ export default function PackingInterface({
 
   const applyFilters = () => {
     let filtered = [...allItems];
+
+    // Apply hide already packed filter
+    if (hideAlreadyPacked && container) {
+      filtered = filtered.filter(thing => {
+        const extendedItem = thing as any;
+        // Keep items that are not packed, or are packed in the current container
+        return !extendedItem.containerId || extendedItem.containerId === container.id;
+      });
+    }
 
     // Apply text search
     if (searchQuery) {
@@ -752,7 +763,12 @@ export default function PackingInterface({
   };
 
   const getContainerName = (containerId: string) => {
-    return containerMap.get(containerId)?.name || containerId;
+    const containerName = containerMap.get(containerId)?.name || containerId;
+    console.log(`getContainerName: ${containerId} -> ${containerName}`, {
+      hasContainer: containerMap.has(containerId),
+      totalContainers: containerMap.size,
+    });
+    return containerName;
   };
 
   return (
@@ -888,16 +904,32 @@ export default function PackingInterface({
               flexDirection: { xs: 'column', sm: 'row' },
               gap: { xs: 1, sm: 0 },
             }}>
-              {selectedItems.size > 0 ? (
-                <Chip
-                  label={`${selectedItems.size} selected`}
-                  color="primary"
-                  size="small"
-                  onDelete={handleDeselectAll}
-                />
-              ) : (
-                <Box />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {selectedItems.size > 0 ? (
+                  <Chip
+                    label={`${selectedItems.size} selected`}
+                    color="primary"
+                    size="small"
+                    onDelete={handleDeselectAll}
+                  />
+                ) : (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={hideAlreadyPacked}
+                        onChange={(e) => setHideAlreadyPacked(e.target.checked)}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                        Hide already packed
+                      </Typography>
+                    }
+                    sx={{ m: 0 }}
+                  />
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Button
                   onClick={handleSelectAll}
