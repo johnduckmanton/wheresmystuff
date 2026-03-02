@@ -862,30 +862,6 @@ export default function PackingInterface({
 
         {/* Items List Area */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {/* Header with Stats */}
-          <Box sx={{ 
-            p: { xs: 1.5, sm: 2 }, 
-            borderBottom: 1, 
-            borderColor: 'divider',
-          }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography 
-                variant="h6" 
-                sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' }, fontWeight: 600 }}
-              >
-                Pack Items into {container.name}
-              </Typography>
-              {stats.selectedCount > 0 && (
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label={`${stats.selectedCount} selected`}
-                  color="primary"
-                  size="small"
-                />
-              )}
-            </Box>
-          </Box>
-
           {/* Search Bar and Controls */}
           <Box sx={{ p: { xs: 1, sm: 1.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
@@ -915,6 +891,15 @@ export default function PackingInterface({
                   },
                 }}
               />
+              {stats.selectedCount > 0 && (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label={`${stats.selectedCount}`}
+                  color="primary"
+                  size="small"
+                  sx={{ flexShrink: 0 }}
+                />
+              )}
             </Box>
             <Box sx={{ 
               display: 'flex', 
