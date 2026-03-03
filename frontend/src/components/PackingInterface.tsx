@@ -794,7 +794,7 @@ export default function PackingInterface({
     });
     
     // Prevent showing "0" or other falsy values
-    if (!containerName || containerName === '0' || containerName === 0) {
+    if (!containerName || containerName === '0') {
       return containerId;
     }
     
@@ -1429,15 +1429,6 @@ function PackingItemCard({
               >
                 🏷️ {categoryName}
               </Typography>
-              {item.purchasePrice && (
-                <Typography 
-                  variant="caption" 
-                  color="text.secondary"
-                  sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                >
-                  💰 £{item.purchasePrice.toFixed(2)}
-                </Typography>
-              )}
             </Box>
 
             {item.alreadyPacked && currentContainerName && currentContainerName !== containerName && (
