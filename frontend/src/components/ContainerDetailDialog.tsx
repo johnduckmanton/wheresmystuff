@@ -64,6 +64,8 @@ export default function ContainerDetailDialog({
 }: ContainerDetailDialogProps) {
   const [location, setLocation] = useState<Location | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
+  const [targetLocation, setTargetLocation] = useState<Location | null>(null);
+  const [targetRoom, setTargetRoom] = useState<Room | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
   const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
@@ -74,32 +76,58 @@ export default function ContainerDetailDialog({
     if (!container.locationId) {
       setLocation(null);
       setRoom(null);
-      return;
-    }
+    } else {
+      try {
+        const locationData = await apiClient.getLocation(container.locationId, inventoryId);
+        setLocation(locationData);
 
-    try {
-      const locationData = await apiClient.getLocation(container.locationId, inventoryId);
-      setLocation(locationData);
-
-      // Load room if roomId exists
-      if (container.roomId) {
-        try {
-          const roomData = await apiClient.getRoom(container.roomId, inventoryId);
-          setRoom(roomData);
-        } catch (error) {
-          // Silently handle room loading errors - room might not exist or be accessible
-          console.warn('Could not load room:', error);
+        // Load room if roomId exists
+        if (container.roomId) {
+          try {
+            const roomData = await apiClient.getRoom(container.roomId, inventoryId);
+            setRoom(roomData);
+          } catch (error) {
+            console.warn('Could not load room:', error);
+            setRoom(null);
+          }
+        } else {
           setRoom(null);
         }
-      } else {
+      } catch (error) {
+        console.error('Error loading location:', error);
+        setLocation(null);
         setRoom(null);
       }
-    } catch (error) {
-      console.error('Error loading location:', error);
-      setLocation(null);
-      setRoom(null);
     }
-  }, [container.locationId, container.roomId, inventoryId]);
+
+    // Load target location and room
+    if (!container.targetLocationId) {
+      setTargetLocation(null);
+      setTargetRoom(null);
+    } else {
+      try {
+        const targetLocationData = await apiClient.getLocation(container.targetLocationId, inventoryId);
+        setTargetLocation(targetLocationData);
+
+        // Load target room if targetRoomId exists
+        if (container.targetRoomId) {
+          try {
+            const targetRoomData = await apiClient.getRoom(container.targetRoomId, inventoryId);
+            setTargetRoom(targetRoomData);
+          } catch (error) {
+            console.warn('Could not load target room:', error);
+            setTargetRoom(null);
+          }
+        } else {
+          setTargetRoom(null);
+        }
+      } catch (error) {
+        console.error('Error loading target location:', error);
+        setTargetLocation(null);
+        setTargetRoom(null);
+      }
+    }
+  }, [container.locationId, container.roomId, container.targetLocationId, container.targetRoomId, inventoryId]);
 
   const loadFullContainer = useCallback(async () => {
     try {
@@ -348,10 +376,10 @@ export default function ContainerDetailDialog({
                           </Box>
                         )}
 
-                        {/* Location */}
+                        {/* Current Location */}
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                           <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
-                            Location:
+                            Current:
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <LocationIcon fontSize="small" color="action" />
@@ -362,6 +390,23 @@ export default function ContainerDetailDialog({
                             </Typography>
                           </Box>
                         </Box>
+
+                        {/* Target Location */}
+                        {(targetLocation || container.targetLocationId) && (
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                              Target:
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <LocationIcon fontSize="small" color="primary" />
+                              <Typography variant="body2" color="primary">
+                                {targetLocation 
+                                  ? (targetRoom ? `${targetLocation.name} > ${targetRoom.name}` : targetLocation.name)
+                                  : 'Loading...'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
 
                         {/* Contents Summary */}
                         <Box>

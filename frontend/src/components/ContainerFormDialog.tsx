@@ -95,6 +95,8 @@ interface FormData {
   photos: string[];
   locationId: string;
   roomId: string;
+  targetLocationId: string;
+  targetRoomId: string;
   projectId: string;
   handlingFlags: HandlingFlag[];
   status: ContainerStatus;
@@ -111,6 +113,8 @@ interface FormErrors {
   photos?: string;
   locationId?: string;
   roomId?: string;
+  targetLocationId?: string;
+  targetRoomId?: string;
   projectId?: string;
   handlingFlags?: string;
   status?: string;
@@ -140,6 +144,8 @@ export default function ContainerFormDialog({
     photos: [],
     locationId: '',
     roomId: '',
+    targetLocationId: '',
+    targetRoomId: '',
     projectId: '',
     handlingFlags: [],
     status: ContainerStatusEnum.Empty,
@@ -176,6 +182,8 @@ export default function ContainerFormDialog({
           photos: container.photos || [],
           locationId: container.locationId || '',
           roomId: container.roomId || '',
+          targetLocationId: container.targetLocationId || '',
+          targetRoomId: container.targetRoomId || '',
           projectId: container.projectId || '',
           handlingFlags: container.handlingFlags || [],
           status: container.status || ContainerStatusEnum.Empty,
@@ -192,6 +200,8 @@ export default function ContainerFormDialog({
           photos: [],
           locationId: '',
           roomId: '',
+          targetLocationId: '',
+          targetRoomId: '',
           projectId: '',
           handlingFlags: [],
           status: ContainerStatusEnum.Empty,
@@ -291,6 +301,15 @@ export default function ContainerFormDialog({
       }));
     }
 
+    // Clear targetRoomId when target location changes
+    if (field === 'targetLocationId') {
+      setFormData(prev => ({
+        ...prev,
+        targetLocationId: value,
+        targetRoomId: '', // Clear target room selection when target location changes
+      }));
+    }
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => {
@@ -341,6 +360,8 @@ export default function ContainerFormDialog({
         photos: formData.photos,
         locationId: formData.locationId.trim() || undefined,
         roomId: formData.roomId.trim() || undefined,
+        targetLocationId: formData.targetLocationId.trim() || undefined,
+        targetRoomId: formData.targetRoomId.trim() || undefined,
         projectId: formData.projectId.trim() || undefined,
         handlingFlags: formData.handlingFlags,
         status: formData.status,
@@ -387,6 +408,8 @@ export default function ContainerFormDialog({
       photos: [],
       locationId: '',
       roomId: '',
+      targetLocationId: '',
+      targetRoomId: '',
       projectId: '',
       handlingFlags: [],
       status: ContainerStatusEnum.Empty,
@@ -576,14 +599,23 @@ export default function ContainerFormDialog({
       ? rooms.filter(room => room.locationId === formData.locationId)
       : rooms;
 
+    // Filter target rooms by selected target location
+    const filteredTargetRooms = formData.targetLocationId
+      ? rooms.filter(room => room.locationId === formData.targetLocationId)
+      : rooms;
+
     return (
       <>
-        {/* Location */}
+        <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>
+          Current Location
+        </Typography>
+
+        {/* Current Location */}
         <FormControl fullWidth error={!!errors.locationId}>
-          <InputLabel>Location</InputLabel>
+          <InputLabel>Current Location</InputLabel>
           <Select
             value={formData.locationId}
-            label="Location"
+            label="Current Location"
             onChange={(e) => handleFieldChange('locationId', e.target.value)}
           >
             <MenuItem value="">
@@ -598,12 +630,12 @@ export default function ContainerFormDialog({
           {errors.locationId && <FormHelperText>{errors.locationId}</FormHelperText>}
         </FormControl>
 
-        {/* Room */}
+        {/* Current Room */}
         <FormControl fullWidth error={!!errors.roomId} disabled={!formData.locationId}>
-          <InputLabel>Room</InputLabel>
+          <InputLabel>Current Room</InputLabel>
           <Select
             value={formData.roomId}
-            label="Room"
+            label="Current Room"
             onChange={(e) => handleFieldChange('roomId', e.target.value)}
           >
             <MenuItem value="">
@@ -620,8 +652,56 @@ export default function ContainerFormDialog({
           </FormHelperText>
         </FormControl>
 
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, color: 'text.secondary' }}>
+          Target Location (After Move)
+        </Typography>
+
+        {/* Target Location */}
+        <FormControl fullWidth error={!!errors.targetLocationId}>
+          <InputLabel>Target Location</InputLabel>
+          <Select
+            value={formData.targetLocationId}
+            label="Target Location"
+            onChange={(e) => handleFieldChange('targetLocationId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {locations.map((location) => (
+              <MenuItem key={location.id} value={location.id}>
+                {location.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {errors.targetLocationId || 'Optional: Where this container will go after the move'}
+          </FormHelperText>
+        </FormControl>
+
+        {/* Target Room */}
+        <FormControl fullWidth error={!!errors.targetRoomId} disabled={!formData.targetLocationId}>
+          <InputLabel>Target Room</InputLabel>
+          <Select
+            value={formData.targetRoomId}
+            label="Target Room"
+            onChange={(e) => handleFieldChange('targetRoomId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {filteredTargetRooms.map((room) => (
+              <MenuItem key={room.id} value={room.id}>
+                {room.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {errors.targetRoomId || (formData.targetLocationId ? 'Optional: Select a room within the target location' : 'Select a target location first')}
+          </FormHelperText>
+        </FormControl>
+
         {/* Project Assignment */}
-        <FormControl fullWidth error={!!errors.projectId}>
+        <FormControl fullWidth error={!!errors.projectId} sx={{ mt: 2 }}>
           <InputLabel>Moving Project</InputLabel>
           <Select
             value={formData.projectId}

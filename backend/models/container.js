@@ -60,6 +60,8 @@ class Container {
     this.qrCodeGeneratedAt = data.qrCodeGeneratedAt;
     this.locationId = data.locationId;
     this.roomId = data.roomId;
+    this.targetLocationId = data.targetLocationId;
+    this.targetRoomId = data.targetRoomId;
     this.handlingFlags = data.handlingFlags || [];
     this.itemCount = data.itemCount || 0;
     this.estimatedValue = data.estimatedValue || 0;
@@ -293,6 +295,8 @@ class Container {
     if (this.qrCodeGeneratedAt) item.qrCodeGeneratedAt = this.qrCodeGeneratedAt;
     if (this.locationId) item.locationId = this.locationId;
     if (this.roomId) item.roomId = this.roomId;
+    if (this.targetLocationId) item.targetLocationId = this.targetLocationId;
+    if (this.targetRoomId) item.targetRoomId = this.targetRoomId;
     if (this.storageStartDate) item.storageStartDate = this.storageStartDate;
     if (this.storageRate) item.storageRate = this.storageRate;
 
@@ -322,6 +326,8 @@ class Container {
       qrCodeGeneratedAt: item.qrCodeGeneratedAt,
       locationId: item.locationId,
       roomId: item.roomId,
+      targetLocationId: item.targetLocationId,
+      targetRoomId: item.targetRoomId,
       handlingFlags: item.handlingFlags || [],
       itemCount: item.itemCount || 0,
       estimatedValue: item.estimatedValue || 0,
@@ -344,7 +350,7 @@ class Container {
   update(updates, updatedBy) {
     const allowedUpdates = [
       'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'weight', 'photos', 'locationId',
-      'roomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata'
+      'roomId', 'targetLocationId', 'targetRoomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata'
     ];
 
     allowedUpdates.forEach(field => {
