@@ -44,6 +44,7 @@ import { withRetry, isRetryableError } from '../utils/retry';
 import { errorLogger } from '../utils/errorLogger';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import OfflineBanner from './OfflineBanner';
+import { decodeHtmlEntities } from '../utils/htmlDecoder';
 import type { Container, Thing, Category, Location, Room, Person } from '../types/entities';
 
 interface PackingInterfaceProps {
@@ -791,6 +792,12 @@ export default function PackingInterface({
       totalContainers: containerMap.size,
       container: container ? { id: container.id, name: container.name, hasName: !!container.name } : null,
     });
+    
+    // Prevent showing "0" or other falsy values
+    if (!containerName || containerName === '0' || containerName === 0) {
+      return containerId;
+    }
+    
     return containerName;
   };
 
@@ -1299,6 +1306,10 @@ function PackingItemCard({
   const isDisabled = item.alreadyPacked && item.currentContainer !== containerName;
   const isInCurrentContainer = item.currentContainer === containerName;
 
+  // Decode HTML entities in item name and description
+  const decodedName = decodeHtmlEntities(item.name);
+  const decodedDescription = decodeHtmlEntities(item.description);
+
   return (
     <Card
       sx={{
@@ -1330,7 +1341,7 @@ function PackingItemCard({
           {/* Photo Thumbnail */}
           <PhotoThumbnail
             photoKey={item.photos?.[0]}
-            altText={item.name}
+            altText={decodedName}
             size={48}
             variant="square"
             showPopup={false}
@@ -1352,7 +1363,7 @@ function PackingItemCard({
                   fontSize: { xs: '0.875rem', sm: '0.875rem' },
                 }}
               >
-                {item.name}
+                {decodedName}
               </Typography>
               
               {/* Status indicators */}
@@ -1385,7 +1396,7 @@ function PackingItemCard({
             </Box>
 
             {/* Hide description on mobile */}
-            {item.description && (
+            {decodedDescription && (
               <Typography 
                 variant="body2" 
                 color="text.secondary" 
@@ -1395,7 +1406,7 @@ function PackingItemCard({
                   display: { xs: 'none', sm: 'block' },
                 }}
               >
-                {item.description}
+                {decodedDescription}
               </Typography>
             )}
 
