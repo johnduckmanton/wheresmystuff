@@ -408,7 +408,10 @@ export default function PackingInterface({
       
       console.log('PackingInterface: Containers loaded:', data.containers?.length || 0);
       if (data.containers && data.containers.length > 0) {
-        console.log('Sample container:', JSON.stringify(data.containers[0], null, 2));
+        console.log('Sample container full data:', data.containers[0]);
+        console.log('Container keys:', Object.keys(data.containers[0]));
+        console.log('Container name:', data.containers[0].name);
+        console.log('Container id:', data.containers[0].id);
       }
 
       // Transform items for packing interface
