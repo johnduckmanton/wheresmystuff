@@ -10,9 +10,6 @@ import {
   useTheme,
   useMediaQuery,
   List,
-  ListItem,
-  ListItemText,
-  Divider,
 } from '@mui/material';
 import {
   DataGrid,
@@ -226,7 +223,7 @@ export default function EntityTable({
                   paginationModel.page * paginationModel.pageSize,
                   (paginationModel.page + 1) * paginationModel.pageSize
                 )
-                .map((row, index) => (
+                .map((row) => (
                   <React.Fragment key={row.id}>
                     <Card 
                       sx={{ 
