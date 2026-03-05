@@ -30,8 +30,6 @@ import {
   Inventory as InventoryIcon,
   SwapHoriz as TransferIcon,
   MoreVert as MoreIcon,
-  AttachMoney as MoneyIcon,
-  Category as CategoryIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
 // Removed drag and drop for React 19 compatibility

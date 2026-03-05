@@ -30,7 +30,6 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Photo as PhotoIcon,
   Image as ImageIcon,
-  QrCodeScanner as BarcodeScanIcon,
 } from '@mui/icons-material';
 import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
