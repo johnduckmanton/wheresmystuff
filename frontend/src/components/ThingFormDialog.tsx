@@ -1012,6 +1012,7 @@ export default function ThingFormDialog({
           margin: { xs: 0, sm: 2 },
           maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' },
           height: { xs: '100vh', sm: 'auto' },
+          maxWidth: { xs: '100vw', sm: 'md' },
         },
       }}
     >
@@ -1186,40 +1187,28 @@ export default function ThingFormDialog({
       <DialogActions sx={{ 
         px: { xs: 2, sm: 3 }, 
         pb: { xs: 2, sm: 2 },
-        gap: 1,
-        flexDirection: { xs: 'column', sm: 'row' },
-        justifyContent: 'space-between',
+        pt: { xs: 1.5, sm: 2 },
+        gap: { xs: 1, sm: 1 },
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
       }}>
-        <Box sx={{ display: 'flex', gap: 1, order: { xs: 3, sm: 1 } }}>
-          {!thing && (
-            <Button
-              onClick={() => setBarcodeScannerOpen(true)}
-              startIcon={<BarcodeScanIcon />}
-              variant="outlined"
-              color="secondary"
-              fullWidth={isMobile}
-            >
-              Scan Barcode
-            </Button>
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1, order: { xs: 1, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}>
-          <Button 
-            onClick={handleCancel} 
-            color="inherit"
-            fullWidth={isMobile}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            variant="contained" 
-            color="primary"
-            fullWidth={isMobile}
-          >
-            {thing ? 'Update' : 'Create'}
-          </Button>
-        </Box>
+        <Button 
+          onClick={handleCancel} 
+          color="inherit"
+          size={isMobile ? 'large' : 'medium'}
+          sx={{ minWidth: { xs: 100, sm: 80 } }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleSubmit} 
+          variant="contained" 
+          color="primary"
+          size={isMobile ? 'large' : 'medium'}
+          sx={{ minWidth: { xs: 100, sm: 80 } }}
+        >
+          {thing ? 'Update' : 'Create'}
+        </Button>
       </DialogActions>
 
       {/* Barcode Scanner Dialog */}

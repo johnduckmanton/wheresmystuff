@@ -284,43 +284,6 @@ export default function ContainerContentsView({
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
-      {/* Container Summary */}
-      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
-        <CardContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
-            Container Summary
-          </Typography>
-          
-          <Box sx={{ 
-            display: 'flex', 
-            gap: { xs: 2, sm: 4 }, 
-            flexWrap: 'wrap',
-            flexDirection: { xs: 'column', sm: 'row' },
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <InventoryIcon color="primary" />
-              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
-                <strong>{contents.itemCount}</strong> items
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <MoneyIcon color="primary" />
-              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
-                <strong>{formatCurrency(contents.totalValue)}</strong> total value
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CategoryIcon color="primary" />
-              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
-                <strong>{contents.categories}</strong> categories
-              </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
       {/* Action Bar */}
       {contents.items.length > 0 && (
         <Box sx={{ 

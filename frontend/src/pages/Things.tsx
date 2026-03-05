@@ -444,16 +444,38 @@ export default function Things() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        mb: { xs: 2, sm: 3 },
+        gap: 2,
+        flexWrap: 'wrap',
+      }}>
+        <Typography 
+          variant="h4" 
+          component="h1"
+          sx={{ 
+            fontSize: { xs: '1.5rem', sm: '2.125rem' },
+            minWidth: 0,
+            flex: { xs: '1 1 100%', sm: '1 1 auto' },
+          }}
+        >
           Things - {currentInventory.name}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: { xs: 1, sm: 2 }, 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          width: { xs: '100%', sm: 'auto' },
+        }}>
           <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
             <IconButton
               onClick={() => setShowQuickFilters(!showQuickFilters)}
               color={showQuickFilters ? 'primary' : 'default'}
+              size="small"
               sx={{
                 border: '1px solid',
                 borderColor: showQuickFilters ? 'primary.main' : 'divider',
@@ -467,7 +489,7 @@ export default function Things() {
             </IconButton>
           </Tooltip>
           
-          {/* Desktop: Full buttons, Mobile: Icon buttons */}
+          {/* Desktop: Full buttons */}
           <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
             <Button 
               variant="outlined" 
@@ -513,6 +535,7 @@ export default function Things() {
           <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 1 }}>
             <Tooltip title="AI Photo Upload">
               <IconButton
+                size="small"
                 onClick={() => {
                   setShowAIUpload(!showAIUpload);
                   if (!showAIUpload) setShowBarcodeUpload(false);
@@ -526,11 +549,12 @@ export default function Things() {
                   }
                 }}
               >
-                <AutoAwesomeIcon />
+                <AutoAwesomeIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Barcode Scan">
               <IconButton
+                size="small"
                 onClick={() => {
                   setShowBarcodeUpload(!showBarcodeUpload);
                   if (!showBarcodeUpload) setShowAIUpload(false);
@@ -544,13 +568,27 @@ export default function Things() {
                   }
                 }}
               >
-                <QrCodeScannerIcon />
+                <QrCodeScannerIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>
           
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
-            Add Thing
+          <Button 
+            variant="contained" 
+            startIcon={<AddIcon />} 
+            onClick={handleAdd}
+            size="small"
+            sx={{
+              minWidth: { xs: 'auto', sm: '120px' },
+              px: { xs: 2, sm: 3 },
+            }}
+          >
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              Add Thing
+            </Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+              Add
+            </Box>
           </Button>
         </Box>
       </Box>
@@ -585,14 +623,20 @@ export default function Things() {
       </Collapse>
 
       {/* Main Content with Filters */}
-      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        gap: { xs: 0, md: 3 }, 
+        alignItems: 'flex-start',
+        flexDirection: { xs: 'column', md: 'row' },
+      }}>
         {/* Quick Filters Sidebar */}
         <Box
           sx={{
-            width: showQuickFilters ? 280 : 0,
+            width: { xs: '100%', md: showQuickFilters ? 280 : 0 },
             overflow: 'hidden',
             transition: 'width 0.3s ease-in-out',
             flexShrink: 0,
+            mb: { xs: showQuickFilters ? 2 : 0, md: 0 },
           }}
         >
           {showQuickFilters && (

@@ -198,14 +198,16 @@ export default function ContainerDetailDialog({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
-      fullScreen={false} // Don't use fullScreen on mobile for better UX
+      fullScreen={false}
       scroll="paper"
       aria-labelledby="container-detail-dialog-title"
       sx={{
         '& .MuiDialog-paper': {
-          margin: { xs: 1, sm: 2 }, // Reduce margins on mobile
-          maxHeight: { xs: 'calc(100vh - 16px)', sm: 'calc(100vh - 64px)' }, // Better height management
-          height: { xs: 'auto', sm: 'auto' },
+          margin: { xs: 0, sm: 2 },
+          maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' },
+          height: { xs: '100vh', sm: 'auto' },
+          maxWidth: { xs: '100vw', sm: 'lg' },
+          borderRadius: { xs: 0, sm: 1 },
         },
       }}
     >
