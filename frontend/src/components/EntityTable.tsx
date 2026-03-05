@@ -2,6 +2,17 @@ import React, { useState, useMemo } from 'react';
 import {
   Box,
   Paper,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
+  Typography,
+  useTheme,
+  useMediaQuery,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   DataGrid,
@@ -61,6 +72,8 @@ export default function EntityTable({
   onTagSearch,
   currentSearchQuery,
 }: EntityTableProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [globalSearch, setGlobalSearch] = useState('');
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
@@ -197,37 +210,145 @@ export default function EntityTable({
         currentSearchQuery={currentSearchQuery || internalSearchQuery}
       />
 
-      {/* DataGrid */}
-      <Paper sx={{ p: { xs: 1, sm: 2 } }}>
-        <DataGrid
-          rows={filteredData}
-          columns={gridColumns}
-          loading={loading}
-          sortModel={sortModel}
-          onSortModelChange={setSortModel}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          pageSizeOptions={[5, 10, 25, 50]}
-          disableRowSelectionOnClick
-          onRowClick={(params) => {
-            if (onRowClick) {
-              onRowClick(params.row);
-            }
-          }}
-          sx={{
-            minHeight: 400,
-            '& .MuiDataGrid-row': {
-              cursor: onRowClick ? 'pointer' : 'default',
-            },
-            '& .MuiDataGrid-cell': {
-              display: 'flex',
-              alignItems: 'center',
-            },
-          }}
-          autoHeight
-          aria-label="Data table"
-        />
-      </Paper>
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <Box sx={{ mt: 2 }}>
+          {filteredData.length === 0 ? (
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color="text.secondary">
+                No items found
+              </Typography>
+            </Paper>
+          ) : (
+            <List sx={{ p: 0 }}>
+              {filteredData
+                .slice(
+                  paginationModel.page * paginationModel.pageSize,
+                  (paginationModel.page + 1) * paginationModel.pageSize
+                )
+                .map((row, index) => (
+                  <React.Fragment key={row.id}>
+                    <Card 
+                      sx={{ 
+                        mb: 2,
+                        cursor: onRowClick ? 'pointer' : 'default',
+                      }}
+                      onClick={() => onRowClick && onRowClick(row)}
+                    >
+                      <CardContent sx={{ pb: 1 }}>
+                        {columns.map((col) => {
+                          if (col.field === 'thumbnail') {
+                            return (
+                              <Box key={col.field} sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+                                {col.renderCell ? col.renderCell({ row }) : null}
+                              </Box>
+                            );
+                          }
+                          const value = row[col.field];
+                          if (!value) return null;
+                          return (
+                            <Box key={col.field} sx={{ mb: 1 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {col.headerName}
+                              </Typography>
+                              <Typography variant="body2">
+                                {col.renderCell ? col.renderCell({ row }) : value}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </CardContent>
+                      {(onEdit || onDelete) && (
+                        <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                          {onEdit && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(row);
+                              }}
+                              aria-label="Edit"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                          {onDelete && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(row);
+                              }}
+                              aria-label="Delete"
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </CardActions>
+                      )}
+                    </Card>
+                  </React.Fragment>
+                ))}
+            </List>
+          )}
+          {/* Mobile Pagination Info */}
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {paginationModel.page * paginationModel.pageSize + 1}-
+              {Math.min((paginationModel.page + 1) * paginationModel.pageSize, filteredData.length)} of {filteredData.length}
+            </Typography>
+            <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', gap: 1 }}>
+              <IconButton
+                size="small"
+                disabled={paginationModel.page === 0}
+                onClick={() => setPaginationModel({ ...paginationModel, page: paginationModel.page - 1 })}
+              >
+                ←
+              </IconButton>
+              <IconButton
+                size="small"
+                disabled={(paginationModel.page + 1) * paginationModel.pageSize >= filteredData.length}
+                onClick={() => setPaginationModel({ ...paginationModel, page: paginationModel.page + 1 })}
+              >
+                →
+              </IconButton>
+            </Box>
+          </Box>
+        </Box>
+      ) : (
+        /* Desktop DataGrid */
+        <Paper sx={{ p: { xs: 1, sm: 2 } }}>
+          <DataGrid
+            rows={filteredData}
+            columns={gridColumns}
+            loading={loading}
+            sortModel={sortModel}
+            onSortModelChange={setSortModel}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25, 50]}
+            disableRowSelectionOnClick
+            onRowClick={(params) => {
+              if (onRowClick) {
+                onRowClick(params.row);
+              }
+            }}
+            sx={{
+              minHeight: 400,
+              '& .MuiDataGrid-row': {
+                cursor: onRowClick ? 'pointer' : 'default',
+              },
+              '& .MuiDataGrid-cell': {
+                display: 'flex',
+                alignItems: 'center',
+              },
+            }}
+            autoHeight
+            aria-label="Data table"
+          />
+        </Paper>
+      )}
     </Box>
   );
 }
