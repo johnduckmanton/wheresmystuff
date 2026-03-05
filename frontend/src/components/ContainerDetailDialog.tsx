@@ -68,6 +68,7 @@ export default function ContainerDetailDialog({
   const [targetRoom, setTargetRoom] = useState<Room | null>(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [updatedContainer, setUpdatedContainer] = useState<Container>(container);
+  const [actualItemCount, setActualItemCount] = useState<number | null>(null);
   const [printLabelDialogOpen, setPrintLabelDialogOpen] = useState(false);
   const [sharingDialogOpen, setSharingDialogOpen] = useState(false);
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
@@ -284,7 +285,7 @@ export default function ContainerDetailDialog({
           />
           <Tab 
             icon={<ContentsIcon />} 
-            label={`Contents (${updatedContainer.itemCount})`}
+            label={`Contents (${actualItemCount ?? updatedContainer.itemCount})`}
             iconPosition="start"
           />
         </Tabs>
@@ -529,6 +530,7 @@ export default function ContainerDetailDialog({
             container={updatedContainer}
             onContainerUpdated={handleContainerUpdated}
             onItemsChanged={handleItemsChanged}
+            onActualCountChange={setActualItemCount}
           />
         )}
       </DialogContent>

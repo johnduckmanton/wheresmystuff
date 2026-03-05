@@ -32,8 +32,6 @@ import {
   MoreVert as MoreIcon,
   AttachMoney as MoneyIcon,
   Category as CategoryIcon,
-  MoveUp as MoveUpIcon,
-  MoveDown as MoveDownIcon,
   Remove as RemoveIcon,
 } from '@mui/icons-material';
 // Removed drag and drop for React 19 compatibility
@@ -41,12 +39,14 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import apiClient from '../services/api';
 import PhotoThumbnail from './PhotoThumbnail';
+import { decodeHtmlEntities } from '../utils/htmlDecoder';
 import type { Container, Category, ThingWithContainer } from '../types/entities';
 
 interface ContainerContentsViewProps {
   container: Container;
   onContainerUpdated?: (container: Container) => void;
   onItemsChanged?: () => void;
+  onActualCountChange?: (count: number) => void;
 }
 
 interface ContainerContents {
@@ -73,6 +73,7 @@ export default function ContainerContentsView({
   container,
   onContainerUpdated,
   onItemsChanged,
+  onActualCountChange,
 }: ContainerContentsViewProps) {
   const { currentInventory } = useInventory();
   const { showSuccess, showError } = useNotification();
@@ -115,6 +116,11 @@ export default function ContainerContentsView({
     try {
       const result = await apiClient.getContainerContents(container.id, currentInventory.id);
       setContents(result);
+      
+      // Notify parent of actual item count
+      if (onActualCountChange) {
+        onActualCountChange(result.items.length);
+      }
     } catch (error) {
       console.error('Error loading container contents:', error);
       showError('Failed to load container contents');
@@ -217,33 +223,6 @@ export default function ContainerContentsView({
     }
   };
 
-  // Handle item reordering
-  const handleMoveItem = (itemId: string, direction: 'up' | 'down') => {
-    if (!contents) return;
-
-    const items = Array.from(contents.items);
-    const currentIndex = items.findIndex(item => item.id === itemId);
-    
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    
-    if (newIndex < 0 || newIndex >= items.length) return;
-
-    // Swap items
-    [items[currentIndex], items[newIndex]] = [items[newIndex], items[currentIndex]];
-
-    // Update local state immediately for better UX
-    setContents({
-      ...contents,
-      items,
-    });
-
-    // TODO: Implement backend API for item reordering
-    // For now, we'll just update the local state
-    showSuccess('Item order updated');
-  };
-
   // Menu handlers
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, itemId: string) => {
     setAnchorEl(event.currentTarget);
@@ -284,7 +263,7 @@ export default function ContainerContentsView({
 
   if (loading) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
         <Skeleton variant="text" height={40} sx={{ mb: 1 }} />
         <Skeleton variant="text" height={40} sx={{ mb: 1 }} />
@@ -295,7 +274,7 @@ export default function ContainerContentsView({
 
   if (!contents) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
         <Alert severity="error">
           Failed to load container contents. Please try again.
         </Alert>
@@ -304,32 +283,37 @@ export default function ContainerContentsView({
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Container Summary */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
+        <CardContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
             Container Summary
           </Typography>
           
-          <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            gap: { xs: 2, sm: 4 }, 
+            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' },
+          }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <InventoryIcon color="primary" />
-              <Typography variant="body1">
+              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
                 <strong>{contents.itemCount}</strong> items
               </Typography>
             </Box>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <MoneyIcon color="primary" />
-              <Typography variant="body1">
+              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
                 <strong>{formatCurrency(contents.totalValue)}</strong> total value
               </Typography>
             </Box>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CategoryIcon color="primary" />
-              <Typography variant="body1">
+              <Typography variant="body1" sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
                 <strong>{contents.categories}</strong> categories
               </Typography>
             </Box>
@@ -339,7 +323,13 @@ export default function ContainerContentsView({
 
       {/* Action Bar */}
       {contents.items.length > 0 && (
-        <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Box sx={{ 
+          mb: { xs: 2, sm: 3 }, 
+          display: 'flex', 
+          gap: { xs: 1, sm: 2 }, 
+          alignItems: 'center', 
+          flexWrap: 'wrap' 
+        }}>
           <Button
             variant="outlined"
             onClick={handleSelectAll}
@@ -393,12 +383,12 @@ export default function ContainerContentsView({
         </Card>
       ) : (
         <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+          <CardContent sx={{ px: { xs: 1, sm: 2 }, py: { xs: 1.5, sm: 2 } }}>
+            <Typography variant="h6" gutterBottom sx={{ px: { xs: 1, sm: 0 } }}>
               Contents ({contents.items.length} items)
             </Typography>
             
-            <List dense>
+            <List dense sx={{ px: 0 }}>
               {contents.items.map((item, index) => (
                 <React.Fragment key={item.id}>
                   <ListItem
@@ -408,32 +398,14 @@ export default function ContainerContentsView({
                       borderRadius: 1,
                       mb: 1,
                       bgcolor: selectedItems.has(item.id) ? 'primary.50' : 'background.paper',
+                      px: { xs: 1, sm: 2 },
+                      py: { xs: 1, sm: 1.5 },
+                      flexWrap: { xs: 'wrap', sm: 'nowrap' },
+                      alignItems: 'flex-start',
                     }}
                   >
-                    {/* Reorder Controls */}
-                    <Box sx={{ mr: 1, display: 'flex', flexDirection: 'column' }}>
-                      <Tooltip title="Move up">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleMoveItem(item.id, 'up')}
-                          disabled={index === 0}
-                        >
-                          <MoveUpIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Move down">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleMoveItem(item.id, 'down')}
-                          disabled={index === contents.items.length - 1}
-                        >
-                          <MoveDownIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                    
                     {/* Selection Checkbox */}
-                    <Box sx={{ mr: 2 }}>
+                    <Box sx={{ mr: { xs: 1, sm: 2 }, mt: 0.5 }}>
                       <input
                         type="checkbox"
                         checked={selectedItems.has(item.id)}
@@ -442,10 +414,10 @@ export default function ContainerContentsView({
                     </Box>
                     
                     {/* Item Avatar */}
-                    <ListItemAvatar>
+                    <ListItemAvatar sx={{ minWidth: { xs: 48, sm: 56 } }}>
                       <PhotoThumbnail
                         photoKey={item.photos?.[0]}
-                        altText={item.name}
+                        altText={decodeHtmlEntities(item.name)}
                         variant="avatar"
                         size={40}
                         showPopup={true}
@@ -454,10 +426,22 @@ export default function ContainerContentsView({
                     
                     {/* Item Details */}
                     <ListItemText
+                      sx={{ 
+                        flex: 1,
+                        minWidth: 0,
+                        pr: { xs: 0, sm: 6 },
+                      }}
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="subtitle1" fontWeight="medium">
-                            {item.name}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography 
+                            variant="subtitle1" 
+                            fontWeight="medium"
+                            sx={{ 
+                              fontSize: { xs: '0.95rem', sm: '1rem' },
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {decodeHtmlEntities(item.name)}
                           </Typography>
                           {item.categoryId && (
                             <Chip
@@ -472,12 +456,26 @@ export default function ContainerContentsView({
                       secondary={
                         <Box sx={{ mt: 0.5 }}>
                           {item.description && (
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {item.description}
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary" 
+                              gutterBottom
+                              sx={{ 
+                                fontSize: { xs: '0.85rem', sm: '0.875rem' },
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {decodeHtmlEntities(item.description)}
                             </Typography>
                           )}
                           
-                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            gap: { xs: 1, sm: 2 }, 
+                            flexWrap: 'wrap', 
+                            alignItems: 'center',
+                            mt: 0.5,
+                          }}>
                             {item.purchasePrice && (
                               <Typography variant="caption" color="text.secondary">
                                 Value: {formatCurrency(item.purchasePrice)}
@@ -497,7 +495,14 @@ export default function ContainerContentsView({
                             )}
                             
                             {item.serialNumber && (
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary"
+                                sx={{ 
+                                  wordBreak: 'break-all',
+                                  maxWidth: '100%',
+                                }}
+                              >
                                 S/N: {item.serialNumber}
                               </Typography>
                             )}
@@ -507,10 +512,15 @@ export default function ContainerContentsView({
                     />
                     
                     {/* Item Actions */}
-                    <ListItemSecondaryAction>
+                    <ListItemSecondaryAction sx={{ 
+                      right: { xs: 4, sm: 16 },
+                      top: { xs: 8, sm: '50%' },
+                      transform: { xs: 'none', sm: 'translateY(-50%)' },
+                    }}>
                       <Tooltip title="More actions">
                         <IconButton
                           edge="end"
+                          size="small"
                           onClick={(e) => handleMenuOpen(e, item.id)}
                         >
                           <MoreIcon />
@@ -519,7 +529,7 @@ export default function ContainerContentsView({
                     </ListItemSecondaryAction>
                   </ListItem>
                   
-                  {index < contents.items.length - 1 && <Divider variant="inset" />}
+                  {index < contents.items.length - 1 && <Divider variant="inset" sx={{ display: { xs: 'none', sm: 'block' } }} />}
                 </React.Fragment>
               ))}
             </List>
