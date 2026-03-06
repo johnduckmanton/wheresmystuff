@@ -4,7 +4,6 @@ import {
   Paper,
   Card,
   CardContent,
-  CardActions,
   IconButton,
   Typography,
   useTheme,
