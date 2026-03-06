@@ -1004,24 +1004,7 @@ export default function ThingFormDialog({
       maxWidth="md"
       fullWidth
       fullScreen={isMobile}
-      scroll="paper"
       aria-labelledby="thing-form-dialog-title"
-      sx={{
-        '& .MuiDialog-container': {
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-        '& .MuiDialog-paper': {
-          margin: { xs: 0, sm: 'auto' },
-          maxHeight: { xs: '100vh', sm: '80vh' },
-          height: { xs: '100vh', sm: 'auto' },
-          maxWidth: { xs: '100vw', sm: 'md' },
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          position: 'relative',
-        },
-      }}
     >
       <DialogTitle 
         id="thing-form-dialog-title"
@@ -1029,8 +1012,6 @@ export default function ThingFormDialog({
           pb: 1,
           px: { xs: 2, sm: 3 },
           pt: { xs: 2, sm: 2 },
-          fontSize: { xs: '1.1rem', sm: '1.25rem' },
-          flexShrink: 0,
         }}
       >
         <Box sx={{ 
@@ -1104,11 +1085,6 @@ export default function ThingFormDialog({
           
           <DialogContent sx={{ 
             p: { xs: 2, sm: 3 },
-            overflow: 'auto',
-            flex: '1 1 auto',
-            width: '100%',
-            boxSizing: 'border-box',
-            minHeight: 0,
           }}>
             {currentTab === 0 && (
               <Box sx={{ pt: 1 }}>
@@ -1138,11 +1114,6 @@ export default function ThingFormDialog({
       ) : (
         <DialogContent sx={{ 
           p: 3,
-          overflow: 'auto',
-          flex: '1 1 auto',
-          width: '100%',
-          boxSizing: 'border-box',
-          minHeight: 0,
         }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Basic Information - Always visible */}
@@ -1224,13 +1195,6 @@ export default function ThingFormDialog({
         gap: { xs: 1, sm: 1 },
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        flexShrink: 0,
-        borderTop: '1px solid',
-        borderColor: 'divider',
-        position: 'sticky',
-        bottom: 0,
-        backgroundColor: 'background.paper',
-        zIndex: 1,
       }}>
         <Button 
           onClick={handleCancel} 
