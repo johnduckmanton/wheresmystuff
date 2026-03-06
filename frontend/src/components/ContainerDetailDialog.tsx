@@ -14,6 +14,8 @@ import {
   Tooltip,
   Tabs,
   Tab,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -62,6 +64,8 @@ export default function ContainerDetailDialog({
   onPack,
   onUpdate: _onUpdate, // Prefix with underscore to indicate intentionally unused
 }: ContainerDetailDialogProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [location, setLocation] = useState<Location | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [targetLocation, setTargetLocation] = useState<Location | null>(null);
@@ -198,18 +202,9 @@ export default function ContainerDetailDialog({
       onClose={onClose}
       maxWidth="lg"
       fullWidth
-      fullScreen={false}
+      fullScreen={isMobile}
       scroll="paper"
       aria-labelledby="container-detail-dialog-title"
-      sx={{
-        '& .MuiDialog-paper': {
-          margin: { xs: 0, sm: 2 },
-          maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' },
-          height: { xs: '100vh', sm: 'auto' },
-          maxWidth: { xs: '100vw', sm: 'lg' },
-          borderRadius: { xs: 0, sm: 1 },
-        },
-      }}
     >
       <DialogTitle 
         id="container-detail-dialog-title"
