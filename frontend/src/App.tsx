@@ -68,7 +68,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <SkipLink />
       <Box sx={{ 
         display: 'flex', 
-        minHeight: '100vh',
+        height: '100vh',
+        overflow: 'hidden',
         backgroundColor: 'background.default' // Fix black areas
       }}>
         <Header onMenuClick={handleMobileToggle} />
@@ -83,6 +84,8 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             mt: 8,
             width: { xs: '100%', md: 'calc(100% - 240px)' },
             minWidth: 0, // Prevent overflow
+            height: 'calc(100vh - 64px)', // Account for header height
+            overflow: 'auto',
             backgroundColor: 'background.default', // Ensure proper background
           }}
           role="main"
