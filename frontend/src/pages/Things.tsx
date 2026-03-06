@@ -689,6 +689,7 @@ export default function Things() {
         categories={categories}
         people={people}
         projects={projects}
+        containers={containers}
         onSubmit={handleFormSubmit}
         onClose={handleFormClose}
       />

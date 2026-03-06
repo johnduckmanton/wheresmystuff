@@ -31,7 +31,7 @@ import {
   Photo as PhotoIcon,
   Image as ImageIcon,
 } from '@mui/icons-material';
-import type { Thing, Location, Room, Category, Person, MovingProject } from '../types';
+import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
 import DocumentUploadZone from './DocumentUploadZone';
@@ -53,6 +53,7 @@ export interface ThingFormDialogProps {
   categories: Category[];
   people: Person[];
   projects?: MovingProject[]; // Optional projects for assignment
+  containers?: Container[]; // Optional containers for assignment
   onSubmit: (data: Partial<Thing>) => void;
   onClose: () => void;
 }
@@ -70,6 +71,7 @@ export default function ThingFormDialog({
   categories,
   people,
   projects = [],
+  containers = [],
   onSubmit,
   onClose,
 }: ThingFormDialogProps) {
@@ -691,6 +693,28 @@ export default function ThingFormDialog({
           {!formData.locationId && (
             <FormHelperText>Select a location first</FormHelperText>
           )}
+        </FormControl>
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6 }}>
+        <FormControl fullWidth size={isMobile ? 'medium' : 'small'} sx={{ '& .MuiInputBase-root': { minHeight: 48 } }}>
+          <InputLabel>Container</InputLabel>
+          <Select
+            value={formData.containerId || ''}
+            label="Container"
+            onChange={(e) => handleFieldChange('containerId', e.target.value)}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {containers.map((container) => (
+              <MenuItem key={container.id} value={container.id}>
+                {container.name}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            Optional: Assign to a container
+          </FormHelperText>
         </FormControl>
       </Grid>
       <Grid size={{ xs: 12, sm: 6 }}>
