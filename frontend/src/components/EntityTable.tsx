@@ -227,63 +227,95 @@ export default function EntityTable({
                   <React.Fragment key={row.id}>
                     <Card 
                       sx={{ 
-                        mb: 2,
+                        mb: 1.5,
                         cursor: onRowClick ? 'pointer' : 'default',
                       }}
                       onClick={() => onRowClick && onRowClick(row)}
                     >
-                      <CardContent sx={{ pb: 1 }}>
-                        {columns.map((col) => {
-                          if (col.field === 'thumbnail') {
-                            return (
-                              <Box key={col.field} sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-                                {col.renderCell ? col.renderCell({ row }) : null}
-                              </Box>
-                            );
-                          }
-                          const value = row[col.field];
-                          if (!value) return null;
-                          return (
-                            <Box key={col.field} sx={{ mb: 1 }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {col.headerName}
-                              </Typography>
-                              <Typography variant="body2">
-                                {col.renderCell ? col.renderCell({ row }) : value}
-                              </Typography>
+                      <CardContent sx={{ p: 2, pb: 1, '&:last-child': { pb: 1 } }}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          {/* Thumbnail on the left */}
+                          {columns.find(col => col.field === 'thumbnail') && (
+                            <Box sx={{ flexShrink: 0 }}>
+                              {columns.find(col => col.field === 'thumbnail')?.renderCell?.({ row })}
                             </Box>
-                          );
-                        })}
+                          )}
+                          
+                          {/* Content on the right */}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            {columns.map((col) => {
+                              if (col.field === 'thumbnail') return null;
+                              const value = row[col.field];
+                              if (!value) return null;
+                              
+                              // Make the name field prominent
+                              if (col.field === 'name') {
+                                return (
+                                  <Typography 
+                                    key={col.field} 
+                                    variant="subtitle1" 
+                                    fontWeight="medium"
+                                    sx={{ mb: 0.5, wordBreak: 'break-word' }}
+                                  >
+                                    {col.renderCell ? col.renderCell({ row }) : value}
+                                  </Typography>
+                                );
+                              }
+                              
+                              return (
+                                <Box key={col.field} sx={{ display: 'flex', gap: 1, mb: 0.25 }}>
+                                  <Typography 
+                                    variant="caption" 
+                                    color="text.secondary"
+                                    sx={{ minWidth: 70, flexShrink: 0 }}
+                                  >
+                                    {col.headerName}:
+                                  </Typography>
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{ wordBreak: 'break-word' }}
+                                  >
+                                    {col.renderCell ? col.renderCell({ row }) : value}
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                          
+                          {/* Action buttons on the right */}
+                          {(onEdit || onDelete) && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flexShrink: 0 }}>
+                              {onEdit && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(row);
+                                  }}
+                                  aria-label="Edit"
+                                  sx={{ p: 0.5 }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                              {onDelete && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(row);
+                                  }}
+                                  aria-label="Delete"
+                                  color="error"
+                                  sx={{ p: 0.5 }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
                       </CardContent>
-                      {(onEdit || onDelete) && (
-                        <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
-                          {onEdit && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(row);
-                              }}
-                              aria-label="Edit"
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                          {onDelete && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDelete(row);
-                              }}
-                              aria-label="Delete"
-                              color="error"
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                        </CardActions>
-                      )}
                     </Card>
                   </React.Fragment>
                 ))}

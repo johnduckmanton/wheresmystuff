@@ -1007,11 +1007,16 @@ export default function ThingFormDialog({
       scroll="paper"
       aria-labelledby="thing-form-dialog-title"
       sx={{
+        '& .MuiDialog-container': {
+          alignItems: { xs: 'stretch', sm: 'center' },
+        },
         '& .MuiDialog-paper': {
           margin: { xs: 0, sm: 2 },
-          maxHeight: { xs: '100vh', sm: 'calc(100vh - 64px)' },
+          maxHeight: { xs: '100vh', sm: '90vh' },
           height: { xs: '100vh', sm: 'auto' },
           maxWidth: { xs: '100vw', sm: 'md' },
+          display: 'flex',
+          flexDirection: 'column',
         },
       }}
     >
@@ -1082,7 +1087,11 @@ export default function ThingFormDialog({
             </Tabs>
           </Box>
           
-          <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <DialogContent sx={{ 
+            p: { xs: 2, sm: 3 },
+            overflow: 'auto',
+            flex: 1,
+          }}>
             {currentTab === 0 && (
               <Box sx={{ pt: 1 }}>
                 {renderBasicFields()}
@@ -1109,7 +1118,11 @@ export default function ThingFormDialog({
           </DialogContent>
         </>
       ) : (
-        <DialogContent sx={{ p: 3 }}>
+        <DialogContent sx={{ 
+          p: 3,
+          overflow: 'auto',
+          flex: 1,
+        }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Basic Information - Always visible */}
             <Box>
@@ -1190,6 +1203,9 @@ export default function ThingFormDialog({
         gap: { xs: 1, sm: 1 },
         flexDirection: 'row',
         justifyContent: 'flex-end',
+        flexShrink: 0,
+        borderTop: '1px solid',
+        borderColor: 'divider',
       }}>
         <Button 
           onClick={handleCancel} 

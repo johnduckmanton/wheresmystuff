@@ -86,11 +86,6 @@ const movingItems: NavigationItem[] = [
     icon: <LocalShippingIcon />,
   },
   {
-    label: 'Storage Management',
-    path: '/storage',
-    icon: <StorageIcon />,
-  },
-  {
     label: 'Projects',
     path: '/projects',
     icon: <FolderIcon />,
@@ -99,6 +94,11 @@ const movingItems: NavigationItem[] = [
     label: 'Containers',
     path: '/containers',
     icon: <AllInboxIcon />,
+  },
+  {
+    label: 'Storage Management',
+    path: '/storage',
+    icon: <StorageIcon />,
   },
 ];
 
