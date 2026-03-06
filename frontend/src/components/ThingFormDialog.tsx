@@ -1008,15 +1008,18 @@ export default function ThingFormDialog({
       aria-labelledby="thing-form-dialog-title"
       sx={{
         '& .MuiDialog-container': {
-          alignItems: { xs: 'stretch', sm: 'center' },
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         '& .MuiDialog-paper': {
-          margin: { xs: 0, sm: 2 },
-          maxHeight: { xs: '100vh', sm: '90vh' },
+          margin: { xs: 0, sm: 'auto' },
+          maxHeight: { xs: '100vh', sm: '80vh' },
           height: { xs: '100vh', sm: 'auto' },
           maxWidth: { xs: '100vw', sm: 'md' },
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
+          position: 'relative',
         },
       }}
     >
@@ -1024,7 +1027,10 @@ export default function ThingFormDialog({
         id="thing-form-dialog-title"
         sx={{ 
           pb: 1,
+          px: { xs: 2, sm: 3 },
+          pt: { xs: 2, sm: 2 },
           fontSize: { xs: '1.1rem', sm: '1.25rem' },
+          flexShrink: 0,
         }}
       >
         <Box sx={{ 
@@ -1033,12 +1039,21 @@ export default function ThingFormDialog({
           alignItems: 'flex-start',
           gap: 2 
         }}>
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h6" component="div" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
               {thing ? 'Edit Thing' : 'Add Thing'}
             </Typography>
             {formData.name && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Typography 
+                variant="body2" 
+                color="text.secondary" 
+                sx={{ 
+                  mt: 0.5,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {formData.name}
               </Typography>
             )}
@@ -1090,7 +1105,10 @@ export default function ThingFormDialog({
           <DialogContent sx={{ 
             p: { xs: 2, sm: 3 },
             overflow: 'auto',
-            flex: 1,
+            flex: '1 1 auto',
+            width: '100%',
+            boxSizing: 'border-box',
+            minHeight: 0,
           }}>
             {currentTab === 0 && (
               <Box sx={{ pt: 1 }}>
@@ -1121,7 +1139,10 @@ export default function ThingFormDialog({
         <DialogContent sx={{ 
           p: 3,
           overflow: 'auto',
-          flex: 1,
+          flex: '1 1 auto',
+          width: '100%',
+          boxSizing: 'border-box',
+          minHeight: 0,
         }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Basic Information - Always visible */}
@@ -1206,6 +1227,10 @@ export default function ThingFormDialog({
         flexShrink: 0,
         borderTop: '1px solid',
         borderColor: 'divider',
+        position: 'sticky',
+        bottom: 0,
+        backgroundColor: 'background.paper',
+        zIndex: 1,
       }}>
         <Button 
           onClick={handleCancel} 
