@@ -1005,6 +1005,11 @@ export default function ThingFormDialog({
       fullWidth
       fullScreen={isMobile}
       aria-labelledby="thing-form-dialog-title"
+      sx={{
+        '& .MuiDialog-paper': {
+          maxHeight: { xs: '100vh', sm: '90vh' },
+        },
+      }}
     >
       <DialogTitle 
         id="thing-form-dialog-title"
