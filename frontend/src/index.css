@@ -18,13 +18,15 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   /* Let Material-UI CssBaseline handle the rest */
 }
 
 /* Remove default Vite root styles that conflict with Material-UI */
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   /* Remove Vite's centering and padding */
 }
 
