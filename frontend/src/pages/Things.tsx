@@ -130,7 +130,13 @@ export default function Things() {
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
       setPeople(Array.isArray(peopleData) ? peopleData : []);
       setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setContainers(Array.isArray(containersData) ? containersData : []);
+      // Handle containers response which can be array or object with containers property
+      const containersArray = Array.isArray(containersData) 
+        ? containersData 
+        : (containersData && typeof containersData === 'object' && 'containers' in containersData)
+          ? containersData.containers
+          : [];
+      setContainers(containersArray);
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
