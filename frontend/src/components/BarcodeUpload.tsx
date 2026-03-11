@@ -68,66 +68,69 @@ export default function BarcodeUpload({ onBarcodeComplete, onCancel }: BarcodeUp
 
   return (
     <>
-      <Card sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-        <CardContent>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BarcodeScanIcon color="primary" />
-                Barcode Lookup
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Scan or enter a barcode to automatically retrieve product information
-              </Typography>
-            </Box>
+      {/* Only show the card when preview is not open */}
+      {!barcodePreviewOpen && (
+        <Card sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+          <CardContent>
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <BarcodeScanIcon color="primary" />
+                  Barcode Lookup
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Scan or enter a barcode to automatically retrieve product information
+                </Typography>
+              </Box>
 
-            {/* Scan Button */}
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<BarcodeScanIcon />}
-              onClick={() => setBarcodeScannerOpen(true)}
-              fullWidth
-              sx={{ py: 1.5 }}
-            >
-              Scan Barcode with Camera
-            </Button>
+              {/* Scan Button */}
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<BarcodeScanIcon />}
+                onClick={() => setBarcodeScannerOpen(true)}
+                fullWidth
+                sx={{ py: 1.5 }}
+              >
+                Scan Barcode with Camera
+              </Button>
 
-            {/* Manual Entry */}
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Or enter barcode manually:
-              </Typography>
-              <Stack direction="row" spacing={1}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Enter UPC, EAN, or ISBN"
-                  value={manualBarcode}
-                  onChange={(e) => setManualBarcode(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleManualLookup();
-                    }
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleManualLookup}
-                  disabled={!manualBarcode.trim()}
-                  startIcon={<SearchIcon />}
-                >
-                  Lookup
-                </Button>
-              </Stack>
-            </Box>
+              {/* Manual Entry */}
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Or enter barcode manually:
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Enter UPC, EAN, or ISBN"
+                    value={manualBarcode}
+                    onChange={(e) => setManualBarcode(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleManualLookup();
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleManualLookup}
+                    disabled={!manualBarcode.trim()}
+                    startIcon={<SearchIcon />}
+                  >
+                    Lookup
+                  </Button>
+                </Stack>
+              </Box>
 
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Supported formats: UPC, EAN, ISBN (books). Product information will be automatically filled in.
-            </Alert>
-          </Stack>
-        </CardContent>
-      </Card>
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Supported formats: UPC, EAN, ISBN (books). Product information will be automatically filled in.
+              </Alert>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Barcode Scanner Dialog */}
       <BarcodeScanner

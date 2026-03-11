@@ -32,6 +32,14 @@ export default function InventoryFormSelector({
   // Auto-select current inventory if no value is set
   const effectiveValue = value || currentInventory?.id || '';
 
+  // Deduplicate inventories by ID
+  const uniqueInventories = inventories.reduce((acc, inventory) => {
+    if (!acc.find(inv => inv.id === inventory.id)) {
+      acc.push(inventory);
+    }
+    return acc;
+  }, [] as typeof inventories);
+
   return (
     <FormControl fullWidth error={!!error} required={required}>
       <InputLabel id="inventory-select-label">
@@ -48,12 +56,12 @@ export default function InventoryFormSelector({
           'aria-required': required,
         }}
       >
-        {inventories.length === 0 ? (
+        {uniqueInventories.length === 0 ? (
           <MenuItem value="" disabled>
             No inventories available
           </MenuItem>
         ) : (
-          inventories.map((inventory) => (
+          uniqueInventories.map((inventory) => (
             <MenuItem key={inventory.id} value={inventory.id}>
               {inventory.name}
               {inventory.description && (

@@ -66,6 +66,7 @@ export default function Things() {
   // Dialog states
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingThing, setEditingThing] = useState<Thing | undefined>(undefined);
+  const [prefillData, setPrefillData] = useState<Partial<Thing> | undefined>(undefined);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [thingToDelete, setThingToDelete] = useState<ThingTableRow | null>(null);
   
@@ -354,6 +355,7 @@ export default function Things() {
 
   const handleAdd = () => {
     setEditingThing(undefined);
+    setPrefillData(undefined);
     setFormDialogOpen(true);
   };
 
@@ -362,6 +364,7 @@ export default function Things() {
     const thing = things.find(t => t.id === row.id);
     if (thing) {
       setEditingThing(thing);
+      setPrefillData(undefined);
       setFormDialogOpen(true);
     }
   };
@@ -428,6 +431,7 @@ export default function Things() {
   const handleFormClose = () => {
     setFormDialogOpen(false);
     setEditingThing(undefined);
+    setPrefillData(undefined);
   };
 
   const handleRowClick = (row: ThingTableRow) => {
@@ -606,7 +610,8 @@ export default function Things() {
             categories={categories}
             onAnalysisComplete={(analysisData, _photoKey) => {
               // Open the form dialog with pre-filled data
-              setEditingThing(analysisData as Thing);
+              setPrefillData(analysisData);
+              setEditingThing(undefined);
               setFormDialogOpen(true);
               setShowAIUpload(false);
             }}
@@ -620,7 +625,8 @@ export default function Things() {
           <BarcodeUpload 
             onBarcodeComplete={(itemData) => {
               // Open the form dialog with pre-filled data
-              setEditingThing(itemData as Thing);
+              setPrefillData(itemData);
+              setEditingThing(undefined);
               setFormDialogOpen(true);
               setShowBarcodeUpload(false);
             }}
@@ -691,6 +697,7 @@ export default function Things() {
       <ThingFormDialog
         open={formDialogOpen}
         thing={editingThing}
+        prefillData={prefillData}
         locations={locations}
         rooms={rooms}
         categories={categories}
