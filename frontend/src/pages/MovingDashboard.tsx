@@ -398,8 +398,15 @@ export default function MovingDashboard() {
     }
   };
 
-  const handleNavigateToContainer = () => {
-    // Always use the scan result data when navigating from a QR scan
+  const handleNavigateToContainer = (container?: Container) => {
+    // If a container is passed directly (e.g., from recent containers), use it
+    if (container) {
+      setSelectedContainer(container);
+      setContainerDetailOpen(true);
+      return;
+    }
+    
+    // Otherwise, use the scan result data when navigating from a QR scan
     if (scanResult && scanResult.container) {
       setSelectedContainer(scanResult.container);
       setContainerDetailOpen(true);
@@ -758,7 +765,7 @@ export default function MovingDashboard() {
                             boxShadow: 4,
                           },
                         }}
-                        onClick={() => handleNavigateToContainer()}
+                        onClick={() => handleNavigateToContainer(container)}
                       >
                         <CardContent>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>

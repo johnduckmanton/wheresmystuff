@@ -624,6 +624,7 @@ export default function Things() {
               setFormDialogOpen(true);
               setShowBarcodeUpload(false);
             }}
+            onCancel={() => setShowBarcodeUpload(false)}
           />
         </Box>
       </Collapse>

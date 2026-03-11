@@ -111,7 +111,6 @@ export default function BarcodeItemPreview({
         description: result.data.description,
         category: result.data.suggestedCategory,
         barcode: result.barcode,
-        photos: result.data.storedImageKey ? [result.data.storedImageKey] : [],
         metadata: {
           ...result.data.metadata,
           barcodeSource: result.source,

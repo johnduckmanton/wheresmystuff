@@ -21,9 +21,10 @@ import type { Thing } from '../types';
 
 interface BarcodeUploadProps {
   onBarcodeComplete: (itemData: Partial<Thing>) => void;
+  onCancel?: () => void; // Optional callback when user cancels
 }
 
-export default function BarcodeUpload({ onBarcodeComplete }: BarcodeUploadProps) {
+export default function BarcodeUpload({ onBarcodeComplete, onCancel }: BarcodeUploadProps) {
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
   const [barcodePreviewOpen, setBarcodePreviewOpen] = useState(false);
   const [scannedBarcode, setScannedBarcode] = useState('');
@@ -59,6 +60,10 @@ export default function BarcodeUpload({ onBarcodeComplete }: BarcodeUploadProps)
   const handlePreviewClose = () => {
     setBarcodePreviewOpen(false);
     setScannedBarcode('');
+    // Call onCancel to close the entire barcode section
+    if (onCancel) {
+      onCancel();
+    }
   };
 
   return (
