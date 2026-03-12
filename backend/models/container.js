@@ -350,7 +350,7 @@ class Container {
   update(updates, updatedBy) {
     const allowedUpdates = [
       'name', 'description', 'contentsSummary', 'type', 'size', 'color', 'weight', 'photos', 'locationId',
-      'roomId', 'targetLocationId', 'targetRoomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata'
+      'roomId', 'targetLocationId', 'targetRoomId', 'handlingFlags', 'projectId', 'storageRate', 'metadata', 'status'
     ];
 
     allowedUpdates.forEach(field => {

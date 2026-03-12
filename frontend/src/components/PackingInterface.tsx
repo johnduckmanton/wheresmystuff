@@ -27,6 +27,7 @@ import {
   FilterList as FilterListIcon,
   SelectAll as SelectAllIcon,
   DeselectOutlined as DeselectIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -896,6 +897,18 @@ export default function PackingInterface({
                     startAdornment: (
                       <InputAdornment position="start">
                         <SearchIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => setSearchQuery('')}
+                          edge="end"
+                          aria-label="clear search"
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
                       </InputAdornment>
                     ),
                   },

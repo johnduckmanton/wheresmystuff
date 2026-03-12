@@ -369,6 +369,9 @@ export default function ContainerFormDialog({
         metadata: {},
       };
       
+      console.log('📦 Submitting container data:', containerData);
+      console.log('📦 Status being sent:', formData.status);
+      
       // Remove undefined values (but keep null, 0, false, empty arrays)
       Object.keys(containerData).forEach(key => {
         const value = containerData[key as keyof typeof containerData];
