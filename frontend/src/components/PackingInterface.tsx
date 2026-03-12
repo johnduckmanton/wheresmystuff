@@ -914,15 +914,6 @@ export default function PackingInterface({
                   },
                 }}
               />
-              {stats.selectedCount > 0 && (
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label={`${stats.selectedCount}`}
-                  color="primary"
-                  size="small"
-                  sx={{ flexShrink: 0 }}
-                />
-              )}
             </Box>
             <Box sx={{ 
               display: 'flex', 
@@ -932,30 +923,21 @@ export default function PackingInterface({
               gap: { xs: 1, sm: 0 },
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {selectedItems.size > 0 ? (
-                  <Chip
-                    label={`${selectedItems.size} selected`}
-                    color="primary"
-                    size="small"
-                    onDelete={handleDeselectAll}
-                  />
-                ) : (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={hideAlreadyPacked}
-                        onChange={(e) => setHideAlreadyPacked(e.target.checked)}
-                        size="small"
-                      />
-                    }
-                    label={
-                      <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                        Hide already packed
-                      </Typography>
-                    }
-                    sx={{ m: 0 }}
-                  />
-                )}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={hideAlreadyPacked}
+                      onChange={(e) => setHideAlreadyPacked(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                      Hide already packed
+                    </Typography>
+                  }
+                  sx={{ m: 0 }}
+                />
               </Box>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Button
