@@ -454,18 +454,37 @@ export default function MovingDashboard() {
   };
 
   const handleContainerFormSuccess = (container: Container) => {
-    // Update the containers list with the new container
-    setContainers(prevContainers => [container, ...prevContainers]);
+    // Check if we're editing an existing container or creating a new one
+    const isEditing = selectedContainer && selectedContainer.id === container.id;
     
-    // Update stats
-    setStats(prevStats => ({
-      ...prevStats,
-      totalContainers: prevStats.totalContainers + 1,
-    }));
-    
-    setContainerFormOpen(false);
-    setSelectedContainer(null);
-    showSuccess(`Container "${container.name}" created successfully!`);
+    if (isEditing) {
+      // Update existing container in the list
+      setContainers(prevContainers => 
+        prevContainers.map(c => c.id === container.id ? container : c)
+      );
+      
+      // Update the selected container so the detail dialog shows updated data
+      setSelectedContainer(container);
+      
+      showSuccess(`Container "${container.name}" updated successfully!`);
+      
+      // Reopen the detail dialog with updated data
+      setContainerFormOpen(false);
+      setContainerDetailOpen(true);
+    } else {
+      // Add new container to the list
+      setContainers(prevContainers => [container, ...prevContainers]);
+      
+      // Update stats
+      setStats(prevStats => ({
+        ...prevStats,
+        totalContainers: prevStats.totalContainers + 1,
+      }));
+      
+      setContainerFormOpen(false);
+      setSelectedContainer(null);
+      showSuccess(`Container "${container.name}" created successfully!`);
+    }
   };
 
   const handleContainerFormClose = () => {
@@ -847,6 +866,7 @@ export default function MovingDashboard() {
 
       {/* Container Form Dialog */}
       <ContainerFormDialog
+        key={selectedContainer?.id || 'new'}
         open={containerFormOpen}
         container={selectedContainer}
         onClose={handleContainerFormClose}
