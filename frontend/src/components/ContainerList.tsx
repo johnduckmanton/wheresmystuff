@@ -719,8 +719,8 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
               container={selectedContainer}
               qrCodeId={selectedContainer.id}
               size="medium"
-              locationName={locationMap.get(selectedContainer.locationId || '')?.name}
-              roomName={roomMap.get(selectedContainer.roomId || '')?.name}
+              locationName={locationMap.get(selectedContainer.targetLocationId || '')?.name}
+              roomName={roomMap.get(selectedContainer.targetRoomId || '')?.name}
             />
           </DialogContent>
           <DialogActions>

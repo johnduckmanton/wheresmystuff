@@ -549,8 +549,8 @@ export default function ContainerDetailDialog({
             container={updatedContainer}
             qrCodeId={updatedContainer.id}
             size="medium"
-            locationName={location?.name}
-            roomName={room?.name}
+            locationName={targetLocation?.name}
+            roomName={targetRoom?.name}
           />
         </DialogContent>
         <DialogActions>
