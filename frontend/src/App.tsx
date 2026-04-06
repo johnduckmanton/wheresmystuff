@@ -3,9 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Fab from '@mui/material/Fab';
-import Tooltip from '@mui/material/Tooltip';
-import { Accessibility as AccessibilityIcon } from '@mui/icons-material';
 import { useEffect, useState, createContext, useContext } from 'react';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -39,16 +36,17 @@ import Projects from './pages/Projects';
 import SharedContainerView from './components/SharedContainerView';
 import { RouteModuleTracker } from './components/RouteModuleTracker';
 import MobileNavigation from './components/MobileNavigation';
-import { useMobileDetection } from './hooks/useMobileDetection';
 import ScanPage from './pages/Scan';
 import apiClient from './services/api';
 import { theme } from './theme';
 
-// Context for mobile sidebar state
+// Context for mobile sidebar state and accessibility settings
 const MobileSidebarContext = createContext<{
   toggleMobileSidebar: () => void;
+  openAccessibilitySettings: () => void;
 }>({
   toggleMobileSidebar: () => {},
+  openAccessibilitySettings: () => {},
 });
 
 export const useMobileSidebar = () => useContext(MobileSidebarContext);
@@ -62,14 +60,13 @@ export const useMobileSidebar = () => useContext(MobileSidebarContext);
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessibilitySettingsOpen, setAccessibilitySettingsOpen] = useState(false);
-  const { isMobile } = useMobileDetection();
 
   const handleMobileToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   return (
-    <MobileSidebarContext.Provider value={{ toggleMobileSidebar: handleMobileToggle }}>
+    <MobileSidebarContext.Provider value={{ toggleMobileSidebar: handleMobileToggle, openAccessibilitySettings: () => setAccessibilitySettingsOpen(true) }}>
       <RouteModuleTracker />
       <SkipLink />
       <Box sx={{ 
@@ -86,38 +83,20 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           sx={{
             flexGrow: 1,
-            p: { xs: 1, sm: 2, md: 3 }, // Reduced padding for mobile
+            p: { xs: 1, sm: 2, md: 3 },
             mt: 8,
-            width: { xs: '100%', md: 'calc(100% - 240px)' },
-            minWidth: 0, // Prevent overflow
-            height: 'calc(100vh - 64px)', // Account for header height
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            height: 'calc(100vh - 64px)',
             overflow: 'auto',
-            backgroundColor: 'background.default', // Ensure proper background
+            backgroundColor: 'background.default',
           }}
           role="main"
           aria-label="Main content"
         >
           {children}
         </Box>
-        
-        {/* Accessibility Settings FAB — hidden on mobile */}
-        {!isMobile && (
-          <Tooltip title="Accessibility Settings" placement="left">
-            <Fab
-              color="primary"
-              aria-label="Open accessibility settings"
-              onClick={() => setAccessibilitySettingsOpen(true)}
-              sx={{
-                position: 'fixed',
-                bottom: 16,
-                right: 16,
-                zIndex: 1000,
-              }}
-            >
-              <AccessibilityIcon />
-            </Fab>
-          </Tooltip>
-        )}
         
         <AccessibilitySettings
           open={accessibilitySettingsOpen}

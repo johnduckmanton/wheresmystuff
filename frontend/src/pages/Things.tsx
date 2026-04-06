@@ -665,6 +665,7 @@ export default function Things() {
             sx={{
               minWidth: { xs: 'auto', sm: '120px' },
               px: { xs: 2, sm: 3 },
+              ml: 'auto',
             }}
           >
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>

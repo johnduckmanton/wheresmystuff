@@ -16,6 +16,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
+import AccessibilityIcon from '@mui/icons-material/Accessibility';
+import { useMobileSidebar } from '../App';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -31,6 +33,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const navigate = useNavigate();
+  const { openAccessibilitySettings } = useMobileSidebar();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [userEmail, setUserEmail] = useState<string>('');
 
@@ -131,6 +134,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <MenuItem onClick={handleProfileClick}>
               <PersonIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />
               My Profile
+            </MenuItem>
+            <MenuItem onClick={() => { handleMenuClose(); openAccessibilitySettings(); }}>
+              <AccessibilityIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />
+              Accessibility
             </MenuItem>
             <MenuItem onClick={handleSignOut}>
               <LogoutIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />
