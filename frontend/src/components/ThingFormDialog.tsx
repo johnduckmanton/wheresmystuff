@@ -36,6 +36,7 @@ import {
 import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
 import PhotoPreviewGrid from './PhotoPreviewGrid';
+import PhotoThumbnail from './PhotoThumbnail';
 import DocumentUploadZone from './DocumentUploadZone';
 import DocumentPreviewGrid from './DocumentPreviewGrid';
 import InventoryFormSelector from './InventoryFormSelector';
@@ -595,6 +596,30 @@ export default function ThingFormDialog({
           }}
         />
       </Grid>
+      {/* Photo upload on General tab — mobile only */}
+      {isMobile && (
+        <Grid size={{ xs: 12 }}>
+          <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+            {formData.photos && formData.photos.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                {formData.photos.slice(0, 3).map((key) => (
+                  <PhotoThumbnail key={key} photoKey={key} altText="Photo" size={48} showPopup={false} />
+                ))}
+                {formData.photos.length > 3 && (
+                  <Typography variant="caption" color="text.secondary">
+                    +{formData.photos.length - 3} more
+                  </Typography>
+                )}
+              </Box>
+            )}
+            <PhotoUploadZone
+              onUpload={handlePhotoUpload}
+              disabled={isUploadingPhotos || isUploadingDocuments}
+              currentPhotoCount={formData.photos?.length || 0}
+            />
+          </Box>
+        </Grid>
+      )}
       <Grid size={{ xs: 12 }}>
         <TextField
           fullWidth

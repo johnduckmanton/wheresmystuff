@@ -111,6 +111,7 @@ const movingItems: NavigationItem[] = [
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
+  const isMobileSmall = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
   const [open, setOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -239,6 +240,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       )}
     </>
   );
+
+  // Suppress sidebar entirely on mobile (< 600px) — MobileNavigation handles navigation there
+  if (isMobileSmall) {
+    return null;
+  }
 
   // Mobile: Temporary drawer (overlay)
   if (isMobile) {

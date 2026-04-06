@@ -1,9 +1,10 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip, CircularProgress, Fab } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import ThingFormDialog from '../components/ThingFormDialog';
@@ -11,10 +12,14 @@ import AIPhotoUpload from '../components/AIPhotoUpload';
 import BarcodeUpload from '../components/BarcodeUpload';
 import QuickFilters from '../components/QuickFilters';
 import PhotoThumbnail from '../components/PhotoThumbnail';
+import MobileThingCard from '../components/MobileThingCard';
+import ThingDetailSheet from '../components/ThingDetailSheet';
+import ThingBulkActionBar from '../components/ThingBulkActionBar';
 import type { SearchQuery } from '../components/SearchBar';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
+import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
 import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 
@@ -94,6 +99,12 @@ export default function Things() {
   const { setLoading: setGlobalLoading } = useLoading();
   const { showSuccess, showError } = useNotification();
   const { currentInventory } = useInventory();
+  const { isMobile } = useMobileDetection();
+
+  // Mobile UX state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [detailThing, setDetailThing] = useState<Thing | null>(null);
 
   // Fetch all data when inventory changes
   useEffect(() => {
@@ -377,16 +388,18 @@ export default function Things() {
   const handleConfirmDelete = async () => {
     if (!thingToDelete || !currentInventory) return;
 
+    const deletedThing = things.find(t => t.id === thingToDelete.id);
+    const deletedIndex = things.findIndex(t => t.id === thingToDelete.id);
+
     try {
       setGlobalLoading(true);
       await apiClient.deleteThing(thingToDelete.id, currentInventory.id);
       setDeleteDialogOpen(false);
       setThingToDelete(null);
+      // Optimistic: remove from both arrays
+      setThings(prev => prev.filter(t => t.id !== thingToDelete.id));
+      setAllThings(prev => prev.filter(t => t.id !== thingToDelete.id));
       showSuccess('Thing deleted successfully');
-      // Refresh the table and reset search
-      await loadData();
-      setSearchQuery({ tagMode: 'and' });
-      handleClearFilters();
     } catch (error) {
       console.error('Error deleting thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to delete thing. Please try again.');
@@ -404,22 +417,22 @@ export default function Things() {
     try {
       setGlobalLoading(true);
       if (editingThing) {
-        // Update existing thing
-        await apiClient.updateThing(editingThing.id, data);
+        // Update existing thing — optimistic
+        const updated = await apiClient.updateThing(editingThing.id, data);
+        setThings(prev => prev.map(t => t.id === editingThing.id ? { ...t, ...updated } : t));
+        setAllThings(prev => prev.map(t => t.id === editingThing.id ? { ...t, ...updated } : t));
         showSuccess('Thing updated successfully');
       } else {
-        // Create new thing - include tempId if it exists (for photo uploads)
+        // Create new thing — optimistic
         const createData = { ...data } as Omit<Thing, 'dateAdded'>;
-        await apiClient.createThing(createData);
+        const created = await apiClient.createThing(createData);
+        setThings(prev => [created, ...prev]);
+        setAllThings(prev => [created, ...prev]);
         showSuccess('Thing created successfully');
       }
       
       setFormDialogOpen(false);
       setEditingThing(undefined);
-      // Refresh the table and reset search
-      await loadData();
-      setSearchQuery({ tagMode: 'and' });
-      handleClearFilters();
     } catch (error) {
       console.error('Error saving thing:', error);
       showError(error instanceof Error ? error.message : 'Failed to save thing. Please try again.');
@@ -437,6 +450,55 @@ export default function Things() {
   const handleRowClick = (row: ThingTableRow) => {
     // Open edit dialog when row is clicked
     handleEdit(row);
+  };
+
+  // Mobile: open detail sheet on card tap
+  const handleCardTap = (thing: Thing) => {
+    setDetailThing(thing);
+  };
+
+  // Mobile: toggle selection
+  const handleSelectionToggle = (thing: Thing) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(thing.id)) next.delete(thing.id);
+      else next.add(thing.id);
+      return next;
+    });
+  };
+
+  // Bulk move to location
+  const handleBulkMoveToLocation = async (locationId: string) => {
+    if (!currentInventory) return;
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => apiClient.updateThing(id, { locationId, inventoryId: currentInventory.id }))
+    );
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+    const failCount = ids.length - succeeded.length;
+    setThings(prev => prev.map(t => succeeded.includes(t.id) ? { ...t, locationId } : t));
+    setAllThings(prev => prev.map(t => succeeded.includes(t.id) ? { ...t, locationId } : t));
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    if (failCount > 0) showError(`${failCount} item(s) could not be moved`);
+    else showSuccess(`Moved ${succeeded.length} item(s) to new location`);
+  };
+
+  // Bulk move to container
+  const handleBulkMoveToContainer = async (containerId: string) => {
+    if (!currentInventory) return;
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(
+      ids.map(id => apiClient.updateThing(id, { containerId, inventoryId: currentInventory.id }))
+    );
+    const succeeded = ids.filter((_, i) => results[i].status === 'fulfilled');
+    const failCount = ids.length - succeeded.length;
+    setThings(prev => prev.map(t => succeeded.includes(t.id) ? { ...t, containerId } : t));
+    setAllThings(prev => prev.map(t => succeeded.includes(t.id) ? { ...t, containerId } : t));
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    if (failCount > 0) showError(`${failCount} item(s) could not be moved`);
+    else showSuccess(`Moved ${succeeded.length} item(s) to container`);
   };
 
   // Show message if no inventory is selected
@@ -543,6 +605,19 @@ export default function Things() {
           
           {/* Mobile: Icon buttons only */}
           <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 1 }}>
+            <Tooltip title={isSelectMode ? "Cancel Select" : "Select Items"}>
+              <IconButton
+                size="small"
+                onClick={() => { setIsSelectMode(!isSelectMode); if (isSelectMode) setSelectedIds(new Set()); }}
+                sx={{
+                  border: '1px solid',
+                  borderColor: isSelectMode ? 'primary.main' : 'divider',
+                  '&:hover': { backgroundColor: 'primary.50', borderColor: 'primary.main' }
+                }}
+              >
+                <CheckBoxIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="AI Photo Upload">
               <IconButton
                 size="small"
@@ -676,20 +751,60 @@ export default function Things() {
           )}
         </Box>
 
-        {/* Main Table */}
+        {/* Main Content — Mobile cards or Desktop table */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <EntityTable
-            columns={columns}
-            data={tableData}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onRowClick={handleRowClick}
-            loading={loading || searchLoading}
-            inventoryId={currentInventory.id}
-            enableTagSearch={true}
-            onTagSearch={handleTagSearch}
-            currentSearchQuery={searchQuery}
-          />
+          {isMobile ? (
+            // Mobile: card list
+            loading || searchLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : tableData.length === 0 ? (
+              <Box sx={{ textAlign: 'center', p: 4 }}>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No things found
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Tap + to add your first item
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                {tableData.map(row => {
+                  const fullThing = things.find(t => t.id === row.id);
+                  if (!fullThing) return null;
+                  return (
+                    <MobileThingCard
+                      key={row.id}
+                      thing={fullThing}
+                      categoryName={row.category || undefined}
+                      locationName={row.location || undefined}
+                      isSelectMode={isSelectMode}
+                      isSelected={selectedIds.has(row.id)}
+                      onTap={handleCardTap}
+                      onEdit={() => handleEdit(row)}
+                      onDelete={() => handleDelete(row)}
+                      onSelectionToggle={handleSelectionToggle}
+                    />
+                  );
+                })}
+              </Box>
+            )
+          ) : (
+            // Desktop: existing table
+            <EntityTable
+              columns={columns}
+              data={tableData}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onRowClick={handleRowClick}
+              loading={loading || searchLoading}
+              inventoryId={currentInventory.id}
+              enableTagSearch={true}
+              onTagSearch={handleTagSearch}
+              currentSearchQuery={searchQuery}
+            />
+          )}
         </Box>
       </Box>
 
@@ -732,6 +847,47 @@ export default function Things() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Thing Detail Sheet (mobile) */}
+      <ThingDetailSheet
+        thing={detailThing}
+        open={detailThing !== null}
+        categoryName={detailThing ? getCategoryName(detailThing.categoryId) : undefined}
+        locationName={detailThing ? getLocationName(detailThing.locationId) : undefined}
+        roomName={detailThing ? getRoomName(detailThing.roomId) : undefined}
+        containerName={detailThing ? getContainerName(detailThing.containerId) : undefined}
+        ownerName={detailThing ? getOwnerName(detailThing.ownerId) : undefined}
+        onClose={() => setDetailThing(null)}
+        onEdit={(t) => {
+          setDetailThing(null);
+          const row = tableData.find(r => r.id === t.id);
+          if (row) handleEdit(row);
+        }}
+      />
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <ThingBulkActionBar
+          selectedCount={selectedIds.size}
+          locations={locations}
+          containers={containers}
+          onMoveToLocation={handleBulkMoveToLocation}
+          onMoveToContainer={handleBulkMoveToContainer}
+          onClearSelection={() => { setSelectedIds(new Set()); setIsSelectMode(false); }}
+        />
+      )}
+
+      {/* Mobile FAB */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          aria-label="Add Thing"
+          onClick={handleAdd}
+          sx={{ position: 'fixed', bottom: 80, right: 16, zIndex: 1050 }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
     </Box>
   );
 }

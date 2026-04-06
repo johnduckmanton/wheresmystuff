@@ -5,6 +5,7 @@ import {
   Paper,
   Badge,
   Box,
+  Divider,
   useTheme,
 } from '@mui/material';
 import {
@@ -14,11 +15,15 @@ import {
   QrCodeScanner as ScanIcon,
   MoreHoriz as MoreIcon,
   Assignment as ProjectIcon,
-  Analytics as ReportsIcon,
-  Settings as SettingsIcon,
+  LocationOn as LocationIcon,
+  Category as CategoryIcon,
+  People as PeopleIcon,
+  Storage as StorageIcon,
+  AccountCircle as ProfileIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMobileDetection } from '../hooks/useMobileDetection';
+import InventorySelector from './InventorySelector';
 
 /**
  * Mobile-optimized bottom navigation component
@@ -100,6 +105,8 @@ export default function MobileNavigation({
           }}
         >
           <Box sx={{ p: 2 }}>
+            <InventorySelector />
+            <Divider sx={{ my: 2 }} />
             <Box
               sx={{
                 display: 'grid',
@@ -108,19 +115,34 @@ export default function MobileNavigation({
               }}
             >
               <MoreOption
+                icon={<LocationIcon />}
+                label="Locations"
+                onClick={() => handleMoreOptionClick('/locations')}
+              />
+              <MoreOption
+                icon={<CategoryIcon />}
+                label="Categories"
+                onClick={() => handleMoreOptionClick('/categories')}
+              />
+              <MoreOption
+                icon={<PeopleIcon />}
+                label="People"
+                onClick={() => handleMoreOptionClick('/people')}
+              />
+              <MoreOption
                 icon={<ProjectIcon />}
                 label="Projects"
                 onClick={() => handleMoreOptionClick('/projects')}
               />
               <MoreOption
-                icon={<ReportsIcon />}
-                label="Reports"
-                onClick={() => handleMoreOptionClick('/reports')}
+                icon={<StorageIcon />}
+                label="Storage"
+                onClick={() => handleMoreOptionClick('/storage')}
               />
               <MoreOption
-                icon={<SettingsIcon />}
-                label="Settings"
-                onClick={() => handleMoreOptionClick('/settings')}
+                icon={<ProfileIcon />}
+                label="Profile"
+                onClick={() => handleMoreOptionClick('/profile')}
               />
             </Box>
           </Box>

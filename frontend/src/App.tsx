@@ -37,8 +37,12 @@ import InventoryDashboard from './pages/InventoryDashboard';
 import Containers from './pages/Containers';
 import Projects from './pages/Projects';
 import SharedContainerView from './components/SharedContainerView';
+import { RouteModuleTracker } from './components/RouteModuleTracker';
+import MobileNavigation from './components/MobileNavigation';
+import ScanPage from './pages/Scan';
 import apiClient from './services/api';
 import { theme } from './theme';
+import { useLastUsedModule } from './hooks/useLastUsedModule';
 
 // Context for mobile sidebar state
 const MobileSidebarContext = createContext<{
@@ -65,6 +69,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <MobileSidebarContext.Provider value={{ toggleMobileSidebar: handleMobileToggle }}>
+      <RouteModuleTracker />
       <SkipLink />
       <Box sx={{ 
         display: 'flex', 
@@ -115,8 +120,27 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           open={accessibilitySettingsOpen}
           onClose={() => setAccessibilitySettingsOpen(false)}
         />
+        <MobileNavigation />
       </Box>
     </MobileSidebarContext.Provider>
+  );
+}
+
+/**
+ * Smart redirect for home routes based on last used module
+ * Validates: Requirements 8.3, 8.4, 8.5
+ */
+function SmartHomeRedirect() {
+  const { get } = useLastUsedModule();
+  const lastModule = get();
+  if (lastModule === 'inventory') return <Navigate to="/things" replace />;
+  if (lastModule === 'moving') return <Navigate to="/moving" replace />;
+  return (
+    <ProtectedRoute>
+      <MainLayout>
+        <Home />
+      </MainLayout>
+    </ProtectedRoute>
   );
 }
 
@@ -166,13 +190,7 @@ function App() {
                 />
                 <Route
                   path="/home"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <Home />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
+                  element={<SmartHomeRedirect />}
                 />
                 <Route
                   path="/inventory"
@@ -304,7 +322,17 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route
+                  path="/scan"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <ScanPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/" element={<SmartHomeRedirect />} />
                 <Route path="*" element={<Navigate to="/home" replace />} />
               </Routes>
             </BrowserRouter>
