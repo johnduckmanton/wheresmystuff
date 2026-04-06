@@ -540,7 +540,8 @@ export default function Things() {
           gap: { xs: 1, sm: 2 }, 
           alignItems: 'center',
           flexWrap: 'wrap',
-          width: { xs: '100%', sm: 'auto' },
+          width: '100%',
+          justifyContent: 'flex-start',
         }}>
           <Tooltip title={showQuickFilters ? "Hide Filters" : "Show Filters"}>
             <IconButton
@@ -716,6 +717,7 @@ export default function Things() {
         gap: { xs: 0, md: 3 }, 
         alignItems: 'flex-start',
         flexDirection: { xs: 'column', md: 'row' },
+        width: '100%',
       }}>
         {/* Quick Filters Sidebar */}
         <Box
@@ -752,7 +754,7 @@ export default function Things() {
         </Box>
 
         {/* Main Content — Mobile cards or Desktop table */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
           {isMobile ? (
             // Mobile: card list
             loading || searchLoading ? (
