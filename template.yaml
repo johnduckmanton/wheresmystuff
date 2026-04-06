@@ -349,10 +349,20 @@ Resources:
   # S3 Bucket for Photos
   PhotoBucket:
     Type: AWS::S3::Bucket
+    DependsOn: ImageProcessorS3Permission
     DeletionPolicy: !If [IsProduction, Retain, Delete]
     UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
     Properties:
       BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: photos/
+            Function: !GetAtt ImageProcessorFunction.Arn
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -1026,20 +1036,19 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: '*'
-      Events:
-        PhotoUploaded:
-          Type: S3
-          Properties:
-            Bucket: !Ref PhotoBucket
-            Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: photos/
       Tags:
         Environment: !Ref Environment
         Purpose: ImageProcessing
+
+  # Allow S3 to invoke the image processor Lambda
+  ImageProcessorS3Permission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ImageProcessorFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::home-inv-photos-${AWS::AccountId}-${Environment}
+      SourceAccount: !Ref AWS::AccountId
 
   # Document Lambda (Receipts and Warranties)
   DocumentFunction:
