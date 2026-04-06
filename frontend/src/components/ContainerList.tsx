@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Fab,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -730,17 +729,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         </Dialog>
       )}
 
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Fab
-          color="primary"
-          aria-label="Add Container"
-          onClick={handleCreate}
-          sx={{ position: 'fixed', bottom: 80, right: 16, zIndex: 1050 }}
-        >
-          <AddIcon />
-        </Fab>
-      )}
+      {/* Mobile FAB removed — using Add button in toolbar instead */}
     </Box>
   );
 }

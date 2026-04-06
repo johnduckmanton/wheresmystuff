@@ -39,6 +39,7 @@ import Projects from './pages/Projects';
 import SharedContainerView from './components/SharedContainerView';
 import { RouteModuleTracker } from './components/RouteModuleTracker';
 import MobileNavigation from './components/MobileNavigation';
+import { useMobileDetection } from './hooks/useMobileDetection';
 import ScanPage from './pages/Scan';
 import apiClient from './services/api';
 import { theme } from './theme';
@@ -62,6 +63,7 @@ export const useMobileSidebar = () => useContext(MobileSidebarContext);
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessibilitySettingsOpen, setAccessibilitySettingsOpen] = useState(false);
+  const { isMobile } = useMobileDetection();
 
   const handleMobileToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -99,22 +101,24 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           {children}
         </Box>
         
-        {/* Accessibility Settings FAB */}
-        <Tooltip title="Accessibility Settings" placement="left">
-          <Fab
-            color="primary"
-            aria-label="Open accessibility settings"
-            onClick={() => setAccessibilitySettingsOpen(true)}
-            sx={{
-              position: 'fixed',
-              bottom: 16,
-              right: 16,
-              zIndex: 1000,
-            }}
-          >
-            <AccessibilityIcon />
-          </Fab>
-        </Tooltip>
+        {/* Accessibility Settings FAB — hidden on mobile */}
+        {!isMobile && (
+          <Tooltip title="Accessibility Settings" placement="left">
+            <Fab
+              color="primary"
+              aria-label="Open accessibility settings"
+              onClick={() => setAccessibilitySettingsOpen(true)}
+              sx={{
+                position: 'fixed',
+                bottom: 16,
+                right: 16,
+                zIndex: 1000,
+              }}
+            >
+              <AccessibilityIcon />
+            </Fab>
+          </Tooltip>
+        )}
         
         <AccessibilitySettings
           open={accessibilitySettingsOpen}

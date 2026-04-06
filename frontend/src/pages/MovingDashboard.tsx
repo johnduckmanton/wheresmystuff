@@ -10,7 +10,6 @@ import {
   Chip,
   LinearProgress,
   IconButton,
-  Fab,
   Alert,
   CircularProgress,
 } from '@mui/material';
@@ -33,7 +32,6 @@ import ContainerDetailDialog from '../components/ContainerDetailDialog';
 import ContainerFormDialog from '../components/ContainerFormDialog';
 import PackingDialog from '../components/PackingDialog';
 import ThingFormDialog from '../components/ThingFormDialog';
-import MobileNavigation from '../components/MobileNavigation';
 import ProjectFormDialog from '../components/ProjectFormDialog';
 import ProjectDetailDialog from '../components/ProjectDetailDialog';
 
@@ -588,37 +586,30 @@ export default function MovingDashboard() {
             justifyContent: 'space-between', 
             alignItems: 'center', 
             mb: isMobile ? 2 : 4,
-            position: isMobile ? 'sticky' : 'static',
-            top: 0,
-            backgroundColor: 'background.default',
-            zIndex: 100,
-            py: isMobile ? 1 : 0,
           }}
-          className={isMobile ? 'mobile-dashboard-header' : ''}
         >
-          <Box>
-            <Typography 
-              variant={isMobile ? 'h5' : 'h4'} 
-              component="h1" 
-              gutterBottom
-              className={isMobile ? 'mobile-title' : ''}
-            >
-              Moving & Storage
-            </Typography>
-            <Typography 
-              variant={isMobile ? 'body2' : 'subtitle1'} 
-              color="text.secondary"
-              className={isMobile ? 'mobile-subtitle' : ''}
-            >
-              {currentInventory.name}
-            </Typography>
-          </Box>
+          {!isMobile && (
+            <Box>
+              <Typography 
+                variant="h4" 
+                component="h1" 
+                gutterBottom
+              >
+                Moving & Storage
+              </Typography>
+              <Typography 
+                variant="subtitle1" 
+                color="text.secondary"
+              >
+                {currentInventory.name}
+              </Typography>
+            </Box>
+          )}
           {!isMobile && (
             <IconButton 
               onClick={handleRefresh} 
               disabled={loading}
               aria-label="Refresh dashboard data"
-              className="mobile-touch-icon-button"
             >
               <RefreshIcon />
             </IconButton>
@@ -821,30 +812,7 @@ export default function MovingDashboard() {
         </>
       )}
 
-        {/* Floating Action Button for Mobile */}
-        {isMobile && (
-          <Fab
-            color="primary"
-            aria-label="Create container"
-            onClick={handleCreateContainer}
-            sx={{
-              position: 'fixed',
-              bottom: 72, // Above mobile navigation
-              right: 16,
-              width: 64,
-              height: 64,
-            }}
-          >
-            <AddIcon />
-          </Fab>
-        )}
       </MuiContainer>
-
-      {/* Mobile Navigation */}
-      <MobileNavigation 
-        containerCount={stats.totalContainers}
-        unreadNotifications={0}
-      />
 
       {/* QR Code Scanner Dialog */}
       <QRCodeScanner

@@ -34,7 +34,6 @@ import apiClient from '../services/api';
 import TagAnalytics from '../components/TagAnalytics';
 import BulkTagOperationsDialog from '../components/BulkTagOperationsDialog';
 import ExportDialog from '../components/ExportDialog';
-import MobileNavigation from '../components/MobileNavigation';
 import type { Thing, Category } from '../types';
 
 interface InventoryStats {
@@ -511,11 +510,6 @@ export default function InventoryDashboard() {
         
         <TagAnalytics inventoryId={currentInventory.id} />
         
-        {/* Mobile Navigation */}
-        <MobileNavigation 
-          containerCount={0}
-          unreadNotifications={0}
-        />
       </MuiContainer>
     );
   }
@@ -715,12 +709,6 @@ export default function InventoryDashboard() {
           </Fab>
         )}
       </MuiContainer>
-
-      {/* Mobile Navigation */}
-      <MobileNavigation 
-        containerCount={0}
-        unreadNotifications={0}
-      />
 
       {/* Actions Menu */}
       <Menu

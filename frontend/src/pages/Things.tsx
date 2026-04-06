@@ -1,4 +1,4 @@
-import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip, CircularProgress, Fab } from '@mui/material';
+import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { useState, useEffect } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -513,7 +513,7 @@ export default function Things() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 1, sm: 3 } }}>
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -522,17 +522,19 @@ export default function Things() {
         gap: 2,
         flexWrap: 'wrap',
       }}>
-        <Typography 
-          variant="h4" 
-          component="h1"
-          sx={{ 
-            fontSize: { xs: '1.5rem', sm: '2.125rem' },
-            minWidth: 0,
-            flex: { xs: '1 1 100%', sm: '1 1 auto' },
-          }}
-        >
-          Things - {currentInventory.name}
-        </Typography>
+        {!isMobile && (
+          <Typography 
+            variant="h4" 
+            component="h1"
+            sx={{ 
+              fontSize: { xs: '1.5rem', sm: '2.125rem' },
+              minWidth: 0,
+              flex: { xs: '1 1 100%', sm: '1 1 auto' },
+            }}
+          >
+            Things - {currentInventory.name}
+          </Typography>
+        )}
         <Box sx={{ 
           display: 'flex', 
           gap: { xs: 1, sm: 2 }, 
@@ -766,7 +768,7 @@ export default function Things() {
                 </Typography>
               </Box>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                 {tableData.map(row => {
                   const fullThing = things.find(t => t.id === row.id);
                   if (!fullThing) return null;
@@ -874,17 +876,6 @@ export default function Things() {
         />
       )}
 
-      {/* Mobile FAB */}
-      {isMobile && (
-        <Fab
-          color="primary"
-          aria-label="Add Thing"
-          onClick={handleAdd}
-          sx={{ position: 'fixed', bottom: 80, right: 16, zIndex: 1050 }}
-        >
-          <AddIcon />
-        </Fab>
-      )}
     </Box>
   );
 }

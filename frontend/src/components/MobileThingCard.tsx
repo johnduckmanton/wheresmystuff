@@ -71,26 +71,7 @@ export default function MobileThingCard({
   const primaryPhoto = thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined;
 
   return (
-    <Box sx={{ position: 'relative', mb: 1 }}>
-      {/* Selection checkbox overlay */}
-      {isSelectMode && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 4,
-            left: 4,
-            zIndex: 2,
-          }}
-        >
-          <Checkbox
-            checked={isSelected}
-            onChange={() => onSelectionToggle(thing)}
-            onClick={(e) => e.stopPropagation()}
-            sx={{ p: 0.5, minWidth: 44, minHeight: 44 }}
-          />
-        </Box>
-      )}
-
+    <Box sx={{ mb: 1 }}>
       <Card
         onClick={handleCardClick}
         sx={{
@@ -102,8 +83,18 @@ export default function MobileThingCard({
         }}
       >
         <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-          {/* Row 1: thumbnail | name | overflow menu */}
+          {/* Row 1: [checkbox] | thumbnail | name | overflow menu */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+            {isSelectMode && (
+              <Checkbox
+                checked={isSelected}
+                onChange={() => onSelectionToggle(thing)}
+                onClick={(e) => e.stopPropagation()}
+                sx={{ p: 0, flexShrink: 0 }}
+                size="small"
+              />
+            )}
+
             <PhotoThumbnail
               photoKey={primaryPhoto}
               altText={thing.name}
@@ -136,7 +127,7 @@ export default function MobileThingCard({
           </Box>
 
           {/* Row 2: category chip | location */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', pl: '48px' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', pl: isSelectMode ? '80px' : '48px' }}>
             {categoryName && (
               <Chip
                 label={categoryName}

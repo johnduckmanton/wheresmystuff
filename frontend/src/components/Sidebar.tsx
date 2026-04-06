@@ -139,14 +139,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     }
   };
 
-  // Determine current module based on path
-  const isInventoryModule = ['/inventory', '/things', '/locations', '/categories', '/people', '/inventories'].some(
-    path => location.pathname.startsWith(path)
-  );
-  const isMovingModule = ['/moving', '/containers', '/projects', '/storage'].some(
-    path => location.pathname.startsWith(path)
-  );
-
   const renderNavigationSection = (items: NavigationItem[], title?: string) => (
     <>
       {title && (isMobile || open) && (
@@ -221,23 +213,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       {/* Always show Home navigation */}
       {renderNavigationSection(navigationItems)}
       
-      {/* Show inventory selector and navigation when in inventory module */}
-      {isInventoryModule && (
-        <>
-          <Divider />
-          <InventorySelector collapsed={!isMobile && !open} />
-          <Divider />
-          {renderNavigationSection(inventoryItems, 'Inventory')}
-        </>
-      )}
+      {/* Always show inventory selector and navigation */}
+      <Divider />
+      <InventorySelector collapsed={!isMobile && !open} />
+      <Divider />
+      {renderNavigationSection(inventoryItems, 'Inventory')}
       
-      {/* Show moving navigation when in moving module */}
-      {isMovingModule && (
-        <>
-          <Divider />
-          {renderNavigationSection(movingItems, 'Moving & Storage')}
-        </>
-      )}
+      {/* Always show moving navigation */}
+      <Divider />
+      {renderNavigationSection(movingItems, 'Moving & Storage')}
     </>
   );
 
