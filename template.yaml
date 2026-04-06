@@ -11,7 +11,7 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref InventoryTable
-        BUCKET_NAME: !Ref PhotoBucket
+        BUCKET_NAME: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         QR_REPORT_BUCKET_NAME: !Ref QRCodeReportBucket
         USER_POOL_ID: !Ref UserPool
         USER_POOL_CLIENT_ID: !Ref UserPoolClient
@@ -971,7 +971,7 @@ Resources:
       Handler: handlers/photo.handler
       Policies:
         - S3CrudPolicy:
-            BucketName: !Ref PhotoBucket
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         - S3CrudPolicy:
             BucketName: !Ref QRCodeReportBucket
         - DynamoDBCrudPolicy:
@@ -1066,7 +1066,7 @@ Resources:
       Handler: handlers/document.handler
       Policies:
         - S3CrudPolicy:
-            BucketName: !Ref PhotoBucket
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
         - Version: '2012-10-17'
@@ -1126,7 +1126,7 @@ Resources:
           AI_MOCK_MODE: 'false'
       Policies:
         - S3ReadPolicy:
-            BucketName: !Ref PhotoBucket
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         - DynamoDBReadPolicy:
             TableName: !Ref InventoryTable
         - Version: '2012-10-17'
@@ -1162,7 +1162,7 @@ Resources:
       Timeout: 30
       Policies:
         - S3CrudPolicy:
-            BucketName: !Ref PhotoBucket
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         - DynamoDBReadPolicy:
             TableName: !Ref InventoryTable
         - Version: '2012-10-17'
