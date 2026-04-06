@@ -605,19 +605,21 @@ export default function Things() {
           
           {/* Mobile: Icon buttons only */}
           <Box sx={{ display: { xs: 'flex', md: 'none' }, gap: 1 }}>
-            <Tooltip title={isSelectMode ? "Cancel Select" : "Select Items"}>
-              <IconButton
-                size="small"
-                onClick={() => { setIsSelectMode(!isSelectMode); if (isSelectMode) setSelectedIds(new Set()); }}
-                sx={{
-                  border: '1px solid',
-                  borderColor: isSelectMode ? 'primary.main' : 'divider',
-                  '&:hover': { backgroundColor: 'primary.50', borderColor: 'primary.main' }
-                }}
-              >
-                <CheckBoxIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {isMobile && (
+              <Tooltip title={isSelectMode ? "Cancel Select" : "Select Items"}>
+                <IconButton
+                  size="small"
+                  onClick={() => { setIsSelectMode(!isSelectMode); if (isSelectMode) setSelectedIds(new Set()); }}
+                  sx={{
+                    border: '1px solid',
+                    borderColor: isSelectMode ? 'primary.main' : 'divider',
+                    '&:hover': { backgroundColor: 'primary.50', borderColor: 'primary.main' }
+                  }}
+                >
+                  <CheckBoxIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="AI Photo Upload">
               <IconButton
                 size="small"
