@@ -116,8 +116,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
   const isMobileSmall = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
   const [open, setOpen] = useState(true);
-  const [inventoryOpen, setInventoryOpen] = useState(true);
-  const [movingOpen, setMovingOpen] = useState(true);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [movingOpen, setMovingOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -174,16 +174,18 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 selected={isActive}
                 aria-current={isActive ? 'page' : undefined}
                 sx={{
-                  minHeight: 48,
+                  minHeight: 40,
                   justifyContent: (isMobile || open) ? 'initial' : 'center',
                   px: 2.5,
+                  py: 0.5,
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 0,
-                    mr: (isMobile || open) ? 3 : 'auto',
+                    mr: (isMobile || open) ? 2 : 'auto',
                     justifyContent: 'center',
+                    '& .MuiSvgIcon-root': { fontSize: 20 },
                   }}
                   aria-hidden="true"
                 >
@@ -191,6 +193,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
+                  primaryTypographyProps={{ fontSize: '0.85rem' }}
                   sx={{
                     opacity: (isMobile || open) ? 1 : 0,
                     display: (isMobile || open) ? 'block' : 'none',
@@ -205,7 +208,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   );
 
   const drawerContent = (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <Toolbar />
       <Box
         sx={{
@@ -213,7 +216,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           alignItems: 'center',
           justifyContent: (isMobile || open) ? 'flex-end' : 'center',
           px: 1,
-          py: 1,
+          py: 0.5,
+          flexShrink: 0,
         }}
       >
         <IconButton 
@@ -226,20 +230,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       </Box>
       <Divider />
       
-      {/* Home */}
-      {renderNavigationSection(navigationItems)}
-      
-      {/* Inventory — collapsible */}
-      <Divider />
-      <InventorySelector collapsed={!isMobile && !open} />
-      <ListItemButton onClick={() => setInventoryOpen(!inventoryOpen)} sx={{ px: 2.5 }}>
-        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 3 : 'auto', justifyContent: 'center' }}>
+      <Box sx={{ overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Home */}
+        {renderNavigationSection(navigationItems)}
+        
+        {/* Inventory — collapsible */}
+        <Divider />
+        <InventorySelector collapsed={!isMobile && !open} />
+        <ListItemButton onClick={() => setInventoryOpen(!inventoryOpen)} sx={{ px: 2.5, py: 0.5 }}>
+        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 2 : 'auto', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 20 } }}>
           <InventoryIcon />
         </ListItemIcon>
         {(isMobile || open) && (
           <>
-            <ListItemText primary="Inventory" primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', sx: { fontSize: '0.75rem' } }} />
-            {inventoryOpen ? <ExpandLess /> : <ExpandMore />}
+            <ListItemText primary="Inventory" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }} />
+            {inventoryOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
           </>
         )}
       </ListItemButton>
@@ -249,21 +254,22 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       
       {/* Moving & Storage — collapsible */}
       <Divider />
-      <ListItemButton onClick={() => setMovingOpen(!movingOpen)} sx={{ px: 2.5 }}>
-        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 3 : 'auto', justifyContent: 'center' }}>
+      <ListItemButton onClick={() => setMovingOpen(!movingOpen)} sx={{ px: 2.5, py: 0.5 }}>
+        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 2 : 'auto', justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 20 } }}>
           <LocalShippingIcon />
         </ListItemIcon>
         {(isMobile || open) && (
           <>
-            <ListItemText primary="Moving & Storage" primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', sx: { fontSize: '0.75rem' } }} />
-            {movingOpen ? <ExpandLess /> : <ExpandMore />}
+            <ListItemText primary="Moving & Storage" primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600, color: 'text.secondary' }} />
+            {movingOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
           </>
         )}
       </ListItemButton>
       <Collapse in={movingOpen && (isMobile || open)} timeout="auto" unmountOnExit>
         {renderNavigationSection(movingItems)}
       </Collapse>
-    </>
+      </Box>
+    </Box>
   );
 
   // Suppress sidebar entirely on mobile (< 600px) — MobileNavigation handles navigation there
