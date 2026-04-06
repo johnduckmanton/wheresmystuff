@@ -43,7 +43,6 @@ import { useMobileDetection } from './hooks/useMobileDetection';
 import ScanPage from './pages/Scan';
 import apiClient from './services/api';
 import { theme } from './theme';
-import { useLastUsedModule } from './hooks/useLastUsedModule';
 
 // Context for mobile sidebar state
 const MobileSidebarContext = createContext<{
