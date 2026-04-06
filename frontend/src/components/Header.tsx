@@ -29,7 +29,7 @@ interface HeaderProps {
  */
 export default function Header({ onMenuClick }: HeaderProps) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const _isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
