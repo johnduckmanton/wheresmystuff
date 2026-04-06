@@ -22,6 +22,7 @@ import {
   AccordionDetails,
   useTheme,
   useMediaQuery,
+  IconButton,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -30,6 +31,7 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Photo as PhotoIcon,
   Image as ImageIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 import PhotoUploadZone from './PhotoUploadZone';
@@ -430,6 +432,7 @@ export default function ThingFormDialog({
     const Component = () => {
       const [primaryImageUrl, setPrimaryImageUrl] = useState<string>('');
       const [loading, setLoading] = useState(false);
+      const [lightboxOpen, setLightboxOpen] = useState(false);
       
       const primaryPhotoKey = formData.photos && formData.photos.length > 0 ? formData.photos[0] : null;
 
@@ -476,18 +479,64 @@ export default function ThingFormDialog({
 
       if (primaryImageUrl) {
         return (
-          <S3Image
-            src={primaryImageUrl}
-            alt={formData.name || 'Thing image'}
-            maxWidth={imageSize}
-            maxHeight={imageSize}
-            style={{
-              borderRadius: '8px',
-              objectFit: 'cover',
-              width: `${imageSize}px`,
-              height: `${imageSize}px`,
-            }}
-          />
+          <>
+            <Box
+              onClick={() => setLightboxOpen(true)}
+              sx={{ cursor: 'zoom-in', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}
+              role="button"
+              aria-label="View full size image"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setLightboxOpen(true)}
+            >
+              <S3Image
+                src={primaryImageUrl}
+                alt={formData.name || 'Thing image'}
+                maxWidth={imageSize}
+                maxHeight={imageSize}
+                style={{
+                  borderRadius: '8px',
+                  objectFit: 'cover',
+                  width: `${imageSize}px`,
+                  height: `${imageSize}px`,
+                  display: 'block',
+                }}
+              />
+            </Box>
+
+            {/* Lightbox */}
+            <Dialog
+              open={lightboxOpen}
+              onClose={() => setLightboxOpen(false)}
+              maxWidth="lg"
+              fullWidth
+              onClick={() => setLightboxOpen(false)}
+              sx={{ '& .MuiDialog-paper': { bgcolor: 'black', boxShadow: 'none' } }}
+            >
+              <Box
+                sx={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '60vh',
+                  p: 1,
+                }}
+              >
+                <IconButton
+                  onClick={() => setLightboxOpen(false)}
+                  sx={{ position: 'absolute', top: 8, right: 8, color: 'white', zIndex: 1 }}
+                  aria-label="Close image"
+                >
+                  <CloseIcon />
+                </IconButton>
+                <img
+                  src={primaryImageUrl}
+                  alt={formData.name || 'Thing image'}
+                  style={{ maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain', borderRadius: 4 }}
+                />
+              </Box>
+            </Dialog>
+          </>
         );
       }
 
