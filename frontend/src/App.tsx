@@ -132,13 +132,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 /**
  * Smart redirect for home routes based on last used module
- * Validates: Requirements 8.3, 8.4, 8.5
+ * Always shows the Home page with module selection cards.
+ * Last-used module tracking still works for the mobile bottom nav.
  */
 function SmartHomeRedirect() {
-  const { get } = useLastUsedModule();
-  const lastModule = get();
-  if (lastModule === 'inventory') return <Navigate to="/things" replace />;
-  if (lastModule === 'moving') return <Navigate to="/moving" replace />;
   return (
     <ProtectedRoute>
       <MainLayout>

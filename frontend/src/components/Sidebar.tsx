@@ -14,6 +14,7 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Collapse,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -27,6 +28,8 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import AllInboxIcon from '@mui/icons-material/AllInbox';
 import FolderIcon from '@mui/icons-material/Folder';
 import StorageIcon from '@mui/icons-material/Storage';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import InventorySelector from './InventorySelector';
 
 const DRAWER_WIDTH = 240;
@@ -113,8 +116,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const isMobile = useMediaQuery(theme.breakpoints.down('md')); // < 900px
   const isMobileSmall = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
   const [open, setOpen] = useState(true);
+  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [movingOpen, setMovingOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-expand the section for the current route
+  useEffect(() => {
+    const path = location.pathname;
+    if (['/inventory', '/things', '/locations', '/categories', '/people'].some(p => path.startsWith(p))) {
+      setInventoryOpen(true);
+    }
+    if (['/moving', '/containers', '/projects', '/storage'].some(p => path.startsWith(p))) {
+      setMovingOpen(true);
+    }
+  }, [location.pathname]);
 
   // Close mobile drawer when switching to desktop
   useEffect(() => {
@@ -210,18 +226,43 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       </Box>
       <Divider />
       
-      {/* Always show Home navigation */}
+      {/* Home */}
       {renderNavigationSection(navigationItems)}
       
-      {/* Always show inventory selector and navigation */}
+      {/* Inventory — collapsible */}
       <Divider />
       <InventorySelector collapsed={!isMobile && !open} />
-      <Divider />
-      {renderNavigationSection(inventoryItems, 'Inventory')}
+      <ListItemButton onClick={() => setInventoryOpen(!inventoryOpen)} sx={{ px: 2.5 }}>
+        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 3 : 'auto', justifyContent: 'center' }}>
+          <InventoryIcon />
+        </ListItemIcon>
+        {(isMobile || open) && (
+          <>
+            <ListItemText primary="Inventory" primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', sx: { fontSize: '0.75rem' } }} />
+            {inventoryOpen ? <ExpandLess /> : <ExpandMore />}
+          </>
+        )}
+      </ListItemButton>
+      <Collapse in={inventoryOpen && (isMobile || open)} timeout="auto" unmountOnExit>
+        {renderNavigationSection(inventoryItems)}
+      </Collapse>
       
-      {/* Always show moving navigation */}
+      {/* Moving & Storage — collapsible */}
       <Divider />
-      {renderNavigationSection(movingItems, 'Moving & Storage')}
+      <ListItemButton onClick={() => setMovingOpen(!movingOpen)} sx={{ px: 2.5 }}>
+        <ListItemIcon sx={{ minWidth: 0, mr: (isMobile || open) ? 3 : 'auto', justifyContent: 'center' }}>
+          <LocalShippingIcon />
+        </ListItemIcon>
+        {(isMobile || open) && (
+          <>
+            <ListItemText primary="Moving & Storage" primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', sx: { fontSize: '0.75rem' } }} />
+            {movingOpen ? <ExpandLess /> : <ExpandMore />}
+          </>
+        )}
+      </ListItemButton>
+      <Collapse in={movingOpen && (isMobile || open)} timeout="auto" unmountOnExit>
+        {renderNavigationSection(movingItems)}
+      </Collapse>
     </>
   );
 
