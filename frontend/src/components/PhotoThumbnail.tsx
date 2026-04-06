@@ -42,10 +42,18 @@ export default function PhotoThumbnail({
         setPhotoUrl(url);
         setLoading(false);
       } catch (error: any) {
-        console.warn('Failed to load photo:', error);
-        setPhotoUrl(null);
-        setError(true);
-        setLoading(false);
+        console.warn('Failed to load thumbnail, falling back to original:', error);
+        // Fallback: try the original photo key if thumbnail fails
+        try {
+          const url = await photoQueue.loadPhoto(photoKey, apiClient);
+          setPhotoUrl(url);
+          setLoading(false);
+        } catch (fallbackError: any) {
+          console.warn('Failed to load photo:', fallbackError);
+          setPhotoUrl(null);
+          setError(true);
+          setLoading(false);
+        }
       }
     };
 

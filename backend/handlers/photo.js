@@ -158,7 +158,8 @@ async function handleGenerateDownloadUrl(event, key, origin) {
     const keyParts = decodedKey.split('/');
     
     // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
-    if (keyParts.length < 5 || keyParts[0] !== 'photos') {
+    // Also accept: thumbnails/{userId}/{inventoryId}/{entityId}/{filename}
+    if (keyParts.length < 5 || (keyParts[0] !== 'photos' && keyParts[0] !== 'thumbnails')) {
       return error('Invalid photo key format', 400, origin);
     }
     
@@ -216,7 +217,8 @@ async function handleDeletePhoto(event, key, origin) {
     const keyParts = decodedKey.split('/');
     
     // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
-    if (keyParts.length < 5 || keyParts[0] !== 'photos') {
+    // Also accept: thumbnails/{userId}/{inventoryId}/{entityId}/{filename}
+    if (keyParts.length < 5 || (keyParts[0] !== 'photos' && keyParts[0] !== 'thumbnails')) {
       return error('Invalid photo key format', 400, origin);
     }
     
