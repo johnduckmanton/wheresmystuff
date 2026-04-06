@@ -1026,10 +1026,18 @@ Resources:
       MemorySize: 1024
       Description: Resizes uploaded photos and generates thumbnails
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref PhotoBucket
         - Version: '2012-10-17'
           Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub arn:aws:s3:::home-inv-photos-${AWS::AccountId}-${Environment}/*
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !Sub arn:aws:s3:::home-inv-photos-${AWS::AccountId}-${Environment}
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
