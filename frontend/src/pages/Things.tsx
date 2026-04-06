@@ -388,9 +388,6 @@ export default function Things() {
   const handleConfirmDelete = async () => {
     if (!thingToDelete || !currentInventory) return;
 
-    const _deletedThing = things.find(t => t.id === thingToDelete.id);
-    const _deletedIndex = things.findIndex(t => t.id === thingToDelete.id);
-
     try {
       setGlobalLoading(true);
       await apiClient.deleteThing(thingToDelete.id, currentInventory.id);
