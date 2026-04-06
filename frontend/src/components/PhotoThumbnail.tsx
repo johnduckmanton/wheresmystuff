@@ -24,6 +24,7 @@ export default function PhotoThumbnail({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasRetriedRef = useRef(false);
 
   useEffect(() => {
     if (!photoKey) {
@@ -32,6 +33,7 @@ export default function PhotoThumbnail({
       return;
     }
 
+    hasRetriedRef.current = false;
     const thumbnailKey = toThumbnailKey(photoKey);
 
     const loadPhoto = async () => {
@@ -43,7 +45,6 @@ export default function PhotoThumbnail({
         setLoading(false);
       } catch (error: any) {
         console.warn('Failed to load thumbnail, falling back to original:', error);
-        // Fallback: try the original photo key if thumbnail fails
         try {
           const url = await photoQueue.loadPhoto(photoKey, apiClient);
           setPhotoUrl(url);
@@ -64,21 +65,36 @@ export default function PhotoThumbnail({
     };
   }, [photoKey]);
 
-  // When the img tag itself 404s (thumbnail not yet processed), retry once after 3s
+  // When the img tag 404s, retry once then give up
   const handleImgError = () => {
-    if (retryTimerRef.current) return;
+    if (hasRetriedRef.current) {
+      // Already retried — give up and show placeholder
+      setPhotoUrl(null);
+      setError(true);
+      setLoading(false);
+      return;
+    }
+    hasRetriedRef.current = true;
     setPhotoUrl(null);
     setLoading(true);
     retryTimerRef.current = setTimeout(async () => {
       retryTimerRef.current = null;
       try {
+        // Retry thumbnail — it may have been processed by now
         const thumbnailKey = toThumbnailKey(photoKey!);
         const url = await photoQueue.loadPhoto(thumbnailKey, apiClient);
         setPhotoUrl(url);
         setLoading(false);
       } catch {
-        setError(true);
-        setLoading(false);
+        // Fall back to original photo
+        try {
+          const url = await photoQueue.loadPhoto(photoKey!, apiClient);
+          setPhotoUrl(url);
+          setLoading(false);
+        } catch {
+          setError(true);
+          setLoading(false);
+        }
       }
     }, 3000);
   };
