@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 import apiClient from '../services/api';
 import { photoQueue } from '../services/photoQueue';
+import { toThumbnailKey } from '../utils/photoUtils';
 
 interface ContainerPhotoThumbnailProps {
   photoKey?: string;
@@ -20,6 +21,7 @@ export default function ContainerPhotoThumbnail({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!photoKey) {
@@ -28,11 +30,13 @@ export default function ContainerPhotoThumbnail({
       return;
     }
 
+    const thumbnailKey = toThumbnailKey(photoKey);
+
     const loadPhoto = async () => {
       try {
         setLoading(true);
         setError(false);
-        const url = await photoQueue.loadPhoto(photoKey, apiClient);
+        const url = await photoQueue.loadPhoto(thumbnailKey, apiClient);
         setPhotoUrl(url);
         setLoading(false);
       } catch (error: any) {
@@ -44,7 +48,30 @@ export default function ContainerPhotoThumbnail({
     };
 
     loadPhoto();
+
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
   }, [photoKey]);
+
+  // When the img tag itself 404s (thumbnail not yet processed), retry once after 3s
+  const handleImgError = () => {
+    if (retryTimerRef.current) return;
+    setPhotoUrl(null);
+    setLoading(true);
+    retryTimerRef.current = setTimeout(async () => {
+      retryTimerRef.current = null;
+      try {
+        const thumbnailKey = toThumbnailKey(photoKey!);
+        const url = await photoQueue.loadPhoto(thumbnailKey, apiClient);
+        setPhotoUrl(url);
+        setLoading(false);
+      } catch {
+        setError(true);
+        setLoading(false);
+      }
+    }, 3000);
+  };
 
   const hasImage = photoUrl && !error;
 
@@ -83,7 +110,7 @@ export default function ContainerPhotoThumbnail({
               height: '100%',
               objectFit: 'cover',
             }}
-            onError={() => setError(true)}
+            onError={handleImgError}
           />
         ) : (
           <Box
