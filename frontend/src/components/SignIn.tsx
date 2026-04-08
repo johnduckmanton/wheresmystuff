@@ -18,6 +18,7 @@ import SmsIcon from '@mui/icons-material/Sms';
 import SecurityIcon from '@mui/icons-material/Security';
 import { Link as RouterLink } from 'react-router-dom';
 import PasswordField from './PasswordField';
+import MfaSetup, { sanitizeTotpCode } from './MfaSetup';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [challengeName, setChallengeName] = useState<string | null>(null);
+  const [totpSetupDetails, setTotpSetupDetails] = useState<{ secretCode: string; username: string } | null>(null);
   const [resetPasswordVisibility, setResetPasswordVisibility] = useState(false);
 
   // Reset the resetPasswordVisibility flag after it's been triggered
@@ -81,9 +83,17 @@ export default function SignIn() {
           case 'CONTINUE_SIGN_IN_WITH_MFA_SELECTION':
             setError('MFA selection is required but not currently supported. Please contact support.');
             break;
-          case 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP':
-            setError('TOTP setup is required but not currently supported. Please contact support.');
+          case 'CONTINUE_SIGN_IN_WITH_TOTP_SETUP': {
+            const setupDetails = (result.nextStep as any).totpSetupDetails;
+            if (setupDetails) {
+              setTotpSetupDetails({
+                secretCode: setupDetails.sharedSecret,
+                username: email,
+              });
+            }
+            setChallengeName('TOTP_SETUP');
             break;
+          }
           case 'CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE':
             setError('Custom authentication challenge is not currently supported. Please contact support.');
             break;
@@ -314,6 +324,7 @@ export default function SignIn() {
     setConfirmPassword('');
     setResetCode('');
     setMfaCode('');
+    setTotpSetupDetails(null);
     setError('');
     setPassword('');
     setEmail('');
@@ -562,6 +573,83 @@ export default function SignIn() {
     );
   }
 
+  // Render forced TOTP setup during sign-in
+  if (challengeName === 'TOTP_SETUP') {
+    const handleTotpSetupVerify = async (code: string) => {
+      try {
+        const result = await confirmSignIn({ challengeResponse: code });
+        if (result.isSignedIn) {
+          setTotpSetupDetails(null);
+          navigate('/');
+        } else {
+          throw new Error('Unexpected result after TOTP setup. Please try again.');
+        }
+      } catch (err: any) {
+        if (err.name === 'NotAuthorizedException') {
+          setTotpSetupDetails(null);
+          await cancelChallenge();
+          // cancelChallenge clears error, so set it after
+          setError('Session expired. Please sign in again.');
+          return;
+        }
+        // Re-throw so MfaSetup's catch block handles display (CodeMismatchException, etc.)
+        throw err;
+      }
+    };
+
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          px: { xs: 2, sm: 3 },
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            maxWidth: 480,
+            width: '100%',
+          }}
+        >
+          <Typography component="h1" variant="h5" gutterBottom>
+            Set Up Two-Factor Authentication
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+            Your account requires MFA setup before you can continue.
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }} role="alert">
+              {error}
+            </Alert>
+          )}
+
+          <MfaSetup
+            totpSetupDetails={totpSetupDetails || undefined}
+            onVerify={handleTotpSetupVerify}
+            onSetupComplete={() => {
+              setTotpSetupDetails(null);
+              navigate('/');
+            }}
+            onCancel={() => {
+              setTotpSetupDetails(null);
+              cancelChallenge();
+            }}
+          />
+        </Paper>
+      </Box>
+    );
+  }
+
   // Render MFA verification form (SMS or TOTP)
   if (challengeName === 'SMS_MFA' || challengeName === 'TOTP_MFA') {
     const isSMS = challengeName === 'SMS_MFA';
@@ -630,7 +718,7 @@ export default function SignIn() {
               autoComplete="one-time-code"
               autoFocus
               value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setMfaCode(sanitizeTotpCode(e.target.value))}
               disabled={loading}
               helperText={isSMS ? 'Enter the 6-digit code from SMS' : 'Enter the 6-digit code from your app'}
               inputProps={{

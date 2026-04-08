@@ -1,5 +1,6 @@
 import { Box, Typography, Container } from '@mui/material';
 import UserProfileView from '../components/UserProfileView';
+import MfaStatusSection from '../components/MfaStatusSection';
 
 /**
  * User Profile Page
@@ -23,6 +24,8 @@ export default function UserProfile() {
             console.log('Profile updated:', profile);
           }}
         />
+
+        <MfaStatusSection />
       </Box>
     </Container>
   );

@@ -208,7 +208,9 @@ Resources:
       DeviceConfiguration:
         ChallengeRequiredOnNewDevice: !If [IsProduction, true, false]
         DeviceOnlyRememberedOnUserPrompt: !If [IsProduction, true, false]
-      MfaConfiguration: !If [EnableMFA, 'ON', 'OFF']
+      MfaConfiguration: 'OPTIONAL'
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
       SmsConfiguration: !If
         - EnableMFA
         - SnsCallerArn: !GetAtt CognitoSMSRole.Arn
