@@ -65,10 +65,10 @@ export default function PhotoThumbnail({
     };
   }, [photoKey]);
 
-  // When the img tag 404s, retry once then give up
+  // When the img tag 404s, fall back to original photo then give up
   const handleImgError = () => {
     if (hasRetriedRef.current) {
-      // Already retried — give up and show placeholder
+      // Already tried fallback — give up and show placeholder
       setPhotoUrl(null);
       setError(true);
       setLoading(false);
@@ -77,26 +77,17 @@ export default function PhotoThumbnail({
     hasRetriedRef.current = true;
     setPhotoUrl(null);
     setLoading(true);
-    retryTimerRef.current = setTimeout(async () => {
-      retryTimerRef.current = null;
+    // Immediately try the original photo key (no delay)
+    (async () => {
       try {
-        // Retry thumbnail — it may have been processed by now
-        const thumbnailKey = toThumbnailKey(photoKey!);
-        const url = await photoQueue.loadPhoto(thumbnailKey, apiClient);
+        const url = await photoQueue.loadPhoto(photoKey!, apiClient);
         setPhotoUrl(url);
         setLoading(false);
       } catch {
-        // Fall back to original photo
-        try {
-          const url = await photoQueue.loadPhoto(photoKey!, apiClient);
-          setPhotoUrl(url);
-          setLoading(false);
-        } catch {
-          setError(true);
-          setLoading(false);
-        }
+        setError(true);
+        setLoading(false);
       }
-    }, 3000);
+    })();
   };
 
   const hasImage = photoUrl && !error;
