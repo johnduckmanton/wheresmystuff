@@ -848,7 +848,26 @@ export default function SignIn() {
           >
             {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
-          <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ textAlign: 'center', mt: 1 }}>
+            <Link
+              component="button"
+              variant="body2"
+              underline="hover"
+              onClick={(e: React.MouseEvent) => {
+                e.preventDefault();
+                if (!email) {
+                  setError('Please enter your email address first');
+                  return;
+                }
+                setError('');
+                handleResetPasswordFlow();
+              }}
+              sx={{ cursor: 'pointer' }}
+            >
+              Forgot password?
+            </Link>
+          </Box>
+          <Box sx={{ textAlign: 'center', mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
               Don't have an account?{' '}
               <Link component={RouterLink} to="/signup" underline="hover">
