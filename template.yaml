@@ -6,7 +6,7 @@ Globals:
   Function:
     Timeout: 30
     Runtime: nodejs20.x
-    MemorySize: 512
+    MemorySize: 256
     ReservedConcurrentExecutions: !Ref AWS::NoValue
     Environment:
       Variables:
@@ -282,8 +282,6 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-      StreamSpecification:
-        StreamViewType: NEW_AND_OLD_IMAGES
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: !If [IsProduction, true, false]
       TimeToLiveSpecification:
@@ -291,12 +289,6 @@ Resources:
         Enabled: true
       SSESpecification:
         SSEEnabled: true
-        SSEType: !If [IsProduction, 'KMS', !Ref AWS::NoValue]
-        KMSMasterKeyId: !If [IsProduction, !Ref DynamoDBKMSKey, !Ref AWS::NoValue]
-      ContributorInsightsSpecification: !If
-        - IsProduction
-        - Enabled: true
-        - !Ref AWS::NoValue
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -304,49 +296,6 @@ Resources:
           Value: HomeInventorySystem
         - Key: SecurityLevel
           Value: !If [IsProduction, High, Standard]
-
-  # KMS Key for DynamoDB Encryption (Production only)
-  DynamoDBKMSKey:
-    Type: AWS::KMS::Key
-    Condition: IsProduction
-    Properties:
-      Description: !Sub KMS key for DynamoDB encryption - ${Environment}
-      KeyPolicy:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: Enable IAM User Permissions
-            Effect: Allow
-            Principal:
-              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
-            Action: 'kms:*'
-            Resource: '*'
-          - Sid: Allow DynamoDB Service
-            Effect: Allow
-            Principal:
-              Service: dynamodb.amazonaws.com
-            Action:
-              - kms:Decrypt
-              - kms:GenerateDataKey
-              - kms:CreateGrant
-              - kms:DescribeKey
-            Resource: '*'
-            Condition:
-              StringEquals:
-                kms:ViaService: !Sub dynamodb.${AWS::Region}.amazonaws.com
-      EnableKeyRotation: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Purpose
-          Value: DynamoDBEncryption
-
-  # KMS Key Alias
-  DynamoDBKMSKeyAlias:
-    Type: AWS::KMS::Alias
-    Condition: IsProduction
-    Properties:
-      AliasName: !Sub alias/home-inventory-dynamodb-${Environment}
-      TargetKeyId: !Ref DynamoDBKMSKey
 
   # S3 Bucket for Photos
   PhotoBucket:
@@ -378,13 +327,6 @@ Resources:
               SSEAlgorithm: AES256
       LifecycleConfiguration:
         Rules:
-          - Id: CostOptimization
-            Status: Enabled
-            Transitions:
-              - TransitionInDays: 30
-                StorageClass: STANDARD_IA
-              - TransitionInDays: 90
-                StorageClass: GLACIER
           - Id: DeleteOldVersions
             Status: Enabled
             NoncurrentVersionExpirationInDays: !If [IsProduction, 90, 30]
@@ -392,18 +334,6 @@ Resources:
             Status: Enabled
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
-          - Id: DeleteOldThumbnails
-            Status: Enabled
-            Prefix: thumbnails/
-            ExpirationInDays: !If [IsProduction, 90, 30]
-          - Id: TransitionOriginals
-            Status: Enabled
-            Prefix: originals/
-            Transitions:
-              - TransitionInDays: 30
-                StorageClass: STANDARD_IA
-              - TransitionInDays: 90
-                StorageClass: GLACIER
           - Id: DeleteTempFiles
             Status: Enabled
             Prefix: temp/
@@ -655,14 +585,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListThings:
           Type: HttpApi
@@ -736,14 +658,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListLocations:
           Type: HttpApi
@@ -801,14 +715,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListRooms:
           Type: HttpApi
@@ -866,14 +772,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListCategories:
           Type: HttpApi
@@ -923,14 +821,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListPeople:
           Type: HttpApi
@@ -984,14 +874,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GenerateUploadUrl:
           Type: HttpApi
@@ -1077,14 +959,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - secretsmanager:GetSecretValue
@@ -1137,14 +1011,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         AnalyzePhoto:
           Type: HttpApi
@@ -1175,14 +1041,6 @@ Resources:
               Resource: 
                 - !Ref AuditLogHMACSecret
                 - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:home-inv-upc-api-key-*'
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         LookupBarcode:
           Type: HttpApi
@@ -1208,14 +1066,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListInventories:
           Type: HttpApi
@@ -1297,14 +1147,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - cognito-idp:AdminGetUser
@@ -1410,14 +1252,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         ListContainers:
           Type: HttpApi
@@ -1523,14 +1357,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         AddItemsToContainer:
           Type: HttpApi
@@ -1622,14 +1448,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -1711,14 +1529,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GetProjects:
           Type: HttpApi
@@ -1952,14 +1762,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         StartStorageTracking:
           Type: HttpApi
@@ -2028,14 +1830,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GenerateLocationReport:
           Type: HttpApi
@@ -2085,14 +1879,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GetPackingMetrics:
           Type: HttpApi
@@ -2142,14 +1928,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         CreateSharingLink:
           Type: HttpApi
@@ -2197,14 +1975,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GetNotifications:
           Type: HttpApi
@@ -2246,14 +2016,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GetActivityFeed:
           Type: HttpApi
@@ -2289,14 +2051,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         MigrateInventoryData:
           Type: HttpApi
@@ -2330,14 +2084,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         SyncInventoryData:
           Type: HttpApi
@@ -2371,14 +2117,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         GetAuditLogs:
           Type: HttpApi
@@ -2443,14 +2181,6 @@ Resources:
               Action:
                 - secretsmanager:GetSecretValue
               Resource: !Ref AuditLogHMACSecret
-            - !If
-              - IsProduction
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:DescribeKey
-                Resource: !GetAtt DynamoDBKMSKey.Arn
-              - !Ref AWS::NoValue
       Events:
         CheckStorageAlerts:
           Type: HttpApi
@@ -2505,205 +2235,6 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Enhanced CloudWatch Dashboard for Production Monitoring
-  MonitoringDashboard:
-    Type: AWS::CloudWatch::Dashboard
-    Properties:
-      DashboardName: !Sub home-inventory-${Environment}
-      DashboardBody: !Sub |
-        {
-          "widgets": [
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/Lambda", "Duration", "FunctionName", "${ContainerFunction}" ],
-                  [ ".", ".", ".", "${PackingFunction}" ],
-                  [ ".", ".", ".", "${QRCodeFunction}" ],
-                  [ ".", ".", ".", "${ProjectFunction}" ],
-                  [ ".", ".", ".", "${UserManagementFunction}" ],
-                  [ ".", ".", ".", "${InventoryFunction}" ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "Lambda Function Duration",
-                "period": 300,
-                "yAxis": {
-                  "left": {
-                    "min": 0,
-                    "max": 30000
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/Lambda", "Errors", "FunctionName", "${ContainerFunction}" ],
-                  [ ".", ".", ".", "${PackingFunction}" ],
-                  [ ".", ".", ".", "${QRCodeFunction}" ],
-                  [ ".", ".", ".", "${ProjectFunction}" ],
-                  [ ".", ".", ".", "${UserManagementFunction}" ],
-                  [ ".", ".", ".", "${InventoryFunction}" ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "Lambda Function Errors",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${InventoryTable}" ],
-                  [ ".", "ConsumedWriteCapacityUnits", ".", "." ],
-                  [ ".", "ThrottledRequests", ".", "." ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "DynamoDB Capacity Usage & Throttling",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/ApiGateway", "Count", "ApiName", "${HttpApi}" ],
-                  [ ".", "4XXError", ".", "." ],
-                  [ ".", "5XXError", ".", "." ],
-                  [ ".", "Latency", ".", "." ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "API Gateway Requests, Errors & Latency",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/Lambda", "Invocations", "FunctionName", "${ContainerFunction}" ],
-                  [ ".", ".", ".", "${PackingFunction}" ],
-                  [ ".", ".", ".", "${QRCodeFunction}" ],
-                  [ ".", ".", ".", "${ProjectFunction}" ],
-                  [ ".", ".", ".", "${UserManagementFunction}" ],
-                  [ ".", ".", ".", "${InventoryFunction}" ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "Lambda Invocations (Free Tier: 1M/month)",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/S3", "BucketSizeBytes", "BucketName", "${PhotoBucket}", "StorageType", "StandardStorage" ],
-                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "S3 Storage Usage (Free Tier: 5GB)",
-                "period": 86400
-              }
-            },
-            {
-              "type": "metric",
-              "x": 16,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/S3", "NumberOfObjects", "BucketName", "${PhotoBucket}", "StorageType", "AllStorageTypes" ],
-                  [ ".", ".", ".", "${QRCodeReportBucket}", ".", "." ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "S3 Object Count",
-                "period": 86400
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/Logs", "IncomingBytes", "LogGroupName", "/aws/lambda/${ContainerFunction}" ],
-                  [ ".", ".", ".", "/aws/lambda/${PackingFunction}" ],
-                  [ ".", ".", ".", "/aws/lambda/${QRCodeFunction}" ],
-                  [ ".", ".", ".", "/aws/lambda/${ProjectFunction}" ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "CloudWatch Logs Ingestion (Free Tier: 5GB/month)",
-                "period": 300
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [ "AWS/Billing", "EstimatedCharges", "Currency", "USD", "ServiceName", "AmazonDynamoDB" ],
-                  [ ".", ".", ".", ".", ".", "AWSLambda" ],
-                  [ ".", ".", ".", ".", ".", "AmazonS3" ],
-                  [ ".", ".", ".", ".", ".", "AmazonApiGateway" ],
-                  [ ".", ".", ".", ".", ".", "AmazonCloudWatch" ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "${AWS::Region}",
-                "title": "Estimated Charges by Service",
-                "period": 86400
-              }
-            }
-          ]
-        }
-
   # CloudWatch Alarms - TEMPORARILY REMOVED
   # These alarms will be added back after Lambda functions are deployed
   # and metrics are available. Alarms require existing metrics to validate.
@@ -2719,70 +2250,6 @@ Resources:
   # SecurityAlertTopic, SecurityAlertEmailSubscription, BudgetAlertTopic, CostBudget,
   # ContainerFunctionLogGroup, PackingFunctionLogGroup, QRCodeFunctionLogGroup,
   # ProjectFunctionLogGroup, ReportsFunctionLogGroup, AnalyticsFunctionLogGroup
-
-  # AWS Backup for DynamoDB (Production only)
-  BackupVault:
-    Type: AWS::Backup::BackupVault
-    Condition: IsProduction
-    Properties:
-      BackupVaultName: !Sub home-inv-backup-vault-${Environment}
-      BackupVaultTags:
-        Environment: !Ref Environment
-        Purpose: DynamoDBBackup
-
-  BackupPlan:
-    Type: AWS::Backup::BackupPlan
-    Condition: IsProduction
-    Properties:
-      BackupPlan:
-        BackupPlanName: !Sub home-inv-daily-backup-${Environment}
-        BackupPlanRule:
-          - RuleName: DailyBackup
-            TargetBackupVault: !Ref BackupVault
-            ScheduleExpression: cron(0 2 * * ? *)  # 2 AM UTC daily
-            StartWindowMinutes: 60
-            CompletionWindowMinutes: 120
-            Lifecycle:
-              DeleteAfterDays: 30  # Keep backups for 30 days (no cold storage to avoid 90-day minimum)
-      BackupPlanTags:
-        Environment: !Ref Environment
-        Purpose: DynamoDBBackup
-
-  BackupRole:
-    Type: AWS::IAM::Role
-    Condition: IsProduction
-    Properties:
-      RoleName: !Sub home-inv-backup-role-${Environment}
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: backup.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
-        - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Purpose
-          Value: BackupService
-
-  BackupSelection:
-    Type: AWS::Backup::BackupSelection
-    Condition: IsProduction
-    Properties:
-      BackupPlanId: !Ref BackupPlan
-      BackupSelection:
-        SelectionName: !Sub home-inv-dynamodb-selection-${Environment}
-        IamRoleArn: !GetAtt BackupRole.Arn
-        Resources:
-          - !GetAtt InventoryTable.Arn
-        Conditions:
-          StringEquals:
-            - ConditionKey: aws:ResourceTag/Environment
-              ConditionValue: !Ref Environment
 
 Outputs:
   ApiUrl:
@@ -2844,11 +2311,4 @@ Outputs:
     Value: !Ref HttpApi
     Export:
       Name: !Sub ${AWS::StackName}-HttpApiId
-
-  BackupVaultName:
-    Description: AWS Backup Vault Name (Production only)
-    Condition: IsProduction
-    Value: !Ref BackupVault
-    Export:
-      Name: !Sub ${AWS::StackName}-BackupVaultName
 
