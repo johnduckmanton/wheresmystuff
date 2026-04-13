@@ -11,7 +11,6 @@ import {
   ListItemIcon,
   ListItemText,
   Avatar,
-  LinearProgress,
 } from '@mui/material';
 import {
   MoreVert as MoreVertIcon,
@@ -120,10 +119,6 @@ export default function MobileContainerCard({
       default: return '📦';
     }
   };
-
-
-
-  const capacityPercentage = container.itemCount > 0 ? Math.min((container.itemCount / 50) * 100, 100) : 0;
 
   return (
     <Box
@@ -355,33 +350,6 @@ export default function MobileContainerCard({
               </Box>
             )}
           </Box>
-
-          {/* Capacity Indicator */}
-          {container.itemCount > 0 && (
-            <Box sx={{ mt: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Capacity
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {Math.round(capacityPercentage)}%
-                </Typography>
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={capacityPercentage}
-                sx={{
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: 'grey.200',
-                  '& .MuiLinearProgress-bar': {
-                    borderRadius: 2,
-                    backgroundColor: capacityPercentage > 80 ? 'warning.main' : 'success.main',
-                  },
-                }}
-              />
-            </Box>
-          )}
 
           {/* Description */}
           {container.description && (

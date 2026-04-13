@@ -18,10 +18,6 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import AllInboxIcon from '@mui/icons-material/AllInbox';
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import FolderIcon from '@mui/icons-material/Folder';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
@@ -33,7 +29,7 @@ import type { Thing, Container } from '../types';
 
 /**
  * Home Page — consolidated dashboard
- * Quick actions, recent things, recent containers
+ * Module cards, recent things, recent containers
  */
 export default function Home() {
   const navigate = useNavigate();
@@ -78,22 +74,15 @@ export default function Home() {
     loadData();
   }, [currentInventory]);
 
-  // Recent things — sorted by dateAdded descending, top 5
+  // Recent things — sorted by dateAdded descending, top 3
   const recentThings = [...things]
     .sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime())
-    .slice(0, 5);
+    .slice(0, 3);
 
-  // Recent containers — sorted by createdAt descending, top 4
+  // Recent containers — sorted by createdAt descending, top 3
   const recentContainers = [...containers]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
-
-  const quickActions = [
-    { label: 'New Container', icon: <AllInboxIcon fontSize="small" />, onClick: () => navigate('/containers') },
-    { label: 'New Project', icon: <FolderIcon fontSize="small" />, onClick: () => navigate('/projects') },
-    { label: 'Scan QR', icon: <QrCodeScannerIcon fontSize="small" />, onClick: () => navigate('/scan') },
-    { label: 'AI Photo', icon: <CameraAltIcon fontSize="small" />, onClick: () => navigate('/ai-photo') },
-  ];
+    .slice(0, 3);
 
   if (!currentInventory) {
     return (
@@ -162,41 +151,6 @@ export default function Home() {
           </Card>
         </Grid>
       </Grid>
-
-      {/* Quick Actions */}
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
-        Quick Actions
-      </Typography>
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          mb: isMobile ? 2 : 3,
-          overflowX: isMobile ? 'auto' : 'visible',
-          pb: isMobile ? 0.5 : 0,
-          '&::-webkit-scrollbar': { display: 'none' },
-        }}
-      >
-        {quickActions.map((action) => (
-          <Button
-            key={action.label}
-            variant="outlined"
-            size="small"
-            startIcon={action.icon}
-            onClick={action.onClick}
-            sx={{
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              textTransform: 'none',
-              fontSize: '0.8rem',
-              py: 0.75,
-              px: 1.5,
-            }}
-          >
-            {action.label}
-          </Button>
-        ))}
-      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
