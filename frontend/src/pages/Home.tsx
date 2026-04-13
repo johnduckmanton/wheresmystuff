@@ -28,7 +28,6 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
 import type { Thing, Container } from '../types';
 
@@ -40,7 +39,6 @@ export default function Home() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { isMobile: isMobileHook } = useMobileDetection();
   const { currentInventory } = useInventory();
   const { showError } = useNotification();
 
