@@ -1805,6 +1805,11 @@ class MockApiClient {
     return `photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  async uploadAvatar(_file: File): Promise<string> {
+    await mockDelay();
+    return `avatars/mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
   async deletePhoto(_photoKey: string, _inventoryId: string): Promise<void> {
     await mockDelay();
     // Mock implementation
