@@ -1,190 +1,333 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
+  Typography,
+  Button,
+  Grid,
+  Chip,
+  CircularProgress,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
   Card,
   CardContent,
   CardActionArea,
-  Typography,
-  Grid,
-  Container,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import AllInboxIcon from '@mui/icons-material/AllInbox';
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import FolderIcon from '@mui/icons-material/Folder';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
-interface ModuleCardProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  path: string;
-  onClick: () => void;
-}
+import { useInventory } from '../contexts/InventoryContext';
+import { useNotification } from '../contexts/NotificationContext';
+import { useMobileDetection } from '../hooks/useMobileDetection';
+import apiClient from '../services/api';
+import type { Thing, Container } from '../types';
 
 /**
- * Module Selection Card Component
- * Displays a clickable card for each module with icon, title, and description
- * Validates: Requirements 1.1, 1.5
- */
-function ModuleCard({ title, description, icon, onClick }: ModuleCardProps) {
-  const theme = useTheme();
-  
-  return (
-    <Card 
-      sx={{ 
-        height: '100%',
-        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[8],
-        },
-      }}
-      elevation={2}
-    >
-      <CardActionArea 
-        onClick={onClick}
-        sx={{ 
-          height: '100%',
-          p: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: { xs: 200, sm: 250 },
-        }}
-        aria-label={`Navigate to ${title}`}
-      >
-        <CardContent sx={{ textAlign: 'center', p: 0 }}>
-          <Box
-            sx={{
-              mb: 2,
-              color: theme.palette.primary.main,
-              '& > svg': {
-                fontSize: { xs: '3rem', sm: '4rem' },
-              },
-            }}
-            aria-hidden="true"
-          >
-            {icon}
-          </Box>
-          <Typography 
-            variant="h5" 
-            component="h2" 
-            gutterBottom
-            sx={{
-              fontSize: { xs: '1.25rem', sm: '1.5rem' },
-              fontWeight: 600,
-              mb: 2,
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography 
-            variant="body1" 
-            color="text.secondary"
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              lineHeight: 1.5,
-            }}
-          >
-            {description}
-          </Typography>
-        </CardContent>
-      </CardActionArea>
-    </Card>
-  );
-}
-
-/**
- * Home Page Component
- * Provides module selection between Inventory Management and Moving & Storage
- * Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+ * Home Page — consolidated dashboard
+ * Quick actions, recent things, recent containers
  */
 export default function Home() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isMobile: isMobileHook } = useMobileDetection();
+  const { currentInventory } = useInventory();
+  const { showError } = useNotification();
 
-  const handleInventoryClick = () => {
-    navigate('/things');
-  };
+  const [things, setThings] = useState<Thing[]>([]);
+  const [containers, setContainers] = useState<Container[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleMovingClick = () => {
-    navigate('/moving');
-  };
+  useEffect(() => {
+    const loadData = async () => {
+      if (!currentInventory) return;
+      try {
+        setLoading(true);
+        const [thingsData, containersResponse] = await Promise.all([
+          apiClient.getThings(currentInventory.id),
+          apiClient.getContainers(currentInventory.id),
+        ]);
 
-  const modules = [
-    {
-      title: 'Inventory Management',
-      description: 'Manage your household items, organize by categories, locations, and track everything you own.',
-      icon: <InventoryIcon />,
-      path: '/things',
-      onClick: handleInventoryClick,
-    },
-    {
-      title: 'Moving & Storage',
-      description: 'Pack items into containers, generate QR codes, track moves, and manage storage efficiently.',
-      icon: <LocalShippingIcon />,
-      path: '/moving',
-      onClick: handleMovingClick,
-    },
+        const safeThings = Array.isArray(thingsData) ? thingsData : [];
+        let safeContainers: Container[];
+        if (Array.isArray(containersResponse)) {
+          safeContainers = containersResponse;
+        } else if (containersResponse && typeof containersResponse === 'object' && 'containers' in containersResponse) {
+          safeContainers = (containersResponse as any).containers || [];
+        } else {
+          safeContainers = [];
+        }
+
+        setThings(safeThings);
+        setContainers(safeContainers);
+      } catch (error) {
+        console.error('Failed to load home data:', error);
+        showError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [currentInventory]);
+
+  // Recent things — sorted by dateAdded descending, top 5
+  const recentThings = [...things]
+    .sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime())
+    .slice(0, 5);
+
+  // Recent containers — sorted by createdAt descending, top 4
+  const recentContainers = [...containers]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  const quickActions = [
+    { label: 'New Container', icon: <AllInboxIcon fontSize="small" />, onClick: () => navigate('/containers') },
+    { label: 'New Project', icon: <FolderIcon fontSize="small" />, onClick: () => navigate('/projects') },
+    { label: 'Scan QR', icon: <QrCodeScannerIcon fontSize="small" />, onClick: () => navigate('/scan') },
+    { label: 'AI Photo', icon: <CameraAltIcon fontSize="small" />, onClick: () => navigate('/ai-photo') },
   ];
 
-  return (
-    <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4, md: 6 } }}>
-      <Box sx={{ textAlign: 'center', mb: { xs: 4, sm: 6 } }}>
-        <Typography 
-          variant="h3" 
-          component="h1" 
-          gutterBottom
-          sx={{
-            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-            fontWeight: 700,
-            color: theme.palette.primary.main,
-            mb: 2,
-          }}
-        >
-          Where's My Stuff!
-        </Typography>
-        <Typography 
-          variant="h6" 
-          color="text.secondary"
-          sx={{
-            fontSize: { xs: '1rem', sm: '1.125rem' },
-            maxWidth: '600px',
-            mx: 'auto',
-            lineHeight: 1.6,
-          }}
-        >
-          Choose how you want to manage your belongings
-        </Typography>
+  if (!currentInventory) {
+    return (
+      <Box sx={{ p: isMobile ? 1 : 2 }}>
+        <Alert severity="warning">Please select an inventory to view the dashboard.</Alert>
       </Box>
+    );
+  }
 
-      <Grid 
-        container 
-        spacing={ isMobile ? 3 : 4 }
-        justifyContent="center"
-        alignItems="stretch"
-      >
-        {modules.map((module) => (
-          <Grid 
-            size={{ xs: 12, sm: 6, md: 5 }}
-            key={module.title}
+  return (
+    <Box sx={{ p: isMobile ? 1 : 2, pb: isMobile ? 8 : 2 }}>
+      {/* Module Cards */}
+      <Grid container spacing={isMobile ? 1 : 2} sx={{ mb: isMobile ? 2 : 3 }}>
+        <Grid size={{ xs: 6, sm: 6 }}>
+          <Card
+            elevation={2}
+            sx={{
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: 6 },
+            }}
           >
-            <ModuleCard {...module} />
-          </Grid>
-        ))}
+            <CardActionArea
+              onClick={() => navigate('/things')}
+              sx={{ p: isMobile ? 2 : 3, textAlign: 'center' }}
+              aria-label="Navigate to Inventory Management"
+            >
+              <Box sx={{ color: 'primary.main', mb: 1 }}>
+                <InventoryIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
+              </Box>
+              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+                Inventory
+              </Typography>
+              {!isMobile && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Manage items, categories, and locations
+                </Typography>
+              )}
+            </CardActionArea>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 6 }}>
+          <Card
+            elevation={2}
+            sx={{
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: 6 },
+            }}
+          >
+            <CardActionArea
+              onClick={() => navigate('/containers')}
+              sx={{ p: isMobile ? 2 : 3, textAlign: 'center' }}
+              aria-label="Navigate to Moving and Storage"
+            >
+              <Box sx={{ color: 'primary.main', mb: 1 }}>
+                <LocalShippingIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
+              </Box>
+              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+                Moving & Storage
+              </Typography>
+              {!isMobile && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Containers, QR codes, and moves
+                </Typography>
+              )}
+            </CardActionArea>
+          </Card>
+        </Grid>
       </Grid>
 
-      <Box sx={{ textAlign: 'center', mt: { xs: 4, sm: 6 } }}>
-        <Typography 
-          variant="body2" 
-          color="text.secondary"
-          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-        >
-          You can switch between modules at any time using the navigation
-        </Typography>
+      {/* Quick Actions */}
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+        Quick Actions
+      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          mb: isMobile ? 2 : 3,
+          overflowX: isMobile ? 'auto' : 'visible',
+          pb: isMobile ? 0.5 : 0,
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
+        {quickActions.map((action) => (
+          <Button
+            key={action.label}
+            variant="outlined"
+            size="small"
+            startIcon={action.icon}
+            onClick={action.onClick}
+            sx={{
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              textTransform: 'none',
+              fontSize: '0.8rem',
+              py: 0.75,
+              px: 1.5,
+            }}
+          >
+            {action.label}
+          </Button>
+        ))}
       </Box>
-    </Container>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          {/* Recently Added Things */}
+          <Box sx={{ mb: isMobile ? 2 : 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Recently Added Things
+              </Typography>
+              <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate('/things')} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+                View All
+              </Button>
+            </Box>
+            {recentThings.length > 0 ? (
+              <Card variant="outlined">
+                <List dense disablePadding>
+                  {recentThings.map((thing, idx) => (
+                    <ListItem
+                      key={thing.id}
+                      divider={idx < recentThings.length - 1}
+                      sx={{ py: 0.75, px: 2 }}
+                    >
+                      <ListItemText
+                        primary={thing.name}
+                        secondary={
+                          <Box component="span" sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {thing.categoryId && (
+                              <Typography component="span" variant="caption" color="text.secondary">
+                                {thing.categoryId}
+                              </Typography>
+                            )}
+                            <Typography component="span" variant="caption" color="text.disabled">
+                              {new Date(thing.dateAdded).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        }
+                        primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Card>
+            ) : (
+              <Card variant="outlined">
+                <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No items yet. Add your first thing to get started.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate('/things')}
+                    sx={{ mt: 1, textTransform: 'none' }}
+                  >
+                    Add Thing
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+
+          {/* Recent Containers */}
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Recent Containers
+              </Typography>
+              <Button size="small" endIcon={<ArrowForwardIcon />} onClick={() => navigate('/containers')} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+                View All
+              </Button>
+            </Box>
+            {recentContainers.length > 0 ? (
+              <Grid container spacing={1}>
+                {recentContainers.map((container) => (
+                  <Grid size={{ xs: 6, sm: 6, md: 3 }} key={container.id}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        cursor: 'pointer',
+                        transition: 'box-shadow 0.2s',
+                        '&:hover': { boxShadow: 3 },
+                      }}
+                    >
+                      <CardActionArea onClick={() => navigate('/containers')} sx={{ p: 1.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', mb: 0.5 }} noWrap>
+                          {container.name}
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Chip
+                            label={container.status.replace('_', ' ')}
+                            size="small"
+                            color={container.status === 'packed' ? 'success' : 'default'}
+                            sx={{ fontSize: '0.65rem', height: 20 }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {container.itemCount || 0} items
+                          </Typography>
+                        </Box>
+                      </CardActionArea>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Card variant="outlined">
+                <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No containers yet.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate('/containers')}
+                    sx={{ mt: 1, textTransform: 'none' }}
+                  >
+                    New Container
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </>
+      )}
+    </Box>
   );
 }

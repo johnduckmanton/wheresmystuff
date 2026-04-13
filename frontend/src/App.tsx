@@ -109,21 +109,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Smart redirect for home routes based on last used module
- * Always shows the Home page with module selection cards.
- * Last-used module tracking still works for the mobile bottom nav.
- */
-function SmartHomeRedirect() {
-  return (
-    <ProtectedRoute>
-      <MainLayout>
-        <Home />
-      </MainLayout>
-    </ProtectedRoute>
-  );
-}
-
-/**
  * Auth Error Handler Component
  * Sets up global authentication error handling
  * Validates: Requirements 1.5, 16.2
@@ -169,7 +154,13 @@ function App() {
                 />
                 <Route
                   path="/home"
-                  element={<SmartHomeRedirect />}
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Home />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
                 />
                 <Route
                   path="/inventory"
@@ -311,7 +302,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/" element={<SmartHomeRedirect />} />
+                <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="*" element={<Navigate to="/home" replace />} />
               </Routes>
             </BrowserRouter>

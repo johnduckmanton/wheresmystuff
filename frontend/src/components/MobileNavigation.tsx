@@ -20,6 +20,7 @@ import {
   People as PeopleIcon,
   Storage as StorageIcon,
   AccountCircle as ProfileIcon,
+  CameraAlt as CameraAltIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMobileDetection } from '../hooks/useMobileDetection';
@@ -58,7 +59,8 @@ export default function MobileNavigation({
     if (path.startsWith('/things') || path.startsWith('/categories') || path.startsWith('/locations')) return 1;
     if (path.startsWith('/containers') || path.startsWith('/moving')) return 2;
     if (path.startsWith('/scan')) return 3;
-    return 4; // More tab
+    if (path.startsWith('/ai-photo')) return 4;
+    return 5; // More tab
   };
 
   const handleNavigationChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -70,12 +72,15 @@ export default function MobileNavigation({
         navigate('/things');
         break;
       case 2:
-        navigate('/moving');
+        navigate('/containers');
         break;
       case 3:
         navigate('/scan');
         break;
       case 4:
+        navigate('/ai-photo');
+        break;
+      case 5:
         setShowMore(!showMore);
         break;
     }
@@ -185,16 +190,16 @@ export default function MobileNavigation({
             height: 56,
             '& .MuiBottomNavigationAction-root': {
               minWidth: 'auto',
-              padding: '6px 12px 8px',
+              padding: '6px 6px 8px',
               '&.Mui-selected': {
                 color: theme.palette.primary.main,
               },
             },
             '& .MuiBottomNavigationAction-label': {
-              fontSize: '0.75rem',
+              fontSize: '0.65rem',
               fontWeight: 500,
               '&.Mui-selected': {
-                fontSize: '0.75rem',
+                fontSize: '0.65rem',
               },
             },
           }}
@@ -224,6 +229,12 @@ export default function MobileNavigation({
           <BottomNavigationAction
             label="Scan"
             icon={<ScanIcon />}
+            sx={{ color: 'text.secondary' }}
+          />
+          
+          <BottomNavigationAction
+            label="AI Photo"
+            icon={<CameraAltIcon />}
             sx={{ color: 'text.secondary' }}
           />
           
