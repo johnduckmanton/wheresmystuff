@@ -610,6 +610,27 @@ class ApiClient {
     return this.put<UserProfile>(`/users/profile/${userId}`, updates);
   }
 
+  async uploadAvatar(file: File): Promise<string> {
+    // Step 1: Get presigned upload URL from dedicated avatar endpoint
+    const { uploadUrl, key } = await this.post<{ uploadUrl: string; key: string }>('/users/profile/avatar', {
+      fileName: file.name,
+      contentType: file.type,
+    });
+
+    // Step 2: Upload file directly to S3
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Avatar upload failed: ${uploadResponse.statusText}`);
+    }
+
+    return key;
+  }
+
   // Invitation Management API
   async getInvitations(inventoryId: string): Promise<Invitation[]> {
     return this.get<Invitation[]>(`/inventories/${inventoryId}/invitations`);

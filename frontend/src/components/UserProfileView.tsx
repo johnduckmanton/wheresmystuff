@@ -54,6 +54,7 @@ export default function UserProfileView({
   const [editedDisplayName, setEditedDisplayName] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
 
   const loadProfile = async () => {
     try {
@@ -134,13 +135,15 @@ export default function UserProfileView({
 
     setAvatarUploading(true);
     try {
-      const key = await apiClient.uploadPhoto(file, 'user-profile', profile.userId);
+      const key = await apiClient.uploadAvatar(file);
+      setLocalPreviewUrl(URL.createObjectURL(file));
       const updatedProfile = await apiClient.updateUserProfile(profile.userId, { avatarUrl: key });
       setProfile(updatedProfile);
       if (onProfileUpdate) onProfileUpdate(updatedProfile);
     } catch (err) {
       console.error('Error uploading avatar:', err);
       setError('Failed to upload photo');
+      setLocalPreviewUrl(null);
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -149,6 +152,7 @@ export default function UserProfileView({
 
   const handleRemoveAvatar = async () => {
     if (!profile) return;
+    setLocalPreviewUrl(null);
     try {
       const updatedProfile = await apiClient.updateUserProfile(profile.userId, { avatarUrl: '' });
       setProfile(updatedProfile);
@@ -213,6 +217,12 @@ export default function UserProfileView({
             <Avatar sx={{ width: 80, height: 80, mb: 1 }}>
               <CircularProgress size={32} />
             </Avatar>
+          ) : localPreviewUrl ? (
+            <Avatar
+              sx={{ width: 80, height: 80, mb: 1 }}
+              src={localPreviewUrl}
+              alt={profile.displayName}
+            />
           ) : profile.avatarUrl ? (
             <PhotoThumbnail
               photoKey={profile.avatarUrl}

@@ -28,9 +28,7 @@ export interface PersonFormDialogProps {
   onClose: () => void;
 }
 
-interface PersonFormData extends Partial<Person> {
-  tempId?: string;
-}
+interface PersonFormData extends Partial<Person> {}
 
 export default function PersonFormDialog({
   open,
@@ -41,6 +39,7 @@ export default function PersonFormDialog({
   const [formData, setFormData] = useState<PersonFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentInventory } = useInventory();
 
@@ -64,6 +63,7 @@ export default function PersonFormDialog({
         });
       }
       setErrors({});
+      setLocalPreviewUrl(null);
     }
   }, [open, person]);
 
@@ -105,54 +105,30 @@ export default function PersonFormDialog({
   // Handle photo file selection
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !currentInventory) return;
+    if (!file) return;
 
     setPhotoUploading(true);
     try {
-      const entityId = person?.id || formData.tempId || (() => {
-        const tempId = crypto.randomUUID();
-        setFormData(prev => ({ ...prev, tempId }));
-        return tempId;
-      })();
-
-      const { uploadUrl, key } = await apiClient.generateUploadUrl(
-        file.name,
-        file.type,
-        currentInventory.id,
-        entityId as string
-      );
-
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
-
-      if (!uploadResponse.ok) throw new Error('Failed to upload photo');
-
+      const key = await apiClient.uploadAvatar(file);
       setFormData(prev => ({ ...prev, photos: [key] }));
+      setLocalPreviewUrl(URL.createObjectURL(file));
     } catch (err) {
       console.error('Error uploading photo:', err);
     } finally {
       setPhotoUploading(false);
-      // Reset file input so the same file can be re-selected
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const handleRemovePhoto = () => {
     setFormData(prev => ({ ...prev, photos: [] }));
+    setLocalPreviewUrl(null);
   };
 
   // Handle form submission
   const handleSubmit = () => {
     if (validateForm()) {
-      const submitData = { ...formData };
-      if (!person && formData.tempId) {
-        submitData.id = formData.tempId;
-        delete submitData.tempId;
-      }
-      onSubmit(submitData);
+      onSubmit(formData);
     }
   };
 
@@ -202,6 +178,12 @@ export default function PersonFormDialog({
               <Avatar sx={{ width: 80, height: 80, mb: 1 }}>
                 <CircularProgress size={32} />
               </Avatar>
+            ) : localPreviewUrl ? (
+              <Avatar
+                sx={{ width: 80, height: 80, mb: 1 }}
+                src={localPreviewUrl}
+                alt={formData.name || 'Person'}
+              />
             ) : currentPhoto ? (
               <PhotoThumbnail
                 photoKey={currentPhoto}

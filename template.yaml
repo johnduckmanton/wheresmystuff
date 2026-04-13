@@ -1141,6 +1141,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - S3CrudPolicy:
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -1224,6 +1226,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /users/profile
             Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+        UploadUserAvatar:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /users/profile/avatar
+            Method: POST
             Auth:
               Authorizer: CognitoAuthorizer
         UpdateUserProfileById:

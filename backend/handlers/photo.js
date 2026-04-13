@@ -157,6 +157,13 @@ async function handleGenerateDownloadUrl(event, key, origin) {
     // Verify photo access by extracting inventory and entity info from key
     const keyParts = decodedKey.split('/');
     
+    // Handle avatar photos — no inventory access check needed
+    if (keyParts[0] === 'avatars' && keyParts.length >= 3) {
+      const downloadUrl = await generateDownloadUrl(decodedKey, true);
+      await logDataAccess(event.user.userId, 'read', 'avatar', decodedKey, null);
+      return success({ downloadUrl, key: decodedKey, expiresIn: SECURE_URL_EXPIRATION }, 200, origin);
+    }
+
     // Expected format: photos/{userId}/{inventoryId}/{entityId}/{filename}
     // Also accept: thumbnails/{userId}/{inventoryId}/{entityId}/{filename}
     if (keyParts.length < 5 || (keyParts[0] !== 'photos' && keyParts[0] !== 'thumbnails')) {

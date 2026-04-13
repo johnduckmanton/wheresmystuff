@@ -1,6 +1,7 @@
 const userService = require('../services/userService');
 const invitationService = require('../services/invitationService');
 const inventoryService = require('../services/inventoryService');
+const { generateUploadUrl, generateDownloadUrl, SECURE_URL_EXPIRATION } = require('../services/s3');
 const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, validateEmail, validateUserRole, validateInvitationToken } = require('../utils/validation');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -76,6 +77,14 @@ const userHandler = async (event) => {
       switch (httpMethod) {
         case 'PUT':
           return await handleUpdateMemberRole(event, inventoryId, userId, origin);
+        default:
+          return error('Method not allowed', 405, origin);
+      }
+    } else if (path.includes('/profile/avatar')) {
+      // Avatar upload route
+      switch (httpMethod) {
+        case 'POST':
+          return await handleAvatarUpload(event, origin);
         default:
           return error('Method not allowed', 405, origin);
       }
@@ -481,6 +490,39 @@ async function handleUpdateUserProfile(event, userId, origin) {
     }
     
     throw new Error('Failed to update user profile');
+  }
+}
+
+/**
+ * Handle POST /users/profile/avatar - Generate presigned URL for avatar upload
+ */
+async function handleAvatarUpload(event, origin) {
+  try {
+    const body = JSON.parse(event.body || '{}');
+    const userId = event.user.userId;
+
+    if (!body.fileName) {
+      return error('fileName is required', 400, origin);
+    }
+    if (!body.contentType) {
+      return error('contentType is required', 400, origin);
+    }
+
+    const timestamp = Date.now();
+    const sanitizedFileName = body.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `avatars/${userId}/${timestamp}-${sanitizedFileName}`;
+
+    const uploadUrl = await generateUploadUrl(key, body.contentType, true);
+
+    await logDataAccess(userId, 'create', 'avatar', key, null);
+
+    return success({ uploadUrl, key, expiresIn: SECURE_URL_EXPIRATION }, 201, origin);
+  } catch (err) {
+    console.error('Error generating avatar upload URL:', err);
+    if (err.message.includes('Invalid file type')) {
+      return error(err.message, 400, origin);
+    }
+    throw new Error('Failed to generate avatar upload URL');
   }
 }
 
