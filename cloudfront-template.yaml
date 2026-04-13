@@ -19,11 +19,11 @@ Parameters:
   
   EnableWAF:
     Type: String
-    Default: 'true'
+    Default: 'false'
     AllowedValues:
       - 'true'
       - 'false'
-    Description: Enable AWS WAF protection
+    Description: Enable AWS WAF protection (disabled by default for cost savings)
   
   # Cross-region parameters - these will be passed from the main stack
   ApiGatewayDomainName:
@@ -100,7 +100,7 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
       VersioningConfiguration:
-        Status: Enabled
+        Status: Suspended
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -277,11 +277,11 @@ Resources:
             ResponsePagePath: /index.html
             ErrorCachingMinTTL: 300
         
-        # Logging configuration
-        Logging:
-          Bucket: !GetAtt CloudFrontLogsBucket.DomainName
-          Prefix: cloudfront-logs/
-          IncludeCookies: false
+        # Logging disabled for cost savings (re-enable if needed for debugging)
+        # Logging:
+        #   Bucket: !GetAtt CloudFrontLogsBucket.DomainName
+        #   Prefix: cloudfront-logs/
+        #   IncludeCookies: false
       
       Tags:
         - Key: Environment
