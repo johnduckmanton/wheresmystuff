@@ -20,7 +20,6 @@ import InventoryFormSelector from './InventoryFormSelector';
 import PhotoThumbnail from './PhotoThumbnail';
 import apiClient from '../services/api';
 import { useInventory } from '../contexts/InventoryContext';
-import { getCurrentUser } from 'aws-amplify/auth';
 
 export interface PersonFormDialogProps {
   open: boolean;
@@ -110,8 +109,7 @@ export default function PersonFormDialog({
 
     setPhotoUploading(true);
     try {
-      const user = await getCurrentUser();
-      const key = await apiClient.uploadAvatar(file, user.username);
+      const key = await apiClient.uploadAvatar(file);
       setFormData(prev => ({ ...prev, photos: [key] }));
       setLocalPreviewUrl(URL.createObjectURL(file));
     } catch (err) {

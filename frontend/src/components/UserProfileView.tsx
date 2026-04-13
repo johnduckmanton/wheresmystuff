@@ -135,7 +135,7 @@ export default function UserProfileView({
 
     setAvatarUploading(true);
     try {
-      const key = await apiClient.uploadAvatar(file, profile.userId);
+      const key = await apiClient.uploadAvatar(file);
       setLocalPreviewUrl(URL.createObjectURL(file));
       const updatedProfile = await apiClient.updateUserProfile(profile.userId, { avatarUrl: key });
       setProfile(updatedProfile);

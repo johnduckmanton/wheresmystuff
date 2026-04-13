@@ -602,17 +602,17 @@ class ApiClient {
   }
 
   async getUserProfile(userId?: string): Promise<UserProfile> {
-    const url = userId ? `/users/profile/${userId}` : '/users/profile';
+    const url = userId ? `/users/${userId}/profile` : '/users/profile';
     return this.get<UserProfile>(url);
   }
 
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
-    return this.put<UserProfile>(`/users/profile/${userId}`, updates);
+    return this.put<UserProfile>(`/users/${userId}/profile`, updates);
   }
 
-  async uploadAvatar(file: File, userId: string): Promise<string> {
+  async uploadAvatar(file: File): Promise<string> {
     // Use the existing profile update endpoint with avatar upload flag
-    const { uploadUrl, key } = await this.put<{ uploadUrl: string; key: string }>(`/users/profile/${userId}`, {
+    const { uploadUrl, key } = await this.put<{ uploadUrl: string; key: string }>('/users/profile', {
       generateAvatarUploadUrl: true,
       fileName: file.name,
       contentType: file.type,
