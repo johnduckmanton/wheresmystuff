@@ -20,7 +20,6 @@ import {
   People as PeopleIcon,
   Storage as StorageIcon,
   AccountCircle as ProfileIcon,
-  CameraAlt as CameraAltIcon,
   AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
