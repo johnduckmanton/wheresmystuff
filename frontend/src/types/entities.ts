@@ -124,6 +124,7 @@ export interface UserProfile {
   email: string;
   username: string;
   displayName: string;
+  avatarUrl?: string; // S3 key for profile photo
   emailVerified: boolean;
   userStatus: string;
   createdAt: string;

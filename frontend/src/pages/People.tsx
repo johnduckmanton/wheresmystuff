@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EntityTable from '../components/EntityTable';
 import type { EntityTableColumn } from '../components/EntityTable';
 import PersonFormDialog from '../components/PersonFormDialog';
+import PhotoThumbnail from '../components/PhotoThumbnail';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
@@ -11,6 +12,20 @@ import apiClient from '../services/api';
 import type { Person } from '../types';
 
 const columns: EntityTableColumn[] = [
+  {
+    field: 'avatar',
+    headerName: '',
+    width: 50,
+    sortable: false,
+    renderCell: (params) => (
+      <PhotoThumbnail
+        photoKey={params.row.firstPhotoKey}
+        altText={params.row.name}
+        variant="avatar"
+        size={32}
+      />
+    ),
+  },
   { field: 'name', headerName: 'Name', flex: 1 },
   { field: 'relationship', headerName: 'Relationship', flex: 1 },
   { field: 'email', headerName: 'Email', flex: 1 },
@@ -25,6 +40,7 @@ interface PersonTableRow {
   email: string;
   phone: string;
   dateAdded: string;
+  firstPhotoKey?: string;
 }
 
 export default function People() {
@@ -79,6 +95,7 @@ export default function People() {
     email: person.email || '',
     phone: person.phone || '',
     dateAdded: person.dateAdded ? new Date(person.dateAdded).toLocaleDateString() : '',
+    firstPhotoKey: person.photos?.[0],
   })) : [];
 
   const handleAdd = () => {

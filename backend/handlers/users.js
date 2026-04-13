@@ -458,6 +458,9 @@ async function handleUpdateUserProfile(event, userId, origin) {
     if (body.displayName) {
       updates.displayName = sanitizeInput(body.displayName);
     }
+    if (body.avatarUrl !== undefined) {
+      updates.avatarUrl = body.avatarUrl ? sanitizeInput(body.avatarUrl) : '';
+    }
     
     if (Object.keys(updates).length === 0) {
       return error('No valid updates provided', 400, origin);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -8,9 +8,17 @@ import {
   TextField,
   Box,
   Typography,
+  Avatar,
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
+import PersonIcon from '@mui/icons-material/Person';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import DeleteIcon from '@mui/icons-material/Delete';
 import type { Person } from '../types';
 import InventoryFormSelector from './InventoryFormSelector';
+import PhotoThumbnail from './PhotoThumbnail';
+import apiClient from '../services/api';
 import { useInventory } from '../contexts/InventoryContext';
 
 export interface PersonFormDialogProps {
@@ -20,14 +28,20 @@ export interface PersonFormDialogProps {
   onClose: () => void;
 }
 
+interface PersonFormData extends Partial<Person> {
+  tempId?: string;
+}
+
 export default function PersonFormDialog({
   open,
   person,
   onSubmit,
   onClose,
 }: PersonFormDialogProps) {
-  const [formData, setFormData] = useState<Partial<Person>>({});
+  const [formData, setFormData] = useState<PersonFormData>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentInventory } = useInventory();
 
   // Initialize form data when dialog opens or person changes
@@ -88,10 +102,57 @@ export default function PersonFormDialog({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle photo file selection
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentInventory) return;
+
+    setPhotoUploading(true);
+    try {
+      const entityId = person?.id || formData.tempId || (() => {
+        const tempId = crypto.randomUUID();
+        setFormData(prev => ({ ...prev, tempId }));
+        return tempId;
+      })();
+
+      const { uploadUrl, key } = await apiClient.generateUploadUrl(
+        file.name,
+        file.type,
+        currentInventory.id,
+        entityId as string
+      );
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (!uploadResponse.ok) throw new Error('Failed to upload photo');
+
+      setFormData(prev => ({ ...prev, photos: [key] }));
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+    } finally {
+      setPhotoUploading(false);
+      // Reset file input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData(prev => ({ ...prev, photos: [] }));
+  };
+
   // Handle form submission
   const handleSubmit = () => {
     if (validateForm()) {
-      onSubmit(formData);
+      const submitData = { ...formData };
+      if (!person && formData.tempId) {
+        submitData.id = formData.tempId;
+        delete submitData.tempId;
+      }
+      onSubmit(submitData);
     }
   };
 
@@ -101,6 +162,8 @@ export default function PersonFormDialog({
     setErrors({});
     onClose();
   };
+
+  const currentPhoto = formData.photos?.[0];
 
   return (
     <Dialog
@@ -132,6 +195,54 @@ export default function PersonFormDialog({
           >
             Fields marked with * are required
           </Typography>
+
+          {/* Photo Upload Section */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 1 }}>
+            {photoUploading ? (
+              <Avatar sx={{ width: 80, height: 80, mb: 1 }}>
+                <CircularProgress size={32} />
+              </Avatar>
+            ) : currentPhoto ? (
+              <PhotoThumbnail
+                photoKey={currentPhoto}
+                altText={formData.name || 'Person'}
+                variant="avatar"
+                size={80}
+                showPopup={false}
+              />
+            ) : (
+              <Avatar sx={{ width: 80, height: 80, mb: 1, bgcolor: 'grey.300' }}>
+                <PersonIcon sx={{ fontSize: 40 }} />
+              </Avatar>
+            )}
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Button
+                size="small"
+                startIcon={<PhotoCameraIcon />}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={photoUploading}
+              >
+                {currentPhoto ? 'Change Photo' : 'Add Photo'}
+              </Button>
+              {currentPhoto && (
+                <IconButton
+                  size="small"
+                  onClick={handleRemovePhoto}
+                  disabled={photoUploading}
+                  aria-label="Remove photo"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Box>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handlePhotoSelect}
+            />
+          </Box>
 
           <TextField
             fullWidth

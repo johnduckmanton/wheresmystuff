@@ -118,6 +118,13 @@ export default function ThingDetailSheet({
             {thing.description}
           </Typography>
         )}
+
+        {/* Date added */}
+        {thing.dateAdded && (
+          <Typography variant="caption" color="text.disabled" sx={{ mb: 2, display: 'block' }}>
+            Added {new Date(thing.dateAdded).toLocaleDateString()}
+          </Typography>
+        )}
       </Box>
 
       {/* Sticky action bar */}

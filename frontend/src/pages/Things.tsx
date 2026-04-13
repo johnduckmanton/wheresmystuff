@@ -39,7 +39,6 @@ const columns: EntityTableColumn[] = [
   { field: 'name', headerName: 'Name', flex: 1 },
   { field: 'location', headerName: 'Location', flex: 1 },
   { field: 'room', headerName: 'Room', flex: 1 },
-  { field: 'container', headerName: 'Container', flex: 1 },
   { field: 'owner', headerName: 'Owner', flex: 1 },
   { field: 'category', headerName: 'Category', flex: 1 },
 ];

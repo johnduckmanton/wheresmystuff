@@ -13,6 +13,7 @@ import {
   Chip,
   Stack,
   Divider,
+  Avatar,
 } from '@mui/material';
 import {
   ContentCopy as CopyIcon,
@@ -22,8 +23,11 @@ import {
   Person as PersonIcon,
   Email as EmailIcon,
   Verified as VerifiedIcon,
+  PhotoCamera as PhotoCameraIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import apiClient from '../services/api';
+import PhotoThumbnail from './PhotoThumbnail';
 import type { UserProfile } from '../types';
 
 interface UserProfileViewProps {
@@ -49,6 +53,7 @@ export default function UserProfileView({
   const [saving, setSaving] = useState(false);
   const [editedDisplayName, setEditedDisplayName] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -123,6 +128,37 @@ export default function UserProfileView({
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+
+    setAvatarUploading(true);
+    try {
+      const key = await apiClient.uploadPhoto(file, 'user-profile', profile.userId);
+      const updatedProfile = await apiClient.updateUserProfile(profile.userId, { avatarUrl: key });
+      setProfile(updatedProfile);
+      if (onProfileUpdate) onProfileUpdate(updatedProfile);
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      setError('Failed to upload photo');
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!profile) return;
+    try {
+      const updatedProfile = await apiClient.updateUserProfile(profile.userId, { avatarUrl: '' });
+      setProfile(updatedProfile);
+      if (onProfileUpdate) onProfileUpdate(updatedProfile);
+    } catch (err) {
+      console.error('Error removing avatar:', err);
+      setError('Failed to remove photo');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -171,9 +207,44 @@ export default function UserProfileView({
   return (
     <Card>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <PersonIcon color="primary" />
-          <Typography variant="h6">
+        {/* Avatar Section */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+          {avatarUploading ? (
+            <Avatar sx={{ width: 80, height: 80, mb: 1 }}>
+              <CircularProgress size={32} />
+            </Avatar>
+          ) : profile.avatarUrl ? (
+            <PhotoThumbnail
+              photoKey={profile.avatarUrl}
+              altText={profile.displayName}
+              variant="avatar"
+              size={80}
+              showPopup={false}
+            />
+          ) : (
+            <Avatar sx={{ width: 80, height: 80, mb: 1, bgcolor: 'primary.main' }}>
+              <PersonIcon sx={{ fontSize: 40 }} />
+            </Avatar>
+          )}
+          {editable && (
+            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+              <Button
+                size="small"
+                startIcon={<PhotoCameraIcon />}
+                component="label"
+                disabled={avatarUploading}
+              >
+                {profile.avatarUrl ? 'Change' : 'Add Photo'}
+                <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
+              </Button>
+              {profile.avatarUrl && (
+                <IconButton size="small" onClick={handleRemoveAvatar} disabled={avatarUploading} aria-label="Remove photo">
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              )}
+            </Box>
+          )}
+          <Typography variant="h6" sx={{ mt: 1 }}>
             User Profile
           </Typography>
         </Box>

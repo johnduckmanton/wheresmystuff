@@ -342,6 +342,12 @@ class UserService {
         expressionAttributeNames['#displayName'] = 'displayName';
         expressionAttributeValues[':displayName'] = updates.displayName;
       }
+
+      if (updates.avatarUrl !== undefined) {
+        updateExpression.push('#avatarUrl = :avatarUrl');
+        expressionAttributeNames['#avatarUrl'] = 'avatarUrl';
+        expressionAttributeValues[':avatarUrl'] = updates.avatarUrl;
+      }
       
       // Always update the updatedAt timestamp
       updateExpression.push('#updatedAt = :updatedAt');
