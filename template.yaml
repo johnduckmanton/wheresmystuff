@@ -1228,14 +1228,6 @@ Resources:
             Method: PUT
             Auth:
               Authorizer: CognitoAuthorizer
-        UploadUserAvatar:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /users/profile/avatar
-            Method: POST
-            Auth:
-              Authorizer: CognitoAuthorizer
         UpdateUserProfileById:
           Type: HttpApi
           Properties:

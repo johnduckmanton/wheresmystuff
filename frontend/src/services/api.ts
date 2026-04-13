@@ -610,14 +610,15 @@ class ApiClient {
     return this.put<UserProfile>(`/users/profile/${userId}`, updates);
   }
 
-  async uploadAvatar(file: File): Promise<string> {
-    // Step 1: Get presigned upload URL from dedicated avatar endpoint
-    const { uploadUrl, key } = await this.post<{ uploadUrl: string; key: string }>('/users/profile/avatar', {
+  async uploadAvatar(file: File, userId: string): Promise<string> {
+    // Use the existing profile update endpoint with avatar upload flag
+    const { uploadUrl, key } = await this.put<{ uploadUrl: string; key: string }>(`/users/profile/${userId}`, {
+      generateAvatarUploadUrl: true,
       fileName: file.name,
       contentType: file.type,
     });
 
-    // Step 2: Upload file directly to S3
+    // Upload file directly to S3
     const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
       body: file,

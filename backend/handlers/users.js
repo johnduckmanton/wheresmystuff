@@ -80,14 +80,6 @@ const userHandler = async (event) => {
         default:
           return error('Method not allowed', 405, origin);
       }
-    } else if (path.includes('/profile/avatar')) {
-      // Avatar upload route
-      switch (httpMethod) {
-        case 'POST':
-          return await handleAvatarUpload(event, origin);
-        default:
-          return error('Method not allowed', 405, origin);
-      }
     } else if (path.includes('/profile')) {
       // User profile routes
       const userId = pathParameters.userId || event.user.userId;
@@ -469,6 +461,16 @@ async function handleUpdateUserProfile(event, userId, origin) {
     }
     if (body.avatarUrl !== undefined) {
       updates.avatarUrl = body.avatarUrl ? sanitizeInput(body.avatarUrl) : '';
+    }
+
+    // Handle avatar upload URL generation
+    if (body.generateAvatarUploadUrl && body.fileName && body.contentType) {
+      const timestamp = Date.now();
+      const sanitizedFileName = body.fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const key = `avatars/${userId}/${timestamp}-${sanitizedFileName}`;
+      const uploadUrl = await generateUploadUrl(key, body.contentType, true);
+      await logDataAccess(event.user.userId, 'create', 'avatar', key, null);
+      return success({ uploadUrl, key, expiresIn: SECURE_URL_EXPIRATION }, 201, origin);
     }
     
     if (Object.keys(updates).length === 0) {
