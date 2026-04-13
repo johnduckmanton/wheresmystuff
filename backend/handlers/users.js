@@ -419,6 +419,7 @@ async function handleGetUserProfile(event, userId, origin) {
       email: userProfile.email,
       username: userProfile.username,
       displayName: userProfile.displayName,
+      avatarUrl: userProfile.avatarUrl || '',
       emailVerified: userProfile.emailVerified,
       userStatus: userProfile.userStatus,
       createdAt: userProfile.createdAt,
