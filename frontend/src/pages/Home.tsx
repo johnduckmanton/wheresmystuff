@@ -10,7 +10,6 @@ import {
   Alert,
   List,
   ListItem,
-  ListItemText,
   Card,
   CardContent,
   CardActionArea,
@@ -21,11 +20,14 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import CategoryIcon from '@mui/icons-material/Category';
 
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
+import PhotoThumbnail from '../components/PhotoThumbnail';
 import apiClient from '../services/api';
-import type { Thing, Container } from '../types';
+import type { Thing, Container, Category, Location } from '../types';
 
 /**
  * Home Page — consolidated dashboard
@@ -40,6 +42,8 @@ export default function Home() {
 
   const [things, setThings] = useState<Thing[]>([]);
   const [containers, setContainers] = useState<Container[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,9 +51,11 @@ export default function Home() {
       if (!currentInventory) return;
       try {
         setLoading(true);
-        const [thingsData, containersResponse] = await Promise.all([
+        const [thingsData, containersResponse, categoriesData, locationsData] = await Promise.all([
           apiClient.getThings(currentInventory.id),
           apiClient.getContainers(currentInventory.id),
+          apiClient.getCategories(currentInventory.id),
+          apiClient.getLocations(currentInventory.id),
         ]);
 
         const safeThings = Array.isArray(thingsData) ? thingsData : [];
@@ -64,6 +70,8 @@ export default function Home() {
 
         setThings(safeThings);
         setContainers(safeContainers);
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setLocations(Array.isArray(locationsData) ? locationsData : []);
       } catch (error) {
         console.error('Failed to load home data:', error);
         showError('Failed to load dashboard data');
@@ -83,6 +91,16 @@ export default function Home() {
   const recentContainers = [...containers]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
+
+  const getCategoryName = (categoryId?: string) => {
+    if (!categoryId) return '';
+    return categories.find(c => c.id === categoryId)?.name || '';
+  };
+
+  const getLocationName = (locationId?: string) => {
+    if (!locationId) return '';
+    return locations.find(l => l.id === locationId)?.name || '';
+  };
 
   if (!currentInventory) {
     return (
@@ -170,31 +188,50 @@ export default function Home() {
             </Box>
             {recentThings.length > 0 ? (
               <Card variant="outlined">
-                <List dense disablePadding>
-                  {recentThings.map((thing, idx) => (
-                    <ListItem
-                      key={thing.id}
-                      divider={idx < recentThings.length - 1}
-                      sx={{ py: 0.75, px: 2 }}
-                    >
-                      <ListItemText
-                        primary={thing.name}
-                        secondary={
-                          <Box component="span" sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                            {thing.categoryId && (
-                              <Typography component="span" variant="caption" color="text.secondary">
-                                {thing.categoryId}
-                              </Typography>
-                            )}
-                            <Typography component="span" variant="caption" color="text.disabled">
-                              {new Date(thing.dateAdded).toLocaleDateString()}
+                <List disablePadding>
+                  {recentThings.map((thing, idx) => {
+                    const photoKey = thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined;
+                    const categoryName = getCategoryName(thing.categoryId);
+                    const locationName = getLocationName(thing.locationId);
+                    return (
+                      <ListItem
+                        key={thing.id}
+                        divider={idx < recentThings.length - 1}
+                        sx={{ py: 1.5, px: 2, alignItems: 'flex-start', gap: 1.5 }}
+                      >
+                        <PhotoThumbnail
+                          photoKey={photoKey}
+                          altText={thing.name}
+                          size={48}
+                          showPopup={false}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                            {thing.name}
+                          </Typography>
+                          {thing.description && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {thing.description}
                             </Typography>
+                          )}
+                          <Box sx={{ display: 'flex', gap: 1, mt: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {locationName && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                <LocationOnIcon sx={{ fontSize: 12, color: 'error.main' }} />
+                                <Typography variant="caption" color="text.secondary">{locationName}</Typography>
+                              </Box>
+                            )}
+                            {categoryName && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                <CategoryIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
+                                <Typography variant="caption" color="text.secondary">{categoryName}</Typography>
+                              </Box>
+                            )}
                           </Box>
-                        }
-                        primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}
-                      />
-                    </ListItem>
-                  ))}
+                        </Box>
+                      </ListItem>
+                    );
+                  })}
                 </List>
               </Card>
             ) : (
