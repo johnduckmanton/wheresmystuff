@@ -276,20 +276,30 @@ export default function Home() {
                         '&:hover': { boxShadow: 3 },
                       }}
                     >
-                      <CardActionArea onClick={() => navigate('/containers')} sx={{ p: 1.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', mb: 0.5 }} noWrap>
-                          {container.name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Chip
-                            label={container.status.replace('_', ' ')}
-                            size="small"
-                            color={container.status === 'packed' ? 'success' : 'default'}
-                            sx={{ fontSize: '0.65rem', height: 20 }}
+                      <CardActionArea onClick={() => navigate('/containers')} sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        {container.photos && container.photos.length > 0 ? (
+                          <PhotoThumbnail
+                            photoKey={container.photos[0]}
+                            altText={container.name}
+                            size={40}
+                            showPopup={false}
                           />
-                          <Typography variant="caption" color="text.secondary">
-                            {container.itemCount || 0} items
+                        ) : null}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', mb: 0.5 }} noWrap>
+                            {container.name}
                           </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Chip
+                              label={container.status.replace('_', ' ')}
+                              size="small"
+                              color={container.status === 'packed' ? 'success' : 'default'}
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                              {container.itemCount || 0} items
+                            </Typography>
+                          </Box>
                         </Box>
                       </CardActionArea>
                     </Card>
