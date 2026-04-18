@@ -130,6 +130,8 @@ export default function ContainerFormDialog({
   const { currentInventory } = useInventory();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(false);
+  const [showUnpackConfirm, setShowUnpackConfirm] = useState(false);
+  const [pendingResult, setPendingResult] = useState<Container | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [projects, setProjects] = useState<MovingProject[]>([]);
@@ -388,8 +390,20 @@ export default function ContainerFormDialog({
         result = await apiClient.createContainer(containerData);
         showSuccess('Container created successfully');
       }
-      onSuccess(result);
-      onClose();
+
+      // Check if status changed to 'unpacked' and container has a target location
+      const statusChangedToUnpacked = isEditing && container && 
+        container.status !== 'unpacked' && formData.status === 'unpacked';
+      const targetLocationId = formData.targetLocationId.trim();
+
+      if (statusChangedToUnpacked && targetLocationId) {
+        setPendingResult(result);
+        setShowUnpackConfirm(true);
+        // Don't close yet — wait for user to confirm or dismiss
+      } else {
+        onSuccess(result);
+        onClose();
+      }
     } catch (error) {
       console.error('Error saving container:', error);
       showError(
@@ -398,6 +412,35 @@ export default function ContainerFormDialog({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUnpackConfirm = async () => {
+    if (!pendingResult || !currentInventory) return;
+    try {
+      const targetLocationId = formData.targetLocationId.trim();
+      await apiClient.updateContainerStatus(pendingResult.id, {
+        inventoryId: currentInventory.id,
+        status: 'unpacked',
+        updateItemLocations: true,
+        targetLocationId,
+      });
+      const locationName = locations.find(l => l.id === targetLocationId)?.name || 'target location';
+      showSuccess(`Item locations updated to ${locationName}`);
+    } catch (err) {
+      console.error('Error updating item locations:', err);
+      showError('Failed to update item locations');
+    }
+    setShowUnpackConfirm(false);
+    onSuccess(pendingResult);
+    onClose();
+  };
+
+  const handleUnpackDismiss = () => {
+    setShowUnpackConfirm(false);
+    if (pendingResult) {
+      onSuccess(pendingResult);
+    }
+    onClose();
   };
 
   const handleCancel = () => {
@@ -919,6 +962,7 @@ export default function ContainerFormDialog({
   }, [formData.photos, currentInventory, isMobile, formData.name, getPrimaryImageUrl]);
 
   return (
+    <>
     <Dialog
       open={open}
       onClose={handleCancel}
@@ -1018,5 +1062,21 @@ export default function ContainerFormDialog({
         </Button>
       </DialogActions>
     </Dialog>
+
+    {/* Unpack confirmation dialog */}
+    <Dialog open={showUnpackConfirm} onClose={handleUnpackDismiss}>
+      <DialogTitle>Update Item Locations?</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2">
+          This container has been marked as unpacked. Would you like to update the location of all items in this container to{' '}
+          <strong>{locations.find(l => l.id === formData.targetLocationId.trim())?.name || 'the target location'}</strong>?
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleUnpackDismiss} color="inherit">No thanks</Button>
+        <Button onClick={handleUnpackConfirm} variant="contained">Yes, update locations</Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }

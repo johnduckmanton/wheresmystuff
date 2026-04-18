@@ -773,6 +773,10 @@ class ApiClient {
     return this.put<Container>(`/containers/${id}`, data);
   }
 
+  async updateContainerStatus(id: string, data: { inventoryId: string; status: string; updateItemLocations?: boolean; targetLocationId?: string }): Promise<Container> {
+    return this.put<Container>(`/containers/${id}/status`, data);
+  }
+
   async deleteContainer(id: string, inventoryId?: string, force?: boolean): Promise<void> {
     let url = inventoryId ? `/containers/${id}?inventoryId=${inventoryId}` : `/containers/${id}`;
     if (force) {

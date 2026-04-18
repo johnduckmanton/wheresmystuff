@@ -537,7 +537,17 @@ async function handleUpdateStatus(event, id, origin) {
     // Update container status
     const container = await containerService.updateContainerStatus(id, inventoryId, status, event.user.userId);
     
-    return success(container, 200, origin);
+    // If status is 'unpacked' and updateItemLocations is requested, bulk-update item locations
+    let itemsUpdated = 0;
+    if (status === 'unpacked' && body.updateItemLocations && body.targetLocationId) {
+      const targetLocationId = sanitizeInput(body.targetLocationId);
+      if (validateUUID(targetLocationId)) {
+        const result = await containerService.moveContainer(id, inventoryId, targetLocationId, event.user.userId);
+        itemsUpdated = result.updatedItemsCount || 0;
+      }
+    }
+    
+    return success({ ...container.toDynamoDBItem ? container.toDynamoDBItem() : container, itemsUpdated }, 200, origin);
   } catch (err) {
     console.error('Error updating container status:', err);
     
