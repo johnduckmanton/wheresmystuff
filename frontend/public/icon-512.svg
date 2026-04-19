@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="80" fill="#1976d2"/>
+  <text x="256" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="white">Where's</text>
+  <text x="256" y="290" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="white">My</text>
+  <text x="256" y="380" text-anchor="middle" font-family="Arial,sans-serif" font-size="72" font-weight="bold" fill="white">Stuff!</text>
+</svg>
