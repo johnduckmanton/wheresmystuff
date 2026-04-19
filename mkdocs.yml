@@ -1,0 +1,68 @@
+site_name: "Where's My Stuff! - Documentation"
+site_description: "User documentation for the Where's My Stuff! home inventory and moving management app"
+site_url: ""
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Overview: getting-started/index.md
+    - First Steps: getting-started/first-steps.md
+  - Inventory:
+    - Overview: inventory/index.md
+    - Managing Things: inventory/things.md
+    - Locations & Rooms: inventory/locations.md
+  - Moving & Storage:
+    - Overview: moving/index.md
+    - Containers: moving/containers.md
+    - Projects: moving/projects.md
+    - QR Codes: moving/qr-codes.md
+  - Sharing: sharing/index.md
+  - Account: account/index.md
+  - Mobile: mobile/index.md
