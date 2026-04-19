@@ -873,6 +873,12 @@ class MockApiClient {
     console.log(`Mock: Deleting container ${id}`);
   }
 
+  async updateContainerStatus(id: string, data: { inventoryId: string; status: string; updateItemLocations?: boolean; targetLocationId?: string }): Promise<Container> {
+    await mockDelay();
+    const container = await this.getContainer(id);
+    return { ...container, status: data.status as any, updatedAt: new Date().toISOString() };
+  }
+
   // Moving Project API (Mock)
   async getProjects(inventoryId?: string): Promise<MovingProject[]> {
     await mockDelay();
