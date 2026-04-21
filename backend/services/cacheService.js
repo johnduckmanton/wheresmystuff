@@ -4,7 +4,10 @@ const { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand } = requir
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
+const TABLE_NAME = process.env.TABLE_NAME;
+if (!TABLE_NAME) {
+  throw new Error('TABLE_NAME environment variable is required');
+}
 
 /**
  * Cache Service

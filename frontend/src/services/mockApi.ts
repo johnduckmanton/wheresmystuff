@@ -11,6 +11,7 @@ import type {
   UserLookupResult,
   Invitation,
   Container,
+  ContainerListResponse,
   MovingProject,
 
 } from '../types';
@@ -738,7 +739,7 @@ class MockApiClient {
   }
 
   // Container API (Mock)
-  async getContainers(inventoryId?: string): Promise<Container[]> {
+  async getContainers(inventoryId?: string): Promise<ContainerListResponse> {
     await mockDelay();
     
     // Mock container data
@@ -808,7 +809,12 @@ class MockApiClient {
       }
     ];
     
-    return inventoryId ? mockContainers.filter(c => c.inventoryId === inventoryId) : mockContainers;
+    const filtered = inventoryId ? mockContainers.filter(c => c.inventoryId === inventoryId) : mockContainers;
+    return {
+      containers: filtered,
+      count: filtered.length,
+      hasMore: false,
+    };
   }
 
   async getPackingInterfaceData(inventoryId: string): Promise<{
@@ -826,14 +832,14 @@ class MockApiClient {
       locations: await this.getLocations(inventoryId),
       rooms: await this.getRooms(inventoryId),
       people: await this.getPeople(inventoryId),
-      containers: await this.getContainers(inventoryId),
+      containers: (await this.getContainers(inventoryId)).containers,
     };
   }
 
   async getContainer(id: string): Promise<Container> {
     await mockDelay();
-    const containers = await this.getContainers();
-    const container = containers.find(c => c.id === id);
+    const response = await this.getContainers();
+    const container = response.containers.find(c => c.id === id);
     if (!container) throw new Error('Container not found');
     return container;
   }

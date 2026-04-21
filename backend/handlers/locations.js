@@ -43,6 +43,7 @@ function decodeLocationFields(location) {
  * Handles GET, POST, PUT, DELETE requests for Locations
  */
 const locationsHandler = async (event) => {
+  const origin = event.headers?.Origin || event.headers?.origin;
   const context = {
     endpoint: '/locations',
     method: event.requestContext.http.method,
@@ -78,7 +79,7 @@ const locationsHandler = async (event) => {
     }
   } catch (err) {
     // Use secure error handling
-    return secureError(err, context);
+    return secureError(err, context, origin);
   }
 };
 

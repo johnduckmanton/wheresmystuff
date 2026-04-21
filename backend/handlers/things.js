@@ -403,7 +403,7 @@ async function handleUpdate(event, id, origin) {
       return error(err.message || 'Access denied', 403, origin);
     }
     
-    return error('Failed to update thing: ' + err.message, 500, origin);
+    throw err;
   }
 }
 

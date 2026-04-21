@@ -47,6 +47,44 @@ Key conventions:
 - Server-side logging includes full error details via `logDetailedError()`
 - Validation errors use `createValidationErrorResponse(errors)` which sanitizes internal references
 
+## Error Handling Convention: error() vs secureError()
+
+**`error(message, statusCode, origin)`** — Use for intentional responses where YOU control the message:
+- Input validation failures (400)
+- Resource not found (404)
+- Access denied (403)
+- Method not allowed (405)
+- Any case where the message is a string literal you wrote
+
+**`secureError(errorObj, context, origin)`** — Use for unexpected errors in catch blocks:
+- Any catch block where `err.message` may contain internal details
+- Database errors, service failures, unhandled exceptions
+- Never pass `err.message` to `error()` in a catch block
+
+**Pattern for inner handle* functions:**
+```js
+async function handleCreate(event, origin) {
+  try {
+    // validation — use error() with safe messages
+    if (!body.name) {
+      return error('Name is required', 400, origin);
+    }
+    // business logic...
+    return success(result, 201, origin);
+  } catch (err) {
+    // Known error conditions — use error() with safe messages
+    if (err.message === 'Entity not found') {
+      return error('Resource not found', 404, origin);
+    }
+    if (err.statusCode === 403) {
+      return error('Access denied', 403, origin);
+    }
+    // Unexpected errors — throw to outer secureError
+    throw err;
+  }
+}
+```
+
 ## Input Validation (`backend/utils/validation.js` + `backend/utils/schemas.js`)
 - Validate required fields with `validateRequired(data, fields)`
 - Validate UUIDs with `validateUUID(id)`

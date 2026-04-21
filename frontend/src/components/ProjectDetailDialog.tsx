@@ -102,18 +102,8 @@ const ProjectDetailDialog: React.FC<ProjectDetailDialogProps> = ({
       // Load all containers and filter by project assignment
       const containersResponse = await apiClient.getContainers(inventoryId);
       
-      // Handle both array response (old format) and object response (new format)
-      let allContainers: Container[];
-      if (Array.isArray(containersResponse)) {
-        allContainers = containersResponse;
-      } else if (containersResponse && typeof containersResponse === 'object' && 'containers' in containersResponse) {
-        allContainers = (containersResponse as any).containers || [];
-      } else {
-        allContainers = [];
-      }
-      
       // Filter containers assigned to this project
-      const projectContainers = allContainers.filter(c => c.projectId === project.id);
+      const projectContainers = containersResponse.containers.filter(c => c.projectId === project.id);
       setContainers(projectContainers);
     } catch (err) {
       console.error('Error loading project containers:', err);

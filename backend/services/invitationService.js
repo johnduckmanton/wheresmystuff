@@ -10,7 +10,10 @@ const crypto = require('crypto');
 class InvitationService {
   constructor() {
     this.dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    this.tableName = process.env.TABLE_NAME || 'home-inventory-dev';
+    this.tableName = process.env.TABLE_NAME;
+    if (!this.tableName) {
+      throw new Error('TABLE_NAME environment variable is required');
+    }
     this.invitationExpiryDays = 7; // Invitations expire after 7 days
   }
 

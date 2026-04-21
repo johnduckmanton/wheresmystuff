@@ -80,7 +80,7 @@ describe('PackingInterface Component - Mode Selection', () => {
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue([]);
+    api.getContainers.mockResolvedValue({ containers: [], count: 0, hasMore: false });
   });
 
   it('renders mode selector on initial load', async () => {
@@ -215,7 +215,7 @@ describe('PackingInterface Component - No Container Selected Handling', () => {
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue([]);
+    api.getContainers.mockResolvedValue({ containers: [], count: 0, hasMore: false });
   });
 
   it('shows error when trying manual entry without container', async () => {
@@ -339,7 +339,7 @@ describe('PackingInterface Component - Select Existing Mode Preservation', () =>
     api.getLocations.mockResolvedValue([]);
     api.getRooms.mockResolvedValue([]);
     api.getPeople.mockResolvedValue([]);
-    api.getContainers.mockResolvedValue([mockContainer]);
+    api.getContainers.mockResolvedValue({ containers: [mockContainer], count: 1, hasMore: false });
   });
 
   it('displays existing thing selection interface in select mode', async () => {

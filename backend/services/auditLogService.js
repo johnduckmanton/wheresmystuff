@@ -6,7 +6,10 @@ const crypto = require('crypto');
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = process.env.TABLE_NAME || 'home-inventory';
+const TABLE_NAME = process.env.TABLE_NAME;
+if (!TABLE_NAME) {
+  throw new Error('TABLE_NAME environment variable is required');
+}
 const HMAC_SECRET = process.env.AUDIT_LOG_HMAC_SECRET || 'default-secret-change-in-production';
 
 /**

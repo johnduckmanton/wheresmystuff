@@ -6,6 +6,9 @@ const { v4: uuidv4 } = require('uuid');
 const s3Client = new S3Client({});
 const secretsClient = new SecretsManagerClient({});
 const BUCKET_NAME = process.env.BUCKET_NAME;
+if (!BUCKET_NAME) {
+  throw new Error('BUCKET_NAME environment variable is required');
+}
 const ENVIRONMENT = process.env.NODE_ENV || 'dev';
 
 // Cache for API key to avoid repeated Secrets Manager calls

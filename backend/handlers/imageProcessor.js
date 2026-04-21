@@ -1,6 +1,9 @@
 const { processUploadedPhoto } = require('../services/imageProcessingService');
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
+if (!BUCKET_NAME) {
+  throw new Error('BUCKET_NAME environment variable is required');
+}
 
 /**
  * S3 event-triggered Lambda handler.

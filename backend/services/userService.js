@@ -16,7 +16,10 @@ class UserService {
   constructor() {
     this.cognitoClient = new CognitoIdentityProviderClient({});
     this.dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-    this.tableName = process.env.TABLE_NAME || 'home-inventory-dev';
+    this.tableName = process.env.TABLE_NAME;
+    if (!this.tableName) {
+      throw new Error('TABLE_NAME environment variable is required');
+    }
     this.userPoolId = process.env.USER_POOL_ID;
     
     // Retry configuration for Cognito API calls

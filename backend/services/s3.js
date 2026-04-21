@@ -5,6 +5,9 @@ const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const client = new S3Client({});
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
+if (!BUCKET_NAME) {
+  throw new Error('BUCKET_NAME environment variable is required');
+}
 const URL_EXPIRATION = 3600; // 1 hour in seconds
 const SECURE_URL_EXPIRATION = 900; // 15 minutes in seconds for secure operations
 

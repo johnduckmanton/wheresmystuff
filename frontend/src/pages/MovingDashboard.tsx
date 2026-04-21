@@ -313,17 +313,7 @@ export default function MovingDashboard() {
       // Ensure we have arrays, fallback to empty arrays if not
       const safeProjectsData = Array.isArray(projectsData) ? projectsData : [];
       
-      // Handle both array response (old format) and object response (new format)
-      let containersData: Container[];
-      if (Array.isArray(containersResponse)) {
-        containersData = containersResponse;
-      } else if (containersResponse && typeof containersResponse === 'object' && 'containers' in containersResponse) {
-        containersData = (containersResponse as any).containers || [];
-      } else {
-        containersData = [];
-      }
-      
-      const safeContainersData = Array.isArray(containersData) ? containersData : [];
+      const safeContainersData = containersResponse.containers;
       const safeLocationsData = Array.isArray(locationsData) ? locationsData : [];
       const safeRoomsData = Array.isArray(roomsData) ? roomsData : [];
       const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];

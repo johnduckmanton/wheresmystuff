@@ -13,6 +13,7 @@ import type {
   UserLookupResult,
   Invitation,
   Container,
+  ContainerListResponse,
   MovingProject,
   ThingWithContainer,
   ApiResponse,
@@ -44,23 +45,29 @@ class ApiClient {
     // Request interceptor to inject JWT token
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        console.log('🔍 Request Interceptor Debug:');
-        console.log('- URL:', config.url);
-        console.log('- Method:', config.method);
-        console.log('- Base URL:', config.baseURL);
+        if (isDevelopmentMode) {
+          console.log('🔍 Request Interceptor Debug:');
+          console.log('- URL:', config.url);
+          console.log('- Method:', config.method);
+          console.log('- Base URL:', config.baseURL);
+        }
         
         try {
           const session = await fetchAuthSession();
-          console.log('- Auth Session:', session);
-          console.log('- Session tokens object:', session.tokens);
+          if (isDevelopmentMode) {
+            console.log('- Auth Session:', session);
+            console.log('- Session tokens object:', session.tokens);
+          }
           
           // Try both access token and ID token for API authentication
           // Access tokens are typically used for API calls, ID tokens for user info
           const accessToken = session.tokens?.accessToken;
           const idToken = session.tokens?.idToken;
           
-          console.log('- Access Token object:', accessToken);
-          console.log('- ID Token object:', idToken);
+          if (isDevelopmentMode) {
+            console.log('- Access Token object:', accessToken);
+            console.log('- ID Token object:', idToken);
+          }
           
           let token: string | undefined;
           
@@ -71,7 +78,9 @@ class ApiClient {
             } else if (accessToken && typeof accessToken.toString === 'function') {
               token = accessToken.toString();
             }
-            console.log('✅ Using access token for API authentication');
+            if (isDevelopmentMode) {
+              console.log('✅ Using access token for API authentication');
+            }
           } else if (idToken) {
             // Fallback to ID token if access token not available
             if (typeof idToken === 'string') {
@@ -79,16 +88,22 @@ class ApiClient {
             } else if (idToken && typeof idToken.toString === 'function') {
               token = idToken.toString();
             }
-            console.log('⚠️ Using ID token for API authentication (fallback)');
+            if (isDevelopmentMode) {
+              console.log('⚠️ Using ID token for API authentication (fallback)');
+            }
           }
           
-          console.log('- Token available:', !!token);
-          console.log('- Token length:', token?.length || 0);
-          console.log('- Token preview:', token?.substring(0, 50) + '...' || 'No token');
+          if (isDevelopmentMode) {
+            console.log('- Token available:', !!token);
+            console.log('- Token length:', token?.length || 0);
+            console.log('- Token preview:', token?.substring(0, 50) + '...' || 'No token');
+          }
           
           if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log('✅ Authorization header set');
+            if (isDevelopmentMode) {
+              console.log('✅ Authorization header set');
+            }
           } else {
             console.warn('⚠️ No token available or no headers object');
             console.warn('- accessToken:', accessToken);
@@ -98,7 +113,9 @@ class ApiClient {
           console.error('❌ Error fetching auth session:', error);
         }
         
-        console.log('- Final headers:', config.headers);
+        if (isDevelopmentMode) {
+          console.log('- Final headers:', config.headers);
+        }
         return config;
       },
       (error) => {
@@ -165,17 +182,21 @@ class ApiClient {
   }
 
   private async post<T>(url: string, data: unknown): Promise<T> {
-    console.log('🔍 API Client POST Debug:');
-    console.log('- URL:', url);
-    console.log('- Data:', data);
-    console.log('- Full URL:', `${this.client.defaults.baseURL}${url}`);
+    if (isDevelopmentMode) {
+      console.log('🔍 API Client POST Debug:');
+      console.log('- URL:', url);
+      console.log('- Data:', data);
+      console.log('- Full URL:', `${this.client.defaults.baseURL}${url}`);
+    }
     
     try {
       const response = await this.client.post<ApiResponse<T>>(url, data);
-      console.log('✅ HTTP POST successful:');
-      console.log('- Status:', response.status);
-      console.log('- Headers:', response.headers);
-      console.log('- Data:', response.data);
+      if (isDevelopmentMode) {
+        console.log('✅ HTTP POST successful:');
+        console.log('- Status:', response.status);
+        console.log('- Headers:', response.headers);
+        console.log('- Data:', response.data);
+      }
       
       if (response.data.success && response.data.data) {
         return response.data.data;
@@ -672,14 +693,16 @@ class ApiClient {
   // Photo API
   async generateUploadUrl(fileName: string, contentType: string, inventoryId: string, entityId: string): Promise<{ uploadUrl: string; key: string }> {
     // Debug logging
-    console.log('🔍 API Client generateUploadUrl Debug:');
-    console.log('- fileName:', fileName);
-    console.log('- contentType:', contentType);
-    console.log('- inventoryId:', inventoryId);
-    console.log('- entityId:', entityId);
-    console.log('- inventoryId type:', typeof inventoryId);
-    console.log('- inventoryId truthy:', !!inventoryId);
-    console.log('- Request data:', { fileName, contentType, inventoryId, entityId });
+    if (isDevelopmentMode) {
+      console.log('🔍 API Client generateUploadUrl Debug:');
+      console.log('- fileName:', fileName);
+      console.log('- contentType:', contentType);
+      console.log('- inventoryId:', inventoryId);
+      console.log('- entityId:', entityId);
+      console.log('- inventoryId type:', typeof inventoryId);
+      console.log('- inventoryId truthy:', !!inventoryId);
+      console.log('- Request data:', { fileName, contentType, inventoryId, entityId });
+    }
     
     // Validate parameters before making the request
     if (!inventoryId) {
@@ -690,7 +713,9 @@ class ApiClient {
     }
     
     const requestData = { fileName, contentType, inventoryId, entityId };
-    console.log('🚀 Making POST request to /upload with:', requestData);
+    if (isDevelopmentMode) {
+      console.log('🚀 Making POST request to /upload with:', requestData);
+    }
     
     return this.post<{ uploadUrl: string; key: string }>('/upload', requestData);
   }
@@ -709,12 +734,14 @@ class ApiClient {
     entityId: string,
     documentType: 'receipt' | 'warranty'
   ): Promise<{ uploadUrl: string; key: string }> {
-    console.log('🔍 API Client generateDocumentUploadUrl Debug:');
-    console.log('- fileName:', fileName);
-    console.log('- contentType:', contentType);
-    console.log('- inventoryId:', inventoryId);
-    console.log('- entityId:', entityId);
-    console.log('- documentType:', documentType);
+    if (isDevelopmentMode) {
+      console.log('🔍 API Client generateDocumentUploadUrl Debug:');
+      console.log('- fileName:', fileName);
+      console.log('- contentType:', contentType);
+      console.log('- inventoryId:', inventoryId);
+      console.log('- entityId:', entityId);
+      console.log('- documentType:', documentType);
+    }
     
     // Validate parameters
     if (!inventoryId) {
@@ -728,7 +755,9 @@ class ApiClient {
     }
     
     const requestData = { fileName, contentType, inventoryId, entityId, documentType };
-    console.log('🚀 Making POST request to /document/upload with:', requestData);
+    if (isDevelopmentMode) {
+      console.log('🚀 Making POST request to /document/upload with:', requestData);
+    }
     
     return this.post<{ uploadUrl: string; key: string }>('/document/upload', requestData);
   }
@@ -755,9 +784,9 @@ class ApiClient {
   }
 
   // Container API
-  async getContainers(inventoryId?: string): Promise<Container[] | { containers: Container[], count: number, hasMore: boolean, lastEvaluatedKey?: any }> {
+  async getContainers(inventoryId?: string): Promise<ContainerListResponse> {
     const url = inventoryId ? `/containers?inventoryId=${inventoryId}` : '/containers';
-    return this.get<Container[] | { containers: Container[], count: number, hasMore: boolean, lastEvaluatedKey?: any }>(url);
+    return this.get<ContainerListResponse>(url);
   }
 
   async getContainer(id: string, inventoryId?: string): Promise<Container> {
@@ -1339,15 +1368,19 @@ class ApiClient {
     generatedAt: string;
     downloadUrl: string;
   }> {
-    console.log('🔍 API Client generateQRCode Debug:');
-    console.log('- Container ID:', containerId);
-    console.log('- Inventory ID:', inventoryId);
-    console.log('- Size:', size);
-    console.log('- Base URL:', this.client.defaults.baseURL);
+    if (isDevelopmentMode) {
+      console.log('🔍 API Client generateQRCode Debug:');
+      console.log('- Container ID:', containerId);
+      console.log('- Inventory ID:', inventoryId);
+      console.log('- Size:', size);
+      console.log('- Base URL:', this.client.defaults.baseURL);
+    }
     
     try {
       const result = await this.post<any>(`/containers/${containerId}/qr-code?size=${size}&inventoryId=${inventoryId}`, {});
-      console.log('✅ QR Code API call successful:', result);
+      if (isDevelopmentMode) {
+        console.log('✅ QR Code API call successful:', result);
+      }
       return result;
     } catch (error) {
       console.error('❌ QR Code API call failed:', error);
@@ -1896,14 +1929,16 @@ class ApiClient {
   async uploadPhoto(file: File, inventoryId: string, entityId: string): Promise<string> {
     try {
       // Debug logging
-      console.log('🔍 API Client uploadPhoto Debug:');
-      console.log('- file:', file);
-      console.log('- inventoryId:', inventoryId);
-      console.log('- entityId:', entityId);
-      console.log('- inventoryId type:', typeof inventoryId);
-      console.log('- entityId type:', typeof entityId);
-      console.log('- inventoryId truthy:', !!inventoryId);
-      console.log('- entityId truthy:', !!entityId);
+      if (isDevelopmentMode) {
+        console.log('🔍 API Client uploadPhoto Debug:');
+        console.log('- file:', file);
+        console.log('- inventoryId:', inventoryId);
+        console.log('- entityId:', entityId);
+        console.log('- inventoryId type:', typeof inventoryId);
+        console.log('- entityId type:', typeof entityId);
+        console.log('- inventoryId truthy:', !!inventoryId);
+        console.log('- entityId truthy:', !!entityId);
+      }
       
       // Validate parameters
       if (!inventoryId) {

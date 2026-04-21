@@ -11,6 +11,9 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const s3Client = new S3Client({});
 const QR_BUCKET_NAME = process.env.QR_REPORT_BUCKET_NAME;
+if (!QR_BUCKET_NAME) {
+  throw new Error('QR_REPORT_BUCKET_NAME environment variable is required');
+}
 
 /**
  * Generate download URL for QR code bucket

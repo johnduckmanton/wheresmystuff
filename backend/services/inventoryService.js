@@ -210,7 +210,10 @@ class InventoryService {
     
     const client = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(client);
-    const tableName = process.env.TABLE_NAME || 'home-inventory-dev';
+    const tableName = process.env.TABLE_NAME;
+    if (!tableName) {
+      throw new Error('TABLE_NAME environment variable is required');
+    }
 
     try {
       // Find all inventory memberships for this user with pagination
@@ -905,7 +908,10 @@ class InventoryService {
     
     const client = new DynamoDBClient({});
     const docClient = DynamoDBDocumentClient.from(client);
-    const tableName = process.env.TABLE_NAME || 'home-inventory-dev';
+    const tableName = process.env.TABLE_NAME;
+    if (!tableName) {
+      throw new Error('TABLE_NAME environment variable is required');
+    }
 
     try {
       const command = new UpdateCommand({

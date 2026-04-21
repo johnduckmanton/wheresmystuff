@@ -108,20 +108,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setLoading(true);
     try {
       const response = await apiClient.getContainers(currentInventory.id);
-      
-      // Handle both array response (old format) and object response (new format)
-      let containerData: Container[];
-      if (Array.isArray(response)) {
-        containerData = response;
-      } else if (response && typeof response === 'object' && 'containers' in response) {
-        containerData = (response as any).containers || [];
-      } else {
-        containerData = [];
-      }
-      
-      // Ensure we have an array, fallback to empty array if not
-      const safeData = Array.isArray(containerData) ? containerData : [];
-      setContainers(safeData);
+      setContainers(response.containers);
     } catch (error) {
       console.error('Error loading containers:', error);
       showError('Failed to load containers');

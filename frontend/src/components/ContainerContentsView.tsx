@@ -138,17 +138,7 @@ export default function ContainerContentsView({
 
       setCategories(categoriesData);
       
-      // Handle both array response (old format) and object response (new format)
-      let containersData: Container[];
-      if (Array.isArray(containersResponse)) {
-        containersData = containersResponse;
-      } else if (containersResponse && typeof containersResponse === 'object' && 'containers' in containersResponse) {
-        containersData = containersResponse.containers || [];
-      } else {
-        containersData = [];
-      }
-      
-      setContainers(containersData.filter(c => c.id !== container.id)); // Exclude current container
+      setContainers(containersResponse.containers.filter(c => c.id !== container.id)); // Exclude current container
     } catch (error) {
       console.error('Error loading supporting data:', error);
     }

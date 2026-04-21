@@ -59,17 +59,9 @@ export default function Home() {
         ]);
 
         const safeThings = Array.isArray(thingsData) ? thingsData : [];
-        let safeContainers: Container[];
-        if (Array.isArray(containersResponse)) {
-          safeContainers = containersResponse;
-        } else if (containersResponse && typeof containersResponse === 'object' && 'containers' in containersResponse) {
-          safeContainers = (containersResponse as any).containers || [];
-        } else {
-          safeContainers = [];
-        }
 
         setThings(safeThings);
-        setContainers(safeContainers);
+        setContainers(containersResponse.containers);
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
         setLocations(Array.isArray(locationsData) ? locationsData : []);
       } catch (error) {

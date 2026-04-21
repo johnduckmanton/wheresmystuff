@@ -222,6 +222,14 @@ export interface Container {
   metadata: Record<string, any>; // Extensible metadata
 }
 
+// Response type for container list endpoint
+export interface ContainerListResponse {
+  containers: Container[];
+  count: number;
+  hasMore: boolean;
+  lastEvaluatedKey?: string;
+}
+
 // Moving Project types
 export const ProjectStatus = {
   Planning: 'planning',

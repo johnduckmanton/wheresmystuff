@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Write bug condition exploration tests
+- [x] 1. Write bug condition exploration tests
   - **Property 1: Bug Condition** - Production Debug Logging Suppressed & Backend Fail-Fast on Missing Env Vars
   - **CRITICAL**: These tests MUST FAIL on unfixed code — failure confirms the bugs exist
   - **DO NOT attempt to fix the tests or the code when they fail**
@@ -29,7 +29,7 @@
   - Mark task complete when tests are written, run, and failures are documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8_
 
-- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
   - **Property 2: Preservation** - Development Logging, Error Handling, and Backend Normal Operation Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - **Observe on UNFIXED code first, then write tests that capture observed behavior**:
@@ -55,9 +55,9 @@
   - Mark task complete when tests are written, run, and passing on unfixed code
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 3. Fix frontend production debug logging
+- [x] 3. Fix frontend production debug logging
 
-  - [ ] 3.1 Wrap console.log statements in request interceptor behind isDevelopmentMode guard
+  - [x] 3.1 Wrap console.log statements in request interceptor behind isDevelopmentMode guard
     - Wrap the ~15 `console.log` statements in the request interceptor (auth token debug, session objects, token metadata) inside `if (isDevelopmentMode) { ... }`
     - Keep `console.warn` for missing token (real auth issue, not debug noise)
     - Keep `console.error` for auth session fetch failures
@@ -66,7 +66,7 @@
     - _Preservation: console.warn for missing token and console.error for auth failures remain in all environments_
     - _Requirements: 2.1, 3.2, 3.3_
 
-  - [ ] 3.2 Wrap console.log statements in post() method behind isDevelopmentMode guard
+  - [x] 3.2 Wrap console.log statements in post() method behind isDevelopmentMode guard
     - Wrap the 4 request `console.log` statements and 4 success `console.log` statements in `if (isDevelopmentMode) { ... }`
     - Keep all `console.error` statements for actual POST failures
     - _Bug_Condition: isBugCondition(input) where post() logs request payloads and response data in production_
@@ -74,7 +74,7 @@
     - _Preservation: console.error for POST failures remains in all environments_
     - _Requirements: 2.2, 3.2_
 
-  - [ ] 3.3 Wrap console.log statements in generateUploadUrl() and generateDocumentUploadUrl() behind isDevelopmentMode guard
+  - [x] 3.3 Wrap console.log statements in generateUploadUrl() and generateDocumentUploadUrl() behind isDevelopmentMode guard
     - Wrap the 9 `console.log` statements in `generateUploadUrl()` in `if (isDevelopmentMode) { ... }`
     - Wrap the 7 `console.log` statements in `generateDocumentUploadUrl()` in `if (isDevelopmentMode) { ... }`
     - _Bug_Condition: isBugCondition(input) where upload URL methods log parameter values in production_
@@ -82,7 +82,7 @@
     - _Preservation: Upload URL generation functionality unchanged_
     - _Requirements: 2.3_
 
-  - [ ] 3.4 Wrap console.log statements in generateQRCode() and uploadPhoto() behind isDevelopmentMode guard
+  - [x] 3.4 Wrap console.log statements in generateQRCode() and uploadPhoto() behind isDevelopmentMode guard
     - Wrap the 5 `console.log` statements in `generateQRCode()` in `if (isDevelopmentMode) { ... }`
     - Wrap the 4+ `console.log` statements in `uploadPhoto()` in `if (isDevelopmentMode) { ... }`
     - _Bug_Condition: isBugCondition(input) where QR/photo methods log IDs and file metadata in production_
@@ -90,7 +90,7 @@
     - _Preservation: QR code generation and photo upload functionality unchanged_
     - _Requirements: 2.4_
 
-  - [ ] 3.5 Verify bug condition exploration test now passes for frontend logging
+  - [x] 3.5 Verify bug condition exploration test now passes for frontend logging
     - **Property 1: Expected Behavior** - Production Debug Logging Suppressed
     - **IMPORTANT**: Re-run the SAME frontend tests from task 1 — do NOT write new tests
     - The tests from task 1 encode the expected behavior (no console.log in production)
@@ -99,7 +99,7 @@
     - **EXPECTED OUTCOME**: Tests PASS (confirms frontend logging bug is fixed)
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-  - [ ] 3.6 Verify preservation tests still pass for frontend
+  - [x] 3.6 Verify preservation tests still pass for frontend
     - **Property 2: Preservation** - Development Logging and Error Handling Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 — do NOT write new tests
     - Run preservation property tests for frontend (dev logging, error logging, auth flow)
@@ -107,9 +107,9 @@
     - Confirm all frontend preservation tests still pass after fix
     - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
-- [ ] 4. Fix backend environment variable validation
+- [x] 4. Fix backend environment variable validation
 
-  - [ ] 4.1 Replace TABLE_NAME silent fallbacks with fail-fast validation in all service files
+  - [x] 4.1 Replace TABLE_NAME silent fallbacks with fail-fast validation in all service files
     - Replace `process.env.TABLE_NAME || 'home-inventory'` with fail-fast validation in all 25+ service files:
       `dynamodb.js`, `milestoneService.js`, `collaborationService.js`, `storageService.js`, `notificationService.js`, `taskService.js`, `containerService.js`, `containerSharingService.js`, `analyticsService.js`, `budgetService.js`, `movingProjectService.js`, `dataMigrationService.js`, `packingService.js`, `projectSharingService.js`, `rateLimitService.js`, `storageAlertService.js`, `databaseOptimizationService.js`, `auditLogService.js`, `cacheService.js`, `dataSynchronizationService.js`, `dataValidationService.js`, `reportService.js`, `scanHistoryService.js`, `projectAssignmentService.js`, `inventoryService.js` (two occurrences with `'home-inventory-dev'`), `invitationService.js`, `userService.js`
     - Also fix `backend/handlers/packing.js` (one occurrence inside a function)
@@ -120,7 +120,7 @@
     - _Preservation: When TABLE_NAME is set, services initialize and operate identically to unfixed code_
     - _Requirements: 2.5, 3.4_
 
-  - [ ] 4.2 Add BUCKET_NAME fail-fast validation
+  - [x] 4.2 Add BUCKET_NAME fail-fast validation
     - Add validation in `backend/handlers/imageProcessor.js`: throw if `BUCKET_NAME` is missing
     - Add validation in `backend/services/s3.js`: throw if `BUCKET_NAME` is missing
     - Add validation in `backend/services/barcodeService.js`: throw if `BUCKET_NAME` is missing
@@ -130,7 +130,7 @@
     - _Preservation: When BUCKET_NAME is set, services initialize normally_
     - _Requirements: 2.6_
 
-  - [ ] 4.3 Add QR_REPORT_BUCKET_NAME fail-fast validation
+  - [x] 4.3 Add QR_REPORT_BUCKET_NAME fail-fast validation
     - Add validation in `backend/handlers/qrCode.js`: throw if `QR_REPORT_BUCKET_NAME` is missing
     - Pattern: `if (!QR_BUCKET_NAME) { throw new Error('QR_REPORT_BUCKET_NAME environment variable is required'); }`
     - _Bug_Condition: isBugCondition(input) where input.envVars['QR_REPORT_BUCKET_NAME'] == undefined_
@@ -138,7 +138,7 @@
     - _Preservation: When QR_REPORT_BUCKET_NAME is set, handler initializes normally_
     - _Requirements: 2.7_
 
-  - [ ] 4.4 Add OPENAI_API_KEY warning in AIAnalysisService constructor
+  - [x] 4.4 Add OPENAI_API_KEY warning in AIAnalysisService constructor
     - Update `backend/services/aiAnalysisService.js` constructor to log `console.warn` when `OPENAI_API_KEY` is missing
     - Warning message: `'OPENAI_API_KEY environment variable is not set. AI analysis features will not work unless AI_MOCK_MODE is enabled.'`
     - Do NOT throw — AI features are optional and mock mode must still work
@@ -147,7 +147,7 @@
     - _Preservation: AI_MOCK_MODE=true continues to bypass OpenAI API calls regardless of OPENAI_API_KEY_
     - _Requirements: 2.8, 3.6_
 
-  - [ ] 4.5 Verify bug condition exploration test now passes for backend env vars
+  - [x] 4.5 Verify bug condition exploration test now passes for backend env vars
     - **Property 1: Expected Behavior** - Backend Fail-Fast on Missing Required Env Vars & OPENAI_API_KEY Warning
     - **IMPORTANT**: Re-run the SAME backend tests from task 1 — do NOT write new tests
     - The tests from task 1 encode the expected behavior (throw on missing required env vars, warn on missing OPENAI_API_KEY)
@@ -156,7 +156,7 @@
     - **EXPECTED OUTCOME**: Tests PASS (confirms backend env var bugs are fixed)
     - _Requirements: 2.5, 2.6, 2.7, 2.8_
 
-  - [ ] 4.6 Verify preservation tests still pass for backend
+  - [x] 4.6 Verify preservation tests still pass for backend
     - **Property 2: Preservation** - Backend Normal Operation Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 — do NOT write new tests
     - Run preservation property tests for backend (normal init with env vars set, mock mode)
@@ -164,7 +164,7 @@
     - Confirm all backend preservation tests still pass after fix
     - _Requirements: 3.4, 3.6_
 
-- [ ] 5. Checkpoint - Ensure all tests pass
+- [x] 5. Checkpoint - Ensure all tests pass
   - Run the full test suite to confirm all exploration and preservation tests pass
   - Verify no regressions in existing tests
   - Confirm frontend: no `console.log` in production mode, dev logging preserved

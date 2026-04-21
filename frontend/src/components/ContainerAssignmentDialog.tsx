@@ -54,11 +54,9 @@ const ContainerAssignmentDialog: React.FC<ContainerAssignmentDialogProps> = ({
       setError(null);
       
       // Get all containers for the inventory
-      const allContainers = await apiClient.getContainers(inventoryId);
+      const response = await apiClient.getContainers(inventoryId);
       // Filter to only unassigned containers
-      const availableContainers = Array.isArray(allContainers)
-        ? allContainers.filter(c => !c.projectId)
-        : [];
+      const availableContainers = response.containers.filter(c => !c.projectId);
       setContainers(availableContainers);
     } catch (err) {
       console.error('Error loading available containers:', err);

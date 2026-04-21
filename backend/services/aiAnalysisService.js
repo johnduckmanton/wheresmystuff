@@ -8,6 +8,9 @@ const errorLogger = require('../utils/errorLogger');
 class AIAnalysisService {
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!this.openaiApiKey) {
+      console.warn('OPENAI_API_KEY environment variable is not set. AI analysis features will not work unless AI_MOCK_MODE is enabled.');
+    }
     this.openaiBaseUrl = 'https://api.openai.com/v1';
   }
 
