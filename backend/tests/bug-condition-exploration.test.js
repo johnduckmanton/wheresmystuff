@@ -115,6 +115,9 @@ describe('Bug Condition Exploration: Backend Fail-Fast on Missing Env Vars', () 
        */
       delete process.env.BUCKET_NAME;
 
+      // Unmock s3 so the real module loads and can validate env vars
+      jest.unmock('../services/s3');
+
       expect(() => {
         require('../services/s3');
       }).toThrow(/BUCKET_NAME.*required/i);
