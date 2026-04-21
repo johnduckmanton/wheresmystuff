@@ -3,6 +3,12 @@
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.AWS_REGION = 'us-east-1';
+process.env.TABLE_NAME = 'test-table';
+process.env.BUCKET_NAME = 'test-bucket';
+process.env.QR_REPORT_BUCKET_NAME = 'test-qr-report-bucket';
+process.env.USER_POOL_ID = 'us-east-1_TestPool';
+process.env.USER_POOL_CLIENT_ID = 'test-client-id';
+process.env.ALLOWED_ORIGINS = 'http://localhost:5173';
 process.env.SECURITY_LOG_GROUP = '/aws/lambda/test-security-logs';
 
 // Mock console methods to reduce noise in tests
