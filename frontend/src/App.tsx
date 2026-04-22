@@ -37,6 +37,7 @@ import SharedContainerView from './components/SharedContainerView';
 import { RouteModuleTracker } from './components/RouteModuleTracker';
 import MobileNavigation from './components/MobileNavigation';
 import ScanPage from './pages/Scan';
+import AIPhoto from './pages/AIPhoto';
 import apiClient from './services/api';
 import { theme } from './theme';
 
@@ -298,6 +299,16 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <ScanPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ai-photo"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <AIPhoto />
                       </MainLayout>
                     </ProtectedRoute>
                   }
