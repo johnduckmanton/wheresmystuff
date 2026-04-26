@@ -125,6 +125,14 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
             primary: '#f0f0f0',
             secondary: '#b0b0b0',
           },
+          action: {
+            active: '#3dd6a0',
+            hover: 'rgba(61, 214, 160, 0.08)',
+            selected: 'rgba(61, 214, 160, 0.16)',
+            disabled: 'rgba(240, 240, 240, 0.3)',
+            disabledBackground: 'rgba(240, 240, 240, 0.12)',
+          },
+          divider: 'rgba(61, 214, 160, 0.2)',
         }),
         // High-contrast overrides take precedence over dark palette
         ...(settings.highContrast && {

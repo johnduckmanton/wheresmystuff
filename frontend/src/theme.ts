@@ -25,6 +25,14 @@ export function createAppTheme(mode: ThemeMode = 'light') {
             error: { main: '#f44336' },
             background: { default: '#0a0a0a', paper: '#161616' },
             text: { primary: '#f0f0f0', secondary: '#b0b0b0' },
+            action: {
+              active: '#3dd6a0',
+              hover: 'rgba(61, 214, 160, 0.08)',
+              selected: 'rgba(61, 214, 160, 0.16)',
+              disabled: 'rgba(240, 240, 240, 0.3)',
+              disabledBackground: 'rgba(240, 240, 240, 0.12)',
+            },
+            divider: 'rgba(61, 214, 160, 0.2)',
           }),
     },
     typography: {
@@ -82,6 +90,10 @@ export function createAppTheme(mode: ThemeMode = 'light') {
       ...(mode === 'dark' && {
         MuiButton: {
           styleOverrides: {
+            root: {
+              // Default text buttons use green
+              color: '#3dd6a0',
+            },
             containedPrimary: {
               backgroundColor: '#8A2BE2',
               color: '#ffffff',
@@ -119,6 +131,15 @@ export function createAppTheme(mode: ThemeMode = 'light') {
                 backgroundColor: 'rgba(61, 214, 160, 0.08)',
               },
             },
+            textPrimary: {
+              color: '#8A2BE2',
+            },
+            textSecondary: {
+              color: '#3dd6a0',
+            },
+            textError: {
+              color: '#f44336',
+            },
           },
         },
         MuiAppBar: {
@@ -133,8 +154,17 @@ export function createAppTheme(mode: ThemeMode = 'light') {
             root: {
               color: '#3dd6a0',
             },
+            colorPrimary: {
+              color: '#8A2BE2',
+            },
+            colorSecondary: {
+              color: '#3dd6a0',
+            },
             colorError: {
               color: '#f44336',
+            },
+            colorDisabled: {
+              color: 'rgba(240, 240, 240, 0.3)',
             },
           },
         },
@@ -143,8 +173,194 @@ export function createAppTheme(mode: ThemeMode = 'light') {
             root: {
               color: '#3dd6a0',
             },
+            colorPrimary: {
+              color: '#8A2BE2',
+            },
             colorError: {
               color: '#f44336',
+            },
+          },
+        },
+        MuiInputBase: {
+          styleOverrides: {
+            root: {
+              color: '#f0f0f0',
+              '& .MuiSvgIcon-root': {
+                color: '#3dd6a0',
+              },
+            },
+          },
+        },
+        MuiInputAdornment: {
+          styleOverrides: {
+            root: {
+              color: '#3dd6a0',
+              '& .MuiSvgIcon-root': {
+                color: '#3dd6a0',
+              },
+            },
+          },
+        },
+        MuiOutlinedInput: {
+          styleOverrides: {
+            notchedOutline: {
+              borderColor: 'rgba(61, 214, 160, 0.3)',
+            },
+            root: {
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#3dd6a0',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#8A2BE2',
+              },
+            },
+          },
+        },
+        MuiInputLabel: {
+          styleOverrides: {
+            root: {
+              color: '#b0b0b0',
+              '&.Mui-focused': {
+                color: '#8A2BE2',
+              },
+            },
+          },
+        },
+        MuiTab: {
+          styleOverrides: {
+            root: {
+              color: '#b0b0b0',
+              '&.Mui-selected': {
+                color: '#8A2BE2',
+              },
+            },
+          },
+        },
+        MuiTabs: {
+          styleOverrides: {
+            indicator: {
+              backgroundColor: '#8A2BE2',
+            },
+          },
+        },
+        MuiChip: {
+          styleOverrides: {
+            root: {
+              borderColor: 'rgba(61, 214, 160, 0.3)',
+            },
+            colorPrimary: {
+              backgroundColor: '#8A2BE2',
+              color: '#ffffff',
+            },
+            colorSecondary: {
+              backgroundColor: '#3dd6a0',
+              color: '#000000',
+            },
+            deleteIcon: {
+              color: 'rgba(240, 240, 240, 0.5)',
+              '&:hover': {
+                color: '#f44336',
+              },
+            },
+          },
+        },
+        MuiCheckbox: {
+          styleOverrides: {
+            root: {
+              color: '#3dd6a0',
+              '&.Mui-checked': {
+                color: '#3dd6a0',
+              },
+            },
+          },
+        },
+        MuiSwitch: {
+          styleOverrides: {
+            switchBase: {
+              '&.Mui-checked': {
+                color: '#8A2BE2',
+                '& + .MuiSwitch-track': {
+                  backgroundColor: '#8A2BE2',
+                },
+              },
+            },
+          },
+        },
+        MuiDialog: {
+          styleOverrides: {
+            paper: {
+              backgroundColor: '#161616',
+              '& .MuiSvgIcon-root': {
+                color: '#3dd6a0',
+              },
+              '& .MuiIconButton-root': {
+                color: '#3dd6a0',
+              },
+              '& .MuiIconButton-colorError, & [color="error"] .MuiSvgIcon-root': {
+                color: '#f44336',
+              },
+            },
+          },
+        },
+        MuiBottomNavigation: {
+          styleOverrides: {
+            root: {
+              backgroundColor: '#161616',
+            },
+          },
+        },
+        MuiBottomNavigationAction: {
+          styleOverrides: {
+            root: {
+              color: '#b0b0b0',
+              '&.Mui-selected': {
+                color: '#3dd6a0',
+              },
+              '& .MuiSvgIcon-root': {
+                color: 'inherit',
+              },
+            },
+          },
+        },
+        MuiListItemIcon: {
+          styleOverrides: {
+            root: {
+              color: '#3dd6a0',
+            },
+          },
+        },
+        MuiTableCell: {
+          styleOverrides: {
+            root: {
+              borderBottomColor: 'rgba(61, 214, 160, 0.1)',
+            },
+          },
+        },
+        MuiFab: {
+          styleOverrides: {
+            primary: {
+              backgroundColor: '#8A2BE2',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: '#7B1FA2',
+              },
+            },
+          },
+        },
+        MuiBadge: {
+          styleOverrides: {
+            colorPrimary: {
+              backgroundColor: '#8A2BE2',
+            },
+            colorSecondary: {
+              backgroundColor: '#3dd6a0',
+            },
+          },
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              backgroundImage: 'none',
             },
           },
         },
