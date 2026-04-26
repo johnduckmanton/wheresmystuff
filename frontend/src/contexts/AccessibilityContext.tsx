@@ -109,10 +109,13 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
         ...(settings.themeMode === 'dark' && {
           mode: 'dark' as const,
           primary: {
-            main: '#a855f7',
+            main: '#8A2BE2',
           },
           secondary: {
             main: '#3dd6a0',
+          },
+          error: {
+            main: '#f44336',
           },
           background: {
             default: '#0a0a0a',
