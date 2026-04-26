@@ -245,19 +245,19 @@ export default function ContainerDetailDialog({
             </IconButton>
           </Tooltip>
           <Tooltip title="Share Container">
-            <IconButton onClick={() => setSharingDialogOpen(true)} size="small" color="primary">
+            <IconButton onClick={() => setSharingDialogOpen(true)} size="small" color="secondary">
               <ShareIcon />
             </IconButton>
           </Tooltip>
           {onPack && (
             <Tooltip title="Pack Items">
-              <IconButton onClick={onPack} size="small" color="info">
+              <IconButton onClick={onPack} size="small" color="secondary">
                 <PackIcon />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title="Edit Container">
-            <IconButton onClick={onEdit} size="small">
+            <IconButton onClick={onEdit} size="small" color="secondary">
               <EditIcon />
             </IconButton>
           </Tooltip>
@@ -266,7 +266,7 @@ export default function ContainerDetailDialog({
               <DeleteIcon />
             </IconButton>
           </Tooltip>
-          <IconButton onClick={onClose} size="small">
+          <IconButton onClick={onClose} size="small" color="secondary">
             <CloseIcon />
           </IconButton>
         </Box>

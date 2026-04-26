@@ -283,7 +283,7 @@ export function HelpIconButton({ title, content }: { title: string; content: str
       }
       arrow
     >
-      <IconButton size="small" color="info">
+      <IconButton size="small" color="secondary">
         <HelpIcon fontSize="small" />
       </IconButton>
     </Tooltip>
