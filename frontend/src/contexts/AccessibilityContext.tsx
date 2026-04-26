@@ -109,18 +109,18 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
         ...(settings.themeMode === 'dark' && {
           mode: 'dark' as const,
           primary: {
-            main: '#9046ff',
+            main: '#a855f7',
           },
           secondary: {
-            main: '#46ff90',
+            main: '#3dd6a0',
           },
           background: {
-            default: '#121212',
-            paper: '#1e1e1e',
+            default: '#0a0a0a',
+            paper: '#161616',
           },
           text: {
-            primary: '#e0e0e0',
-            secondary: '#aaaaaa',
+            primary: '#f0f0f0',
+            secondary: '#b0b0b0',
           },
         }),
         // High-contrast overrides take precedence over dark palette

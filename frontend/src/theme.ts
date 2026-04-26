@@ -20,10 +20,10 @@ export function createAppTheme(mode: ThemeMode = 'light') {
             text: { primary: '#212121', secondary: '#757575' },
           }
         : {
-            primary: { main: '#9046ff' },
-            secondary: { main: '#46ff90' },
-            background: { default: '#121212', paper: '#1e1e1e' },
-            text: { primary: '#e0e0e0', secondary: '#aaaaaa' },
+            primary: { main: '#a855f7' },
+            secondary: { main: '#3dd6a0' },
+            background: { default: '#0a0a0a', paper: '#161616' },
+            text: { primary: '#f0f0f0', secondary: '#b0b0b0' },
           }),
     },
     typography: {
