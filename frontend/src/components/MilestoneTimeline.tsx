@@ -150,7 +150,15 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
   const handleCompleteMilestone = async (milestone: Milestone) => {
     try {
       const newCompleted = !milestone.completed;
-      await apiClient.completeMilestone(milestone.id, projectId, inventoryId);
+      if (newCompleted) {
+        await apiClient.completeMilestone(milestone.id, projectId, inventoryId);
+      } else {
+        await apiClient.updateMilestone(milestone.id, {
+          completed: false,
+          projectId,
+          inventoryId,
+        });
+      }
       onMilestonesChange(milestones.map(m => 
         m.id === milestone.id ? { ...m, completed: newCompleted } : m
       ));

@@ -172,12 +172,46 @@ export function createAppTheme(mode: ThemeMode = 'light') {
           styleOverrides: {
             root: {
               color: '#3dd6a0',
+              '&:hover': {
+                backgroundColor: 'rgba(61, 214, 160, 0.08)',
+              },
+              '&:focus-visible': {
+                outline: '2px solid #3dd6a0',
+                outlineOffset: '2px',
+              },
+              '& .MuiTouchRipple-root': {
+                color: '#3dd6a0',
+              },
             },
             colorPrimary: {
               color: '#8A2BE2',
+              '&:hover': {
+                backgroundColor: 'rgba(138, 43, 226, 0.08)',
+              },
+              '&:focus-visible': {
+                outline: '2px solid #8A2BE2',
+              },
+              '& .MuiTouchRipple-root': {
+                color: '#8A2BE2',
+              },
+            },
+            colorSecondary: {
+              color: '#3dd6a0',
+              '&:hover': {
+                backgroundColor: 'rgba(61, 214, 160, 0.08)',
+              },
+              '& .MuiTouchRipple-root': {
+                color: '#3dd6a0',
+              },
             },
             colorError: {
               color: '#f44336',
+              '&:hover': {
+                backgroundColor: 'rgba(244, 67, 54, 0.08)',
+              },
+              '& .MuiTouchRipple-root': {
+                color: '#f44336',
+              },
             },
           },
         },

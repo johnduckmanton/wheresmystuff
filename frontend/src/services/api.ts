@@ -1112,6 +1112,7 @@ class ApiClient {
     name: string;
     description: string;
     date: string;
+    completed: boolean;
     projectId: string;
     inventoryId: string;
   }>): Promise<any> {
