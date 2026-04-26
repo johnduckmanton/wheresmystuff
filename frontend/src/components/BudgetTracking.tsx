@@ -47,6 +47,21 @@ interface BudgetTrackingProps {
   onBudgetChange: (items: BudgetItem[]) => void;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  moving_company: 'Moving Company',
+  truck_rental: 'Truck Rental',
+  packing_supplies: 'Packing Supplies',
+  utilities: 'Utilities',
+  deposits: 'Deposits',
+  travel: 'Travel',
+  accommodation: 'Accommodation',
+  insurance: 'Insurance',
+  permits: 'Permits',
+  repairs: 'Repairs',
+  furniture: 'Furniture',
+  miscellaneous: 'Miscellaneous',
+};
+
 const BudgetTracking: React.FC<BudgetTrackingProps> = ({
   projectId,
   inventoryId,
@@ -193,7 +208,7 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
         <TableContainer component={Card}>
           <Table>
             <TableHead>
-              <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow sx={{ backgroundColor: 'background.paper' }}>
                 <TableCell>Category</TableCell>
                 <TableCell>Description</TableCell>
                 <TableCell align="right">Estimated</TableCell>
@@ -205,7 +220,7 @@ const BudgetTracking: React.FC<BudgetTrackingProps> = ({
             <TableBody>
               {budgetItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{item.category}</TableCell>
+                  <TableCell>{CATEGORY_LABELS[item.category] || item.category}</TableCell>
                   <TableCell>{item.description}</TableCell>
                   <TableCell align="right">£{item.estimatedCost.toFixed(2)}</TableCell>
                   <TableCell align="right">£{(item.actualCost || 0).toFixed(2)}</TableCell>

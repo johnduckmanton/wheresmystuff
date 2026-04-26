@@ -22,7 +22,7 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon
 } from '@mui/icons-material';
-import type { MovingProject } from '../types';
+import type { MovingProject, Container } from '../types';
 import apiClient from '../services/api';
 import ProjectAnalytics from './ProjectAnalytics';
 import MilestoneTimeline from './MilestoneTimeline';
@@ -71,6 +71,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const [milestones, setMilestones] = useState<any[]>([]);
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
   const [assignedThings, setAssignedThings] = useState<any[]>([]);
+  const [assignedContainers, setAssignedContainers] = useState<Container[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -86,17 +87,22 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
       setLoading(true);
       setError(null);
 
-      const [tasksData, milestonesData, budgetData, thingsData] = await Promise.all([
+      const [tasksData, milestonesData, budgetData, thingsData, containersResponse] = await Promise.all([
         apiClient.getProjectTasks(project.id, inventoryId).catch(() => []),
         apiClient.getProjectMilestones(project.id, inventoryId).catch(() => []),
         apiClient.getProjectBudget(project.id, inventoryId).catch(() => []),
-        apiClient.getProjectThings(project.id, inventoryId).catch(() => [])
+        apiClient.getProjectThings(project.id, inventoryId).catch(() => []),
+        apiClient.getContainers(inventoryId).catch(() => ({ containers: [] }))
       ]);
 
       setTasks(tasksData || []);
       setMilestones(milestonesData || []);
       setBudgetItems(budgetData || []);
       setAssignedThings(thingsData || []);
+      const projectContainers = containersResponse.containers
+        ? containersResponse.containers.filter((c: Container) => c.projectId === project.id)
+        : [];
+      setAssignedContainers(projectContainers);
     } catch (err) {
       console.error('Error loading project data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load project data');
@@ -242,7 +248,7 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                Assigned Containers ({project.containerCount})
+                Assigned Containers ({assignedContainers.length})
               </Typography>
               <Button
                 startIcon={<AddIcon />}
@@ -252,14 +258,30 @@ const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                 Assign Container
               </Button>
             </Box>
-            {project.containerCount === 0 ? (
+            {assignedContainers.length === 0 ? (
               <Alert severity="info">
                 No containers assigned. Assign containers to organize items.
               </Alert>
             ) : (
-              <Typography variant="body2" color="text.secondary">
-                {project.containerCount} containers assigned to this project
-              </Typography>
+              <Box>
+                {assignedContainers.map((container) => (
+                  <Box key={container.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="subtitle2">{container.name}</Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                        <Chip label={container.type} size="small" variant="outlined" />
+                        {container.status && <Chip label={container.status} size="small" variant="outlined" />}
+                        <Chip label={`${container.itemCount || 0} items`} size="small" variant="outlined" />
+                      </Box>
+                    </Box>
+                    {container.description && (
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                        {container.description}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
             )}
           </CardContent>
         </Card>

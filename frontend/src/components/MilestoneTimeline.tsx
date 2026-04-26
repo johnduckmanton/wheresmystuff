@@ -14,7 +14,16 @@ import {
   Menu,
   MenuItem,
   Chip,
-  Stack
+  Stack,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Checkbox,
+  ToggleButtonGroup,
+  ToggleButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Timeline,
@@ -31,7 +40,9 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   CheckCircle as CheckCircleIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  ViewTimeline as TimelineViewIcon,
+  ViewList as ListViewIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import apiClient from '../services/api';
@@ -63,7 +74,7 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [validationError, setValidationError] = useState<string>('');
-
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const sortedMilestones = [...milestones].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
@@ -138,12 +149,13 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
 
   const handleCompleteMilestone = async (milestone: Milestone) => {
     try {
+      const newCompleted = !milestone.completed;
       await apiClient.completeMilestone(milestone.id, projectId, inventoryId);
       onMilestonesChange(milestones.map(m => 
-        m.id === milestone.id ? { ...m, completed: true } : m
+        m.id === milestone.id ? { ...m, completed: newCompleted } : m
       ));
     } catch (err) {
-      console.error('Error completing milestone:', err);
+      console.error('Error toggling milestone:', err);
     }
   };
 
@@ -155,9 +167,24 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Milestones ({milestones.length})</Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={handleAddMilestone}>
-          Add Milestone
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_e, val) => val && setViewMode(val)}
+            size="small"
+          >
+            <ToggleButton value="timeline" aria-label="Timeline view">
+              <Tooltip title="Timeline view"><TimelineViewIcon fontSize="small" /></Tooltip>
+            </ToggleButton>
+            <ToggleButton value="list" aria-label="List view">
+              <Tooltip title="List view"><ListViewIcon fontSize="small" /></Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button startIcon={<AddIcon />} variant="contained" onClick={handleAddMilestone}>
+            Add Milestone
+          </Button>
+        </Box>
       </Box>
 
       {milestones.length === 0 ? (
@@ -165,6 +192,69 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
           <CardContent>
             <Typography color="text.secondary">No milestones yet. Create milestones to track project progress.</Typography>
           </CardContent>
+        </Card>
+      ) : viewMode === 'list' ? (
+        <Card>
+          <List disablePadding>
+            {sortedMilestones.map((milestone, index) => (
+              <ListItem
+                key={milestone.id}
+                divider={index < sortedMilestones.length - 1}
+                sx={{
+                  borderLeft: isOverdue(milestone.date) && !milestone.completed ? '4px solid' : 'none',
+                  borderLeftColor: 'error.main',
+                  opacity: milestone.completed ? 0.7 : 1,
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 42 }}>
+                  <Checkbox
+                    edge="start"
+                    checked={milestone.completed}
+                    onChange={() => handleCompleteMilestone(milestone)}
+                    inputProps={{ 'aria-label': `Mark ${milestone.name} as ${milestone.completed ? 'incomplete' : 'complete'}` }}
+                  />
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ textDecoration: milestone.completed ? 'line-through' : 'none' }}
+                      >
+                        {milestone.name}
+                      </Typography>
+                      {isOverdue(milestone.date) && !milestone.completed && (
+                        <Chip label="Overdue" size="small" color="error" />
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {format(new Date(milestone.date), 'MMM d, yyyy')}
+                      </Typography>
+                      {milestone.description && (
+                        <Typography variant="body2" color="text.secondary">
+                          — {milestone.description}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                />
+                <ListItemSecondaryAction>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      setAnchorEl(e.currentTarget);
+                      setSelectedMilestone(milestone);
+                    }}
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
         </Card>
       ) : (
         <Timeline position="alternate">
@@ -285,6 +375,24 @@ const MilestoneTimeline: React.FC<MilestoneTimelineProps> = ({
         <MenuItem onClick={() => selectedMilestone && handleEditMilestone(selectedMilestone)}>
           <EditIcon fontSize="small" sx={{ mr: 1 }} />
           Edit
+        </MenuItem>
+        <MenuItem onClick={() => {
+          if (selectedMilestone) {
+            handleCompleteMilestone(selectedMilestone);
+            setAnchorEl(null);
+          }
+        }}>
+          {selectedMilestone?.completed ? (
+            <>
+              <ScheduleIcon fontSize="small" sx={{ mr: 1 }} />
+              Mark Incomplete
+            </>
+          ) : (
+            <>
+              <CheckCircleIcon fontSize="small" sx={{ mr: 1 }} />
+              Mark Complete
+            </>
+          )}
         </MenuItem>
         <MenuItem onClick={() => selectedMilestone && handleDeleteMilestone(selectedMilestone)} sx={{ color: 'error.main' }}>
           <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
