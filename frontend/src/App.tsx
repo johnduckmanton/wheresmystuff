@@ -3,12 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 import { useEffect, useState, createContext, useContext } from 'react';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import { LoadingProvider } from './contexts/LoadingContext';
 import { NotificationProvider, useNotification } from './contexts/NotificationContext';
-import { InventoryProvider } from './contexts/InventoryContext';
+import { InventoryProvider, useInventory } from './contexts/InventoryContext';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -61,6 +63,7 @@ export const useMobileSidebar = () => useContext(MobileSidebarContext);
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessibilitySettingsOpen, setAccessibilitySettingsOpen] = useState(false);
+  const { currentInventory, isLoading: isInventoryLoading } = useInventory();
 
   const handleMobileToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -96,7 +99,25 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           role="main"
           aria-label="Main content"
         >
-          {children}
+          {isInventoryLoading && !currentInventory ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '60vh',
+                gap: 2,
+              }}
+            >
+              <CircularProgress size={40} />
+              <Typography variant="body2" color="text.secondary">
+                Loading your inventory…
+              </Typography>
+            </Box>
+          ) : (
+            children
+          )}
         </Box>
         
         <AccessibilitySettings
