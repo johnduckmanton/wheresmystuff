@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import type { ThemeMode } from '../theme';
 
 interface AccessibilitySettings {
   highContrast: boolean;
@@ -10,6 +11,7 @@ interface AccessibilitySettings {
   screenReaderMode: boolean;
   fontSize: 'small' | 'medium' | 'large' | 'extra-large';
   colorBlindnessMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
+  themeMode: ThemeMode;
 }
 
 interface AccessibilityContextType {
@@ -28,6 +30,7 @@ const defaultSettings: AccessibilitySettings = {
   screenReaderMode: false,
   fontSize: 'medium',
   colorBlindnessMode: 'none',
+  themeMode: 'light',
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -42,7 +45,15 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
     const saved = localStorage.getItem('accessibility-settings');
     if (saved) {
       try {
-        return { ...defaultSettings, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        // Validate themeMode — if invalid, reset to 'light' and overwrite localStorage
+        if (parsed.themeMode && parsed.themeMode !== 'light' && parsed.themeMode !== 'dark') {
+          parsed.themeMode = 'light';
+          const corrected = { ...defaultSettings, ...parsed };
+          localStorage.setItem('accessibility-settings', JSON.stringify(corrected));
+          return corrected;
+        }
+        return { ...defaultSettings, ...parsed };
       } catch {
         return defaultSettings;
       }
@@ -50,6 +61,10 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
     
     // Detect system preferences
     const systemSettings: Partial<AccessibilitySettings> = {};
+    
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      systemSettings.themeMode = 'dark';
+    }
     
     if (window.matchMedia('(prefers-contrast: high)').matches) {
       systemSettings.highContrast = true;
@@ -90,6 +105,25 @@ export function AccessibilityProvider({ children }: AccessibilityProviderProps) 
       ...baseTheme,
       palette: {
         ...baseTheme.palette,
+        // Dark palette applied first so high-contrast can override
+        ...(settings.themeMode === 'dark' && {
+          mode: 'dark' as const,
+          primary: {
+            main: '#9046ff',
+          },
+          secondary: {
+            main: '#46ff90',
+          },
+          background: {
+            default: '#121212',
+            paper: '#1e1e1e',
+          },
+          text: {
+            primary: '#e0e0e0',
+            secondary: '#aaaaaa',
+          },
+        }),
+        // High-contrast overrides take precedence over dark palette
         ...(settings.highContrast && {
           primary: {
             main: '#000000',

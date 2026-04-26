@@ -16,7 +16,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
-import AccessibilityIcon from '@mui/icons-material/Accessibility';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 import { useMobileSidebar } from '../App';
 
 interface HeaderProps {
@@ -136,8 +136,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
               My Profile
             </MenuItem>
             <MenuItem onClick={() => { handleMenuClose(); openAccessibilitySettings(); }}>
-              <AccessibilityIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />
-              Accessibility
+              <SettingsIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />
+              Settings
             </MenuItem>
             <MenuItem onClick={handleSignOut}>
               <LogoutIcon sx={{ mr: 1 }} fontSize="small" aria-hidden="true" />

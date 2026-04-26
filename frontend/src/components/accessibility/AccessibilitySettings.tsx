@@ -19,12 +19,12 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Accessibility as AccessibilityIcon,
+  Settings as SettingsIcon,
+  Palette as PaletteIcon,
   Visibility as VisibilityIcon,
   TextFields as TextFieldsIcon,
   Animation as AnimationIcon,
   Keyboard as KeyboardIcon,
-
 } from '@mui/icons-material';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
 
@@ -66,8 +66,9 @@ export default function AccessibilitySettings({ open, onClose }: AccessibilitySe
       screenReaderMode: false,
       fontSize: 'medium',
       colorBlindnessMode: 'none',
+      themeMode: 'light',
     });
-    announceToScreenReader('Accessibility settings reset to defaults');
+    announceToScreenReader('Settings reset to defaults');
   };
 
   return (
@@ -76,22 +77,25 @@ export default function AccessibilitySettings({ open, onClose }: AccessibilitySe
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      aria-labelledby="accessibility-settings-title"
-      aria-describedby="accessibility-settings-description"
+      aria-labelledby="settings-title"
+      aria-describedby="settings-description"
     >
       <DialogTitle
-        id="accessibility-settings-title"
+        id="settings-title"
         sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AccessibilityIcon />
-          <Typography variant="h6">Accessibility Settings</Typography>
+          <SettingsIcon />
+          <Typography variant="h6">Settings</Typography>
         </Box>
         <Tooltip title="Close settings">
           <IconButton
-            onClick={onClose}
+            onClick={() => {
+              onClose();
+              announceToScreenReader('Settings closed');
+            }}
             size="small"
-            aria-label="Close accessibility settings"
+            aria-label="Close settings"
           >
             <CloseIcon />
           </IconButton>
@@ -100,13 +104,46 @@ export default function AccessibilitySettings({ open, onClose }: AccessibilitySe
 
       <DialogContent>
         <Typography
-          id="accessibility-settings-description"
+          id="settings-description"
           variant="body2"
           color="text.secondary"
           sx={{ mb: 3 }}
         >
-          Customize the interface to meet your accessibility needs. These settings are saved locally and will persist across sessions.
+          Customize the interface to meet your needs. These settings are saved locally and will persist across sessions.
         </Typography>
+
+        {/* Appearance */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <PaletteIcon />
+            Appearance
+          </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={settings.themeMode === 'dark'}
+                onChange={(e) => {
+                  const newMode = e.target.checked ? 'dark' : 'light';
+                  updateSettings({ themeMode: newMode });
+                  announceToScreenReader(`Theme changed to ${newMode} mode`);
+                }}
+                inputProps={{ 'aria-label': 'Dark mode' }}
+              />
+            }
+            label="Dark mode"
+            sx={{ display: 'flex', justifyContent: 'space-between', ml: 0, mb: 1 }}
+          />
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 2, ml: 2 }}
+          >
+            Switch between light and dark color schemes
+          </Typography>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
 
         {/* Visual Settings */}
         <Box sx={{ mb: 3 }}>
