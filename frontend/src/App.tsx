@@ -63,7 +63,7 @@ export const useMobileSidebar = () => useContext(MobileSidebarContext);
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accessibilitySettingsOpen, setAccessibilitySettingsOpen] = useState(false);
-  const { currentInventory, isLoading: isInventoryLoading } = useInventory();
+  const { currentInventory } = useInventory();
 
   const handleMobileToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -99,7 +99,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           role="main"
           aria-label="Main content"
         >
-          {isInventoryLoading && !currentInventory ? (
+          {!currentInventory ? (
             <Box
               sx={{
                 display: 'flex',
