@@ -77,6 +77,42 @@ export function createAppTheme(mode: ThemeMode = 'light') {
           },
         },
       },
+      // Force vibrant button colors in dark mode (MUI desaturates by default)
+      ...(mode === 'dark' && {
+        MuiButton: {
+          styleOverrides: {
+            containedPrimary: {
+              backgroundColor: '#a855f7',
+              color: '#ffffff',
+              '&:hover': {
+                backgroundColor: '#9333ea',
+              },
+            },
+            containedSecondary: {
+              backgroundColor: '#3dd6a0',
+              color: '#000000',
+              '&:hover': {
+                backgroundColor: '#2bb88a',
+              },
+            },
+            outlinedPrimary: {
+              borderColor: '#a855f7',
+              color: '#a855f7',
+              '&:hover': {
+                borderColor: '#c084fc',
+                backgroundColor: 'rgba(168, 85, 247, 0.08)',
+              },
+            },
+          },
+        },
+        MuiAppBar: {
+          styleOverrides: {
+            root: {
+              backgroundColor: '#161616',
+            },
+          },
+        },
+      }),
     },
   });
 }
