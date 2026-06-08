@@ -39,7 +39,7 @@ export default function AIPhoto() {
         const [categoriesData, locationsData, roomsData, peopleData] = await Promise.all([
           apiClient.getCategories(currentInventory.id),
           apiClient.getLocations(currentInventory.id),
-          apiClient.getRooms(currentInventory.id),
+          apiClient.getRooms(undefined, currentInventory.id),
           apiClient.getPeople(currentInventory.id),
         ]);
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
@@ -54,9 +54,9 @@ export default function AIPhoto() {
       }
     };
     loadData();
-  }, [currentInventory]);
+  }, [currentInventory, showError]);
 
-  const handleAnalysisComplete = (analysisData: Partial<Thing>, _photoKey: string) => {
+  const handleAnalysisComplete = (analysisData: Partial<Thing>) => {
     setPrefillData(analysisData);
     setFormDialogOpen(true);
   };
