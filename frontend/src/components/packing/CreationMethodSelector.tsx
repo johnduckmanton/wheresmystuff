@@ -3,10 +3,11 @@ import {
   PhotoCamera as PhotoCameraIcon,
   QrCodeScanner as QrCodeScannerIcon,
   Edit as EditIcon,
+  FlashOn as FlashOnIcon,
 } from '@mui/icons-material';
 
 export interface CreationMethodSelectorProps {
-  onMethodSelect: (method: 'ai' | 'barcode' | 'manual') => void;
+  onMethodSelect: (method: 'ai' | 'barcode' | 'manual' | 'quickpack') => void;
   disabled?: boolean;
 }
 
@@ -85,6 +86,27 @@ export default function CreationMethodSelector({
         aria-label="create item with manual entry"
       >
         Manual Entry
+      </Button>
+
+      <Button
+        variant="outlined"
+        size="large"
+        startIcon={<FlashOnIcon />}
+        onClick={() => onMethodSelect('quickpack')}
+        disabled={disabled}
+        fullWidth
+        sx={{
+          minHeight: '56px',
+          justifyContent: 'flex-start',
+          px: 3,
+          py: 2,
+          fontSize: '1rem',
+          textTransform: 'none',
+          fontWeight: 'medium',
+        }}
+        aria-label="enter quick pack mode"
+      >
+        Quick Pack
       </Button>
     </Box>
   );

@@ -297,6 +297,34 @@ Resources:
         - Key: SecurityLevel
           Value: !If [IsProduction, High, Standard]
 
+  # DynamoDB Table - Image Embeddings for Photo Search
+  EmbeddingsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: !If [IsProduction, Retain, Delete]
+    UpdateReplacePolicy: !If [IsProduction, Retain, Delete]
+    Properties:
+      TableName: !Sub home-inv-embeddings-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: inventoryId
+          AttributeType: S
+        - AttributeName: thingId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: inventoryId
+          KeyType: HASH
+        - AttributeName: thingId
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: !If [IsProduction, true, false]
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: ImageEmbeddings
+
   # S3 Bucket for Photos
   PhotoBucket:
     Type: AWS::S3::Bucket
@@ -576,9 +604,14 @@ Resources:
     Properties:
       CodeUri: backend/
       Handler: handlers/things.handler
+      Environment:
+        Variables:
+          EMBEDDINGS_TABLE_NAME: !Ref EmbeddingsTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EmbeddingsTable
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -1350,9 +1383,14 @@ Resources:
     Properties:
       CodeUri: backend/
       Handler: handlers/packing.handler
+      Environment:
+        Variables:
+          EMBEDDINGS_TABLE_NAME: !Ref EmbeddingsTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref InventoryTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EmbeddingsTable
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -2252,6 +2290,58 @@ Resources:
   # SecurityAlertTopic, SecurityAlertEmailSubscription, BudgetAlertTopic, CostBudget,
   # ContainerFunctionLogGroup, PackingFunctionLogGroup, QRCodeFunctionLogGroup,
   # ProjectFunctionLogGroup, ReportsFunctionLogGroup, AnalyticsFunctionLogGroup
+
+  # Photo Search Lambda - visual similarity search using image embeddings
+  PhotoSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/photoSearch.handler
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          EMBEDDINGS_TABLE_NAME: !Ref EmbeddingsTable
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+          AI_MOCK_MODE: !If [IsProduction, 'false', 'true']
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EmbeddingsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InventoryTable
+        - S3CrudPolicy:
+            BucketName: !Sub home-inv-photos-${AWS::AccountId}-${Environment}
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref AuditLogHMACSecret
+      Events:
+        SearchByPhoto:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /photo-search
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        TriggerBackfill:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /photo-search/backfill
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetBackfillStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /photo-search/status
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuthorizer
 
 Outputs:
   ApiUrl:

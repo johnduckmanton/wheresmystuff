@@ -1360,6 +1360,44 @@ class ApiClient {
     });
   }
 
+  // Photo Search API
+  async searchByPhoto(photoKey: string, inventoryId: string): Promise<{
+    results: Array<{ thing: Thing; score: number; photoKey: string }>;
+    queryPhotoKey: string;
+  }> {
+    return this.post<{ results: Array<{ thing: Thing; score: number; photoKey: string }>; queryPhotoKey: string }>(
+      '/photo-search',
+      { photoKey, inventoryId },
+    );
+  }
+
+  async triggerPhotoSearchBackfill(inventoryId: string): Promise<{
+    queued: number;
+    skipped: number;
+    errors: number;
+  }> {
+    return this.post<{ queued: number; skipped: number; errors: number }>(
+      '/photo-search/backfill',
+      { inventoryId },
+    );
+  }
+
+  async getPhotoSearchBackfillStatus(inventoryId: string): Promise<{
+    inventoryId: string;
+    status: string;
+    totalThings: number;
+    embeddingsGenerated: number;
+    pendingThings: number;
+  }> {
+    return this.get<{
+      inventoryId: string;
+      status: string;
+      totalThings: number;
+      embeddingsGenerated: number;
+      pendingThings: number;
+    }>(`/photo-search/status?inventoryId=${inventoryId}`);
+  }
+
   // QR Code API
   async generateQRCode(containerId: string, inventoryId: string, size: 'small' | 'medium' | 'large' = 'medium'): Promise<{
     qrCodeId: string;

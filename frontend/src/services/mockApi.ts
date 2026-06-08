@@ -2283,6 +2283,50 @@ class MockApiClient {
       downloadUrl: container.qrCodeUrl,
     };
   }
+
+  // Photo Search API (Mock)
+  async searchByPhoto(_photoKey: string, _inventoryId: string): Promise<{
+    results: Array<{ thing: Thing; score: number; photoKey: string }>;
+    queryPhotoKey: string;
+  }> {
+    await mockDelay(1500);
+    // Return mock results using existing things
+    const things = this.data.things.filter(t => t.inventoryId === _inventoryId).slice(0, 3);
+    return {
+      results: things.map((thing, i) => ({
+        thing,
+        score: 0.9 - i * 0.15,
+        photoKey: thing.photos?.[0] ?? '',
+      })),
+      queryPhotoKey: _photoKey,
+    };
+  }
+
+  async triggerPhotoSearchBackfill(_inventoryId: string): Promise<{
+    queued: number;
+    skipped: number;
+    errors: number;
+  }> {
+    await mockDelay();
+    return { queued: 5, skipped: 2, errors: 0 };
+  }
+
+  async getPhotoSearchBackfillStatus(_inventoryId: string): Promise<{
+    inventoryId: string;
+    status: string;
+    totalThings: number;
+    embeddingsGenerated: number;
+    pendingThings: number;
+  }> {
+    await mockDelay();
+    return {
+      inventoryId: _inventoryId,
+      status: 'idle',
+      totalThings: this.data.things.filter(t => t.inventoryId === _inventoryId).length,
+      embeddingsGenerated: 0,
+      pendingThings: this.data.things.filter(t => t.inventoryId === _inventoryId).length,
+    };
+  }
 }
 
 export default MockApiClient;

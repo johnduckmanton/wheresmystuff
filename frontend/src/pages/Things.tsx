@@ -15,6 +15,7 @@ import PhotoThumbnail from '../components/PhotoThumbnail';
 import MobileThingCard from '../components/MobileThingCard';
 import ThingDetailSheet from '../components/ThingDetailSheet';
 import ThingBulkActionBar from '../components/ThingBulkActionBar';
+import PhotoSearchButton from '../components/PhotoSearchButton';
 import type { SearchQuery } from '../components/SearchBar';
 import { useLoading } from '../contexts/LoadingContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -594,6 +595,13 @@ export default function Things() {
             >
               Barcode Scan
             </Button>
+            <PhotoSearchButton
+              inventoryId={currentInventory.id}
+              variant="button"
+              onResultSelect={(thingId) => {
+                setDetailThing(things.find(t => t.id === thingId) ?? allThings.find(t => t.id === thingId) ?? null);
+              }}
+            />
           </Box>
           
           {/* Mobile: Icon buttons only */}
@@ -651,6 +659,13 @@ export default function Things() {
                 <QrCodeScannerIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            <PhotoSearchButton
+              inventoryId={currentInventory.id}
+              variant="icon"
+              onResultSelect={(thingId) => {
+                setDetailThing(things.find(t => t.id === thingId) ?? allThings.find(t => t.id === thingId) ?? null);
+              }}
+            />
           </Box>
           
           <Button 

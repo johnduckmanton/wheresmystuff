@@ -305,6 +305,157 @@ Example for wireless headphones:
   }
 
   /**
+   * Generate an image embedding vector for a photo.
+   * Uses GPT-4o vision to extract a rich textual description of the image,
+   * then calls the OpenAI embeddings API (text-embedding-3-small) to produce
+   * a vector representation of that description.
+   *
+   * Delegates to mockGenerateEmbedding when AI_MOCK_MODE=true or OPENAI_API_KEY is not set.
+   *
+   * @param {string} photoKey - S3 key of the photo
+   * @returns {Promise<{embedding: number[], model: string}>}
+   */
+  async generateEmbedding(photoKey) {
+    const useMock = process.env.AI_MOCK_MODE === 'true' || !this.openaiApiKey;
+    if (useMock) {
+      return this.mockGenerateEmbedding(photoKey);
+    }
+
+    if (!this.openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    // Generate a presigned download URL for the photo (same pattern as analyzePhoto)
+    const photoUrl = await generateDownloadUrl(photoKey, true);
+
+    // Step 1: Use GPT-4o vision to extract a rich textual description of the image.
+    // OpenAI's text-embedding-3-small model works with text, so we first describe
+    // the image in detail and then embed that description.
+    const visionResponse = await fetch(`${this.openaiBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Describe this item in detail for visual similarity search. Include: object type, shape, color(s), material, size (relative), brand/text visible, condition, and any distinctive visual features. Be specific and comprehensive. Respond with only the description, no preamble.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: photoUrl,
+                detail: 'high'
+              }
+            }
+          ]
+        }],
+        max_tokens: 300,
+        temperature: 0.1
+      })
+    });
+
+    if (!visionResponse.ok) {
+      const errorData = await visionResponse.json().catch(() => ({}));
+      throw new Error(`OpenAI vision API error: ${visionResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const visionData = await visionResponse.json();
+    const imageDescription = visionData.choices?.[0]?.message?.content;
+
+    if (!imageDescription) {
+      throw new Error('No description returned from OpenAI vision API');
+    }
+
+    // Step 2: Generate an embedding vector from the image description.
+    const embeddingResponse = await fetch(`${this.openaiBaseUrl}/embeddings`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: imageDescription
+      })
+    });
+
+    if (!embeddingResponse.ok) {
+      const errorData = await embeddingResponse.json().catch(() => ({}));
+      throw new Error(`OpenAI embeddings API error: ${embeddingResponse.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const embeddingData = await embeddingResponse.json();
+    const embedding = embeddingData.data?.[0]?.embedding;
+
+    if (!embedding || !Array.isArray(embedding)) {
+      throw new Error('No embedding vector returned from OpenAI embeddings API');
+    }
+
+    const model = embeddingData.model || 'text-embedding-3-small';
+
+    // Log the API call for cost tracking (Requirement 10.2)
+    console.log(JSON.stringify({
+      operation_type: 'embedding_generation',
+      model,
+      photoKey,
+      dimensions: embedding.length,
+      prompt_tokens: embeddingData.usage?.prompt_tokens || null,
+      total_tokens: embeddingData.usage?.total_tokens || null,
+      vision_prompt_tokens: visionData.usage?.prompt_tokens || null,
+      vision_completion_tokens: visionData.usage?.completion_tokens || null,
+      timestamp: new Date().toISOString()
+    }));
+
+    return { embedding, model };
+  }
+
+  /**
+   * Generate a deterministic mock embedding vector for development/testing.
+   * Produces a pseudo-random unit vector based on a hash of the photoKey,
+   * so the same photoKey always returns the same embedding.
+   *
+   * @param {string} photoKey - S3 key of the photo
+   * @returns {Promise<{embedding: number[], model: string}>}
+   */
+  async mockGenerateEmbedding(photoKey) {
+    // Simulate a small processing delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Generate a deterministic pseudo-random vector from the photoKey hash.
+    // Uses the same hash approach as mockAnalyze for consistency.
+    const DIMENSIONS = 1536; // Matches text-embedding-3-small output dimensions
+    const seed = photoKey.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+
+    // Linear congruential generator seeded from the photoKey hash
+    let state = Math.abs(seed) || 1;
+    const lcg = () => {
+      state = (state * 1664525 + 1013904223) & 0xffffffff;
+      return (state >>> 0) / 0xffffffff;
+    };
+
+    // Build a raw vector with values in [-1, 1]
+    const raw = Array.from({ length: DIMENSIONS }, () => lcg() * 2 - 1);
+
+    // Normalize to unit length so it behaves like a real embedding
+    const magnitude = Math.sqrt(raw.reduce((sum, val) => sum + val * val, 0));
+    const embedding = raw.map(val => val / magnitude);
+
+    return {
+      embedding,
+      model: 'mock-text-embedding-3-small'
+    };
+  }
+
+  /**
    * Test the AI service with a mock analysis (for development)
    * @param {string} photoKey - Photo key
    * @returns {Promise<Object>} Mock analysis results

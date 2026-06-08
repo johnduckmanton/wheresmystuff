@@ -37,6 +37,7 @@ import QuickFilters from './QuickFilters';
 import PhotoThumbnail from './PhotoThumbnail';
 import ModeSelector from './packing/ModeSelector';
 import CreationMethodSelector from './packing/CreationMethodSelector';
+import QuickPackMode from './packing/QuickPackMode';
 import AIPhotoUpload from './AIPhotoUpload';
 import BarcodeScanner from './BarcodeScanner';
 import BarcodeItemPreview from './BarcodeItemPreview';
@@ -46,6 +47,7 @@ import { errorLogger } from '../utils/errorLogger';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import OfflineBanner from './OfflineBanner';
 import { decodeHtmlEntities } from '../utils/htmlDecoder';
+import PhotoSearchButton from './PhotoSearchButton';
 import type { Container, Thing, Category, Location, Room, Person } from '../types/entities';
 
 interface PackingInterfaceProps {
@@ -77,7 +79,7 @@ export default function PackingInterface({
   const [mode, setMode] = useState<'select' | 'create'>('select');
   
   // Creation method state
-  const [creationMethod, setCreationMethod] = useState<'ai' | 'barcode' | 'manual' | null>(null);
+  const [creationMethod, setCreationMethod] = useState<'ai' | 'barcode' | 'manual' | 'quickpack' | null>(null);
   
   // AI analysis state
   const [aiAnalysisData, setAiAnalysisData] = useState<Partial<Thing> | null>(null);
@@ -135,14 +137,19 @@ export default function PackingInterface({
   };
 
   // Handle creation method selection
-  const handleMethodSelect = (method: 'ai' | 'barcode' | 'manual') => {
+  const handleMethodSelect = (method: 'ai' | 'barcode' | 'manual' | 'quickpack') => {
     // Check if container is selected before proceeding
     if (!container) {
       showError('No container selected. Please select a container before creating an item.');
       return;
     }
+
+    if (method === 'quickpack') {
+      setCreationMethod('quickpack');
+      return;
+    }
     
-    setCreationMethod(method);
+    setCreationMethod(method as 'ai' | 'barcode' | 'manual');
     
     // For manual entry, open the ThingFormDialog immediately
     if (method === 'manual') {
@@ -914,6 +921,15 @@ export default function PackingInterface({
                   },
                 }}
               />
+              <PhotoSearchButton
+                inventoryId={currentInventory?.id ?? ''}
+                variant="icon"
+                onResultSelect={(_thingId) => {
+                  // Switch to select mode so user can see results in the list
+                  setMode('select');
+                  setCreationMethod(null);
+                }}
+              />
             </Box>
             <Box sx={{ 
               display: 'flex', 
@@ -1090,6 +1106,23 @@ export default function PackingInterface({
                 </Typography>
                 <CreationMethodSelector onMethodSelect={handleMethodSelect} />
               </Box>
+            </Box>
+          ) : creationMethod === 'quickpack' && currentInventory ? (
+            /* Quick Pack mode — full height, no padding */
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', p: 0 }}>
+              <QuickPackMode
+                container={container}
+                inventoryId={currentInventory.id}
+                categories={categories}
+                onExit={(stats) => {
+                  setCreationMethod(null);
+                  showSuccess(
+                    `Quick Pack complete: ${stats.completed} item${stats.completed !== 1 ? 's' : ''} packed` +
+                    (stats.failed > 0 ? `, ${stats.failed} failed` : '') + '.'
+                  );
+                }}
+                onContainerUpdated={onContainerUpdated}
+              />
             </Box>
           ) : (
             /* Show appropriate component based on selected method */

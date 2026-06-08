@@ -6,6 +6,8 @@ const { authenticate, authorizeInventoryAccess } = require('../middleware/auth')
 const { withRateLimit } = require('../middleware/rateLimit');
 const { withCorsValidation } = require('../middleware/corsValidation');
 const errorLogger = require('../utils/errorLogger');
+const aiAnalysisService = require('../services/aiAnalysisService');
+const embeddingService = require('../services/embeddingService');
 
 /**
  * Lambda handler for Packing operations
@@ -571,7 +573,28 @@ async function handleCreateAndPack(event, origin) {
     
     // Create and pack the thing
     const result = await packingService.createAndPackThing(thingData, containerId, inventoryId, event.user.userId);
-    
+
+    // Fire-and-forget embedding generation — must not block the response
+    const thingId = result.thing?.id;
+    const photoKey = result.thing?.photos?.[0] || thingData?.photos?.[0];
+    if (thingId && photoKey) {
+      setImmediate(async () => {
+        try {
+          const { embedding, model } = await aiAnalysisService.generateEmbedding(photoKey);
+          const normalized = embeddingService.normalizeVector(embedding);
+          await embeddingService.storeEmbedding(inventoryId, thingId, normalized, photoKey, model);
+        } catch (embeddingErr) {
+          console.error(JSON.stringify({
+            message: 'Fire-and-forget embedding generation failed',
+            thingId,
+            inventoryId,
+            photoKey,
+            error: embeddingErr.message
+          }));
+        }
+      });
+    }
+
     return success(result, 201, origin);
   } catch (err) {
     // Determine error stage for better logging

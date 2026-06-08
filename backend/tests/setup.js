@@ -10,6 +10,7 @@ process.env.USER_POOL_ID = 'us-east-1_TestPool';
 process.env.USER_POOL_CLIENT_ID = 'test-client-id';
 process.env.ALLOWED_ORIGINS = 'http://localhost:5173';
 process.env.SECURITY_LOG_GROUP = '/aws/lambda/test-security-logs';
+process.env.EMBEDDINGS_TABLE_NAME = 'test-embeddings-table';
 
 // Mock console methods to reduce noise in tests
 global.console = {

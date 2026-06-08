@@ -16,6 +16,7 @@ const { withCorsValidation } = require('../middleware/corsValidation');
 const { logDataAccess } = require('../services/auditLogService');
 const tagService = require('../services/tagService');
 const tagCache = require('../services/tagCacheService');
+const embeddingService = require('../services/embeddingService');
 
 const ENTITY_TYPE = 'THINGS';
 
@@ -442,7 +443,19 @@ async function handleDelete(event, id, origin) {
     
     // Invalidate tag cache since we deleted a thing that might have had tags
     tagCache.invalidateInventoryCache(inventoryId, 'tags');
-    
+
+    // Clean up embedding — non-blocking, failure must not affect Thing deletion
+    try {
+      await embeddingService.deleteEmbedding(inventoryId, id);
+    } catch (embeddingErr) {
+      console.error(JSON.stringify({
+        message: 'Failed to delete embedding for Thing',
+        thingId: id,
+        inventoryId,
+        error: embeddingErr.message
+      }));
+    }
+
     // Log data access
     await logDataAccess(event.user.userId, 'delete', 'things', id, inventoryId);
     
