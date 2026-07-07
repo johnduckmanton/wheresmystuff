@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "wheresmystuff": {
+      "command": "node",
+      "args": ["./mcp-server/dist/index.js"],
+      "env": {
+        "WHERESMYSTUFF_API_URL": "https://api.wheresmystuff.example.com",
+        "WHERESMYSTUFF_USER_POOL_ID": "eu-west-1_xxxxxxxxx",
+        "WHERESMYSTUFF_CLIENT_ID": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "WHERESMYSTUFF_COGNITO_DOMAIN": "wheresmystuff-dev.auth.eu-west-1.amazoncognito.com",
+        "WHERESMYSTUFF_INVENTORY_ID": "<your-inventory-uuid>",
+        "WHERESMYSTUFF_REGION": "eu-west-1"
+      }
+    }
+  }
+}

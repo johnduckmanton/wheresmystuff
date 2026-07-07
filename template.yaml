@@ -220,6 +220,12 @@ Resources:
         EmailMessage: 'Your verification code is {####}. This code expires in 24 hours.'
         EmailSubject: 'Home Inventory System - Email Verification'
 
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub wheresmystuff-${Environment}
+      UserPoolId: !Ref UserPool
+
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
@@ -231,6 +237,17 @@ Resources:
         - ALLOW_USER_SRP_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - http://localhost/callback
+      SupportedIdentityProviders:
+        - COGNITO
 
   # DynamoDB Table - Single Table Design
   InventoryTable:

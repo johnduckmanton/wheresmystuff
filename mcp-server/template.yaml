@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: WheresMyStuff Remote MCP Server - Serverless
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs22.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        SESSIONS_TABLE_NAME: !Ref SessionsTable
+        WHERESMYSTUFF_API_URL: !Ref ApiUrl
+        WHERESMYSTUFF_USER_POOL_ID: !Ref UserPoolId
+        WHERESMYSTUFF_CLIENT_ID: !Ref ClientId
+        WHERESMYSTUFF_REGION: !Ref AWS::Region
+        WHERESMYSTUFF_COGNITO_DOMAIN: !Ref CognitoDomain
+        SERVER_BASE_URL: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+        TOKEN_SIGNING_SECRET: !Ref TokenSigningSecret
+
+Parameters:
+  ApiUrl:
+    Type: String
+    Description: Backend API URL
+  UserPoolId:
+    Type: String
+    Description: Cognito User Pool ID
+  ClientId:
+    Type: String
+    Description: Cognito App Client ID
+  CognitoDomain:
+    Type: String
+    Description: Cognito domain for Hosted UI
+  TokenSigningSecret:
+    Type: String
+    NoEcho: true
+    Description: Secret for signing JWT access tokens
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+          - Mcp-Session-Id
+          - Accept
+
+  McpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/remote/lambda-handler.handler
+      CodeUri: .
+      Events:
+        McpPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /mcp
+            Method: POST
+        McpDelete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /mcp
+            Method: DELETE
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+        OAuthMetadata:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /.well-known/oauth-authorization-server
+            Method: GET
+        Authorize:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /authorize
+            Method: GET
+        Callback:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /callback
+            Method: GET
+        Token:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /token
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'mcp-sessions-${AWS::StackName}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  McpEndpoint:
+    Description: MCP Server URL for client configuration
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/mcp'

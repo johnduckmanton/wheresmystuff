@@ -247,6 +247,7 @@ jobs:
     outputs:
       backend_changed: ${{ steps.check_changes.outputs.backend_changed }}
       frontend_changed: ${{ steps.check_changes.outputs.frontend_changed }}
+      mcp_server_changed: ${{ steps.check_changes.outputs.mcp_server_changed }}
     
     steps:
     - name: Checkout code
@@ -262,8 +263,10 @@ jobs:
           echo "🚀 Force deploy enabled - deploying all components"
           echo "backend_changed=true" >> $GITHUB_OUTPUT
           echo "frontend_changed=true" >> $GITHUB_OUTPUT
+          echo "mcp_server_changed=true" >> $GITHUB_OUTPUT
           echo "Backend changed: true (forced)"
           echo "Frontend changed: true (forced)"
+          echo "MCP server changed: true (forced)"
           exit 0
         fi
         
@@ -297,11 +300,19 @@ jobs:
           FRONTEND_CHANGED="true"
         fi
         
+        # Check if MCP server files changed
+        MCP_SERVER_CHANGED="false"
+        if echo "$CHANGED_FILES" | grep -qE '^mcp-server/'; then
+          MCP_SERVER_CHANGED="true"
+        fi
+        
         echo "backend_changed=$BACKEND_CHANGED" >> $GITHUB_OUTPUT
         echo "frontend_changed=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+        echo "mcp_server_changed=$MCP_SERVER_CHANGED" >> $GITHUB_OUTPUT
         
         echo "Backend infrastructure changed: $BACKEND_CHANGED"
         echo "Frontend files changed: $FRONTEND_CHANGED"
+        echo "MCP server changed: $MCP_SERVER_CHANGED"
 
   deploy-development:
     name: Deploy to Development
@@ -652,6 +663,134 @@ jobs:
             CloudFrontOrigin="$CLOUDFRONT_URL"
         
         echo "✅ Backend CORS configuration updated with CloudFront URL"
+
+  deploy-mcp-server:
+    name: Deploy MCP Server
+    runs-on: ubuntu-latest
+    needs: [determine-deployment, detect-changes, deploy-development]
+    if: needs.determine-deployment.outputs.should_deploy == 'true' && needs.determine-deployment.outputs.target_environment == 'dev' && needs.detect-changes.outputs.mcp_server_changed == 'true'
+    environment: development
+    
+    outputs:
+      mcp_endpoint: ${{ steps.deploy_mcp.outputs.mcp_endpoint }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.DEV_ROLE_ARN }}
+        role-session-name: GitHubActions-MCP-${{ github.run_id }}
+        aws-region: ${{ vars.AWS_REGION }}
+    
+    - name: Install AWS SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        use-installer: true
+    
+    - name: Install MCP server dependencies
+      working-directory: mcp-server
+      run: npm install
+    
+    - name: Run MCP server tests
+      working-directory: mcp-server
+      run: npm test
+    
+    - name: Build MCP server
+      working-directory: mcp-server
+      run: npm run build
+    
+    - name: SAM build
+      working-directory: mcp-server
+      run: sam build
+    
+    - name: Deploy MCP server
+      id: deploy_mcp
+      working-directory: mcp-server
+      run: |
+        # Get the backend API URL from the main stack
+        API_URL="${{ needs.deploy-development.outputs.api_url }}"
+        
+        # Get Cognito outputs from the main stack
+        USER_POOL_ID=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolId`].OutputValue' \
+          --output text)
+        
+        USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+          --stack-name home-inventory-system-dev \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`UserPoolClientId`].OutputValue' \
+          --output text)
+        
+        # Get Cognito domain (from user pool domain configuration)
+        COGNITO_DOMAIN=$(aws cognito-idp describe-user-pool \
+          --user-pool-id "$USER_POOL_ID" \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'UserPool.Domain' \
+          --output text 2>/dev/null || echo "")
+        
+        if [ -n "$COGNITO_DOMAIN" ] && [ "$COGNITO_DOMAIN" != "None" ]; then
+          COGNITO_DOMAIN="${COGNITO_DOMAIN}.auth.${{ vars.AWS_REGION }}.amazoncognito.com"
+        else
+          echo "⚠️ Could not auto-detect Cognito domain. Using placeholder."
+          COGNITO_DOMAIN="${{ vars.MCP_COGNITO_DOMAIN || '' }}"
+        fi
+        
+        echo "MCP Server Deployment Configuration:"
+        echo "  API URL: $API_URL"
+        echo "  User Pool ID: $USER_POOL_ID"
+        echo "  Client ID: $USER_POOL_CLIENT_ID"
+        echo "  Cognito Domain: $COGNITO_DOMAIN"
+        
+        # Deploy MCP server stack
+        sam deploy \
+          --stack-name wheresmystuff-mcp-server-dev \
+          --resolve-s3 \
+          --capabilities CAPABILITY_IAM \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --region ${{ vars.AWS_REGION }} \
+          --parameter-overrides \
+            ApiUrl="$API_URL" \
+            UserPoolId="$USER_POOL_ID" \
+            ClientId="$USER_POOL_CLIENT_ID" \
+            CognitoDomain="$COGNITO_DOMAIN" \
+            TokenSigningSecret="${{ secrets.MCP_TOKEN_SIGNING_SECRET }}"
+        
+        # Get the MCP endpoint URL
+        MCP_ENDPOINT=$(aws cloudformation describe-stacks \
+          --stack-name wheresmystuff-mcp-server-dev \
+          --region ${{ vars.AWS_REGION }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`McpEndpoint`].OutputValue' \
+          --output text)
+        
+        echo "mcp_endpoint=$MCP_ENDPOINT" >> $GITHUB_OUTPUT
+        
+        echo "✅ MCP Server deployed to development"
+        echo "MCP Endpoint: $MCP_ENDPOINT"
+    
+    - name: Smoke test MCP server
+      run: |
+        MCP_ENDPOINT="${{ steps.deploy_mcp.outputs.mcp_endpoint }}"
+        HEALTH_URL=$(echo "$MCP_ENDPOINT" | sed 's|/mcp$|/health|')
+        
+        echo "Testing MCP server health endpoint: $HEALTH_URL"
+        if curl -f -s "$HEALTH_URL" | grep -q '"ok"'; then
+          echo "✅ MCP server health check passed"
+        else
+          echo "❌ MCP server health check failed"
+          curl -v "$HEALTH_URL" || true
+          exit 1
+        fi
 
   deploy-production:
     name: Deploy to Production
