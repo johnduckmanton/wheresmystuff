@@ -751,10 +751,19 @@ jobs:
         echo "  Client ID: $USER_POOL_CLIENT_ID"
         echo "  Cognito Domain: $COGNITO_DOMAIN"
         
+        # Create/verify S3 bucket for MCP SAM deployment artifacts
+        MCP_S3_BUCKET="wheresmystuff-mcp-sam-deployment-dev"
+        if ! aws s3 ls "s3://$MCP_S3_BUCKET" 2>/dev/null; then
+          echo "Creating S3 bucket for MCP SAM deployment: $MCP_S3_BUCKET"
+          aws s3 mb "s3://$MCP_S3_BUCKET" --region ${{ vars.AWS_REGION }}
+        else
+          echo "✅ S3 bucket already exists: $MCP_S3_BUCKET"
+        fi
+        
         # Deploy MCP server stack
         sam deploy \
           --stack-name wheresmystuff-mcp-server-dev \
-          --resolve-s3 \
+          --s3-bucket "$MCP_S3_BUCKET" \
           --capabilities CAPABILITY_IAM \
           --no-confirm-changeset \
           --no-fail-on-empty-changeset \
