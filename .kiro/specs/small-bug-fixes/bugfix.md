@@ -2,13 +2,15 @@
 
 ## Introduction
 
-This document covers two small UI/UX bugs in the WheresMyStuff home inventory application:
+This document covers several small UI/UX bugs in the WheresMyStuff home inventory application:
 
 1. **Lists not sorted by most recently created first** — Entity lists (Things, Containers, Locations, People, Categories) do not default to showing the most recently created items first, making it hard for users to find items they just added.
 
 2. **No way to delete photos in mobile interface** — The mobile Thing detail view (`ThingDetailSheet`) displays photos but provides no mechanism to delete them. Users on mobile devices are stuck with photos they want to remove.
 
 3. **Success notification does not link to newly created item** — When a user creates a new Thing, Container, Location, Person, or Category, the success notification/toast does not provide a clickable link to navigate to the newly created item. Users must manually find the item in the list to continue working with it.
+
+4. **Recently added things list items are not clickable** — Items displayed in the "recently added things" list on the Home page dashboard are not clickable. Users should be able to click on them to navigate to the item's detail page.
 
 ## Bug Analysis
 
@@ -28,6 +30,10 @@ This document covers two small UI/UX bugs in the WheresMyStuff home inventory ap
 
 1.7 WHEN a user wants to immediately navigate to a just-created item THEN the system provides no shortcut; the user must manually find the item in the list
 
+1.8 WHEN a user views the recently added things list on the Home page dashboard THEN the items are displayed as plain text with no clickable link or navigation action
+
+1.9 WHEN a user taps or clicks on an item in the recently added things list THEN nothing happens; the system does not navigate to the item's detail page
+
 ### Expected Behavior (Correct)
 
 2.1 WHEN a user views the Things list page THEN the system SHALL display things sorted by creation date (dateAdded) in descending order (most recent first) by default
@@ -44,6 +50,10 @@ This document covers two small UI/UX bugs in the WheresMyStuff home inventory ap
 
 2.7 WHEN a user clicks the link in the creation success notification THEN the system SHALL navigate to the detail/edit page for the newly created item
 
+2.8 WHEN a user views the recently added things list on the Home page dashboard THEN each item SHALL be rendered as a clickable element (link or button) that navigates to the item's detail page
+
+2.9 WHEN a user clicks on an item in the recently added things list THEN the system SHALL navigate to that item's detail/edit page
+
 ### Unchanged Behavior (Regression Prevention)
 
 3.1 WHEN a user explicitly sorts a list by a different column (e.g., name, category) THEN the system SHALL CONTINUE TO respect the user's chosen sort order
@@ -59,3 +69,7 @@ This document covers two small UI/UX bugs in the WheresMyStuff home inventory ap
 3.6 WHEN a user creates a new item THEN the system SHALL CONTINUE TO store the creation timestamp (dateAdded/createdAt) correctly
 
 3.7 WHEN a user dismisses the creation success notification without clicking the link THEN the system SHALL CONTINUE TO function normally without navigating away from the current page
+
+3.8 WHEN a user clicks on an item in the recently added things list THEN the system SHALL CONTINUE TO display the correct item detail page with all its data intact
+
+3.9 WHEN a user navigates back from an item detail page reached via the recently added list THEN the system SHALL CONTINUE TO return the user to the Home page dashboard
