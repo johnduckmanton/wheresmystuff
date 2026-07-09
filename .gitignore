@@ -7,8 +7,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
-yarn.lock
+# Uncomment below if this were a library (apps should commit lock files)
+# package-lock.json
+# yarn.lock
 
 # Environment variables
 .env
