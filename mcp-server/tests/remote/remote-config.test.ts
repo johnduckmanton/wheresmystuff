@@ -80,7 +80,7 @@ describe("loadRemoteConfig", () => {
   it("identifies all missing variables in one error message", () => {
     // Don't set any required vars
     expect(() => loadRemoteConfig()).toThrow(
-      "Missing required environment variables: WHERESMYSTUFF_API_URL, WHERESMYSTUFF_USER_POOL_ID, WHERESMYSTUFF_CLIENT_ID, WHERESMYSTUFF_REGION, WHERESMYSTUFF_COGNITO_DOMAIN, SERVER_BASE_URL, TOKEN_SIGNING_SECRET, SESSIONS_TABLE_NAME"
+      "Missing required environment variables: WHERESMYSTUFF_API_URL, WHERESMYSTUFF_USER_POOL_ID, WHERESMYSTUFF_CLIENT_ID, WHERESMYSTUFF_REGION, WHERESMYSTUFF_COGNITO_DOMAIN, TOKEN_SIGNING_SECRET, SESSIONS_TABLE_NAME"
     );
   });
 
