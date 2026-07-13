@@ -11,19 +11,18 @@ export interface RemoteServerConfig {
   rateLimitPerMinute: number;      // RATE_LIMIT_PER_MINUTE (default: 100)
   maxPayloadBytes: number;         // MAX_PAYLOAD_BYTES (default: 1048576 = 1MB)
   cognitoDomain: string;           // WHERESMYSTUFF_COGNITO_DOMAIN
-  serverBaseUrl: string;           // SERVER_BASE_URL (API Gateway URL for OAuth callbacks)
+  serverBaseUrl: string;           // Derived at runtime from API Gateway event context
   tokenSigningSecret: string;      // TOKEN_SIGNING_SECRET (from Secrets Manager or env)
   sessionsTableName: string;       // SESSIONS_TABLE_NAME (DynamoDB table)
 }
 
-export function loadRemoteConfig(): RemoteServerConfig {
+export function loadRemoteConfig(serverBaseUrl?: string): RemoteServerConfig {
   const required = [
     'WHERESMYSTUFF_API_URL',
     'WHERESMYSTUFF_USER_POOL_ID',
     'WHERESMYSTUFF_CLIENT_ID',
     'WHERESMYSTUFF_REGION',
     'WHERESMYSTUFF_COGNITO_DOMAIN',
-    'SERVER_BASE_URL',
     'TOKEN_SIGNING_SECRET',
     'SESSIONS_TABLE_NAME',
   ] as const;
@@ -49,7 +48,7 @@ export function loadRemoteConfig(): RemoteServerConfig {
     clientId: process.env['WHERESMYSTUFF_CLIENT_ID']!,
     region: process.env['WHERESMYSTUFF_REGION']!,
     cognitoDomain: process.env['WHERESMYSTUFF_COGNITO_DOMAIN']!,
-    serverBaseUrl: process.env['SERVER_BASE_URL']!,
+    serverBaseUrl: serverBaseUrl ?? process.env['SERVER_BASE_URL'] ?? '',
     tokenSigningSecret: process.env['TOKEN_SIGNING_SECRET']!,
     sessionsTableName: process.env['SESSIONS_TABLE_NAME']!,
     allowedOrigins,

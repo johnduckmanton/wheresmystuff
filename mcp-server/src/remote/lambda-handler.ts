@@ -46,8 +46,15 @@ export async function handler(
   const startTime = Date.now();
 
   try {
-    // Initialize config + JWKS cache on cold start
-    if (!config) config = loadRemoteConfig();
+    // Derive server base URL from the event's request context (avoids CloudFormation circular dependency)
+    const serverBaseUrl = `https://${event.requestContext.domainName}`;
+
+    // Initialize config + JWKS cache on cold start (or update serverBaseUrl)
+    if (!config) {
+      config = loadRemoteConfig(serverBaseUrl);
+    } else {
+      config.serverBaseUrl = serverBaseUrl;
+    }
     if (!jwksCache) jwksCache = new JwksCache(config.userPoolId, config.region, config.clientId);
 
     // Parse route from API Gateway event
