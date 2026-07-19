@@ -13,6 +13,7 @@ import {
   handleAuthorize,
   handleCallback,
   handleTokenExchange,
+  handleClientRegistration,
 } from "./oauth-proxy.js";
 import { handleMcpPost, handleMcpDelete } from "./mcp-handler.js";
 import { logRequest, logError } from "./request-logger.js";
@@ -96,6 +97,10 @@ export async function handler(
 
       case path === "/token" && method === "POST":
         response = (await handleTokenExchange(event, config)) as APIGatewayProxyStructuredResultV2;
+        break;
+
+      case path === "/register" && method === "POST":
+        response = handleClientRegistration(event, config) as APIGatewayProxyStructuredResultV2;
         break;
 
       case path === "/mcp" && method === "POST":
