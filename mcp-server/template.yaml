@@ -90,6 +90,11 @@ Resources:
           Properties:
             Path: /token
             Method: POST
+        Register:
+          Type: HttpApi
+          Properties:
+            Path: /register
+            Method: POST
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref SessionsTable
