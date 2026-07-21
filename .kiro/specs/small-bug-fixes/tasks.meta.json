@@ -1,0 +1,544 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test for default sort": {
+      "status": "passed",
+      "failingExample": "Property failed after 1 tests for all 5 entity list pages (Things, ContainerList, Locations, People, Categories). Shrunk counterexample for Things: [{\"id\":\"00000000-0000-1000-8000-000000000000\",\"name\":\" \",\"dateAdded\":\"2020-01-01T00:00:00.000Z\",\"inventoryId\":\"00000000-0000-1000-8000-000000000000\"},{\"id\":\"00000000-0000-1000-8000-000000000000\",\"name\":\" \",\"dateAdded\":\"2020-01-01T00:00:00.001Z\",\"inventoryId\":\"00000000-0000-1000-8000-000000000000\"}] — The item with dateAdded 2020-01-01T00:00:00.001Z (later date) appears AFTER the item with 2020-01-01T00:00:00.000Z, proving items are in API response order, not date-descending order. Concrete examples also fail: Things with dates [2024-01-01, 2024-03-01, 2024-02-01] are displayed in that API order instead of expected [2024-03-01, 2024-02-01, 2024-01-01].",
+      "lastRunTimestamp": 1784547976940
+    },
+    "2. Write preservation property tests for sort and filter behavior (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784548233000
+    },
+    "3.4 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1784550414049
+    },
+    "3.5 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1784556573581
+    },
+    "4. Write bug condition exploration test for mobile photo delete": {
+      "status": "passed",
+      "failingExample": "Counterexample: [[\"photos/     .jpg\"]] — ThingDetailSheet renders a Thing with photos but produces 0 delete button elements. Expected at least 1 delete action. The component renders photos as display-only PhotoThumbnail elements with no delete button, trash icon, or remove action. All 3 tests confirmed: deleteActionCount = 0 for Things with 1-2 photos.",
+      "lastRunTimestamp": 1784556926186
+    },
+    "5. Write preservation property tests for desktop photo workflow (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784557159938
+    },
+    "6.3 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1784558002890
+    },
+    "6.4 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1784558074883
+    },
+    "7. Write bug condition exploration test for notification links": {
+      "status": "passed",
+      "failingExample": "Counterexample: [\"Thing created successfully\",\"00000000-0000-1000-8000-000000000000\"] - showSuccess renders the message as plain text Alert with no action prop. findNavigationActionInNotification() returns 0 buttons because the NotificationContext's showSuccess(message: string) only renders the message text inside an Alert with no mechanism to pass or display an action button for navigation.",
+      "lastRunTimestamp": 1784558221555
+    },
+    "8. Write preservation property tests for notification behavior (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784558388129
+    },
+    "9.3 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1784558957995
+    },
+    "9.4 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1784559012138
+    },
+    "10. Write bug condition exploration test for Home page clickability": {
+      "status": "passed",
+      "failingExample": "Counterexample: [{\"id\":\"00000000-0000-1000-8000-000000000000\",\"name\":\"!\",\"dateAdded\":\"2023-01-01T00:00:00.000Z\"}] — ListItem element rendered with no role=\"button\", no onClick handler, no link wrapper, and no MuiButtonBase class. Clicking the item triggers 0 calls to the navigation handler. This confirms the bug: recently added things are rendered as non-interactive display-only ListItem elements.",
+      "lastRunTimestamp": 1784560188473
+    },
+    "11. Write preservation property tests for Home page behavior (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784560654008
+    },
+    "12.3 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1784568160684
+    },
+    "12.4 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1784568223804
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test for default sort": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539608848
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539617879
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784547992704
+      }
+    ],
+    "2. Write preservation property tests for sort and filter behavior (BEFORE implementing fix)": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539608905
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784547999916
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784548247761
+      }
+    ],
+    "3.1 Add sortByDateDesc utility and apply to Things.tsx": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539608947
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784548254799
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784548647622
+      }
+    ],
+    "3.2 Apply default sort to ContainerList.tsx": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539608985
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784548654769
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550027529
+      }
+    ],
+    "3.3 Apply default sort to Locations.tsx, People.tsx, Categories.tsx": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609020
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550031472
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550222394
+      }
+    ],
+    "3.4 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609065
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550226588
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550427879
+      }
+    ],
+    "3.5 Verify preservation tests still pass": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609104
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784550432108
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784556586559
+      }
+    ],
+    "4. Write bug condition exploration test for mobile photo delete": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609145
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784556594771
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784556938780
+      }
+    ],
+    "5. Write preservation property tests for desktop photo workflow (BEFORE implementing fix)": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609181
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784556943343
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557174049
+      }
+    ],
+    "6.1 Add photo delete UI to ThingDetailSheet": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609221
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557178681
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557650221
+      }
+    ],
+    "6.2 Wire up onDeletePhoto handler in Things.tsx": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609263
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557654732
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557941275
+      }
+    ],
+    "6.3 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609301
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784557945430
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558013280
+      }
+    ],
+    "6.4 Verify preservation tests still pass": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609332
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558016995
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558088909
+      }
+    ],
+    "7. Write bug condition exploration test for notification links": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609364
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558093967
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558234994
+      }
+    ],
+    "8. Write preservation property tests for notification behavior (BEFORE implementing fix)": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609408
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558239550
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558403166
+      }
+    ],
+    "9.1 Extend NotificationContext with action support": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609458
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558407135
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558710636
+      }
+    ],
+    "9.2 Update entity creation call sites": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609490
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558714540
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558913765
+      }
+    ],
+    "9.3 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609535
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558918223
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558969365
+      }
+    ],
+    "9.4 Verify preservation tests still pass": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609565
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558973854
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784559025639
+      }
+    ],
+    "10. Write bug condition exploration test for Home page clickability": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609611
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784559030729
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560205387
+      }
+    ],
+    "11. Write preservation property tests for Home page behavior (BEFORE implementing fix)": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609655
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560210595
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560668583
+      }
+    ],
+    "12.1 Make recently added things items clickable": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609688
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560674437
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560932418
+      }
+    ],
+    "12.2 Handle navigation state in Things.tsx": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609731
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784560936987
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784561331309
+      }
+    ],
+    "12.3 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609765
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784561335798
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784568183006
+      }
+    ],
+    "12.4 Verify preservation tests still pass": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609802
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784568188699
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784568235714
+      }
+    ],
+    "13. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784539609832
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784568241191
+      },
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784573839248
+      }
+    ],
+    "3. Fix default sort for entity list pages": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784556586660
+      }
+    ],
+    "6. Fix photo delete in ThingDetailSheet": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784558088979
+      }
+    ],
+    "9. Fix success notifications to include navigation links": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784559025705
+      }
+    ],
+    "12. Fix recently added things clickability on Home page": [
+      {
+        "executionId": "86ea82bb-c27c-4d58-a754-e04ad0c5b138",
+        "chatSessionId": "sess_972560df-34a1-4296-85f1-2e1910a6a211",
+        "timestamp": 1784568235860
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
 const { locationSchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -8,35 +8,6 @@ const { withRateLimit } = require('../middleware/rateLimit');
 const { logDataAccess } = require('../services/auditLogService');
 
 const ENTITY_TYPE = 'LOCATIONS';
-
-/**
- * Decode HTML entities in location fields for backward compatibility
- * @param {object} location - Location object
- * @returns {object} Location object with decoded fields
- */
-function decodeLocationFields(location) {
-  if (!location) return location;
-  
-  // Decode text fields
-  if (location.name) location.name = decodeHtmlEntities(location.name);
-  if (location.description) location.description = decodeHtmlEntities(location.description);
-  if (location.address) location.address = decodeHtmlEntities(location.address);
-  if (location.addressLine1) location.addressLine1 = decodeHtmlEntities(location.addressLine1);
-  if (location.addressLine2) location.addressLine2 = decodeHtmlEntities(location.addressLine2);
-  if (location.town) location.town = decodeHtmlEntities(location.town);
-  if (location.county) location.county = decodeHtmlEntities(location.county);
-  if (location.postcode) location.postcode = decodeHtmlEntities(location.postcode);
-  if (location.country) location.country = decodeHtmlEntities(location.country);
-  if (location.type) location.type = decodeHtmlEntities(location.type);
-  if (location.notes) location.notes = decodeHtmlEntities(location.notes);
-  
-  // Decode photo keys
-  if (location.photos && Array.isArray(location.photos)) {
-    location.photos = location.photos.map(photoKey => decodeHtmlEntities(photoKey));
-  }
-  
-  return location;
-}
 
 /**
  * Lambda handler for Locations CRUD operations
@@ -117,24 +88,18 @@ async function handleGet(event) {
         return error('Location not found', 404);
       }
       
-      // Decode HTML entities for backward compatibility
-      const decodedLocation = decodeLocationFields(location);
-      
       // Log data access
       await logDataAccess(event.user.userId, 'read', 'locations', locationId, inventoryId);
       
-      return success(decodedLocation);
+      return success(location);
     } else {
       // List all locations for inventory
       const locations = await listEntities(ENTITY_TYPE, inventoryId);
       
-      // Decode HTML entities for backward compatibility
-      const decodedLocations = locations.map(location => decodeLocationFields(location));
-      
       // Log data access
       await logDataAccess(event.user.userId, 'read', 'locations', 'list', inventoryId);
       
-      return success(decodedLocations);
+      return success(locations);
     }
   } catch (err) {
     console.error('Error handling GET request:', err);
@@ -178,13 +143,10 @@ async function handleCreate(event) {
     // Create the location with address fields
     const location = await createEntity(ENTITY_TYPE, sanitizedData);
     
-    // Decode HTML entities for backward compatibility
-    const decodedLocation = decodeLocationFields(location);
-    
     // Log data access
     await logDataAccess(event.user.userId, 'create', 'locations', location.id, sanitizedData.inventoryId);
     
-    return success(decodedLocation, 201);
+    return success(location, 201);
   } catch (err) {
     console.error('Error creating location:', err);
     
@@ -232,13 +194,10 @@ async function handleUpdate(event, id) {
     // Update the location
     const location = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
     
-    // Decode HTML entities for backward compatibility
-    const decodedLocation = decodeLocationFields(location);
-    
     // Log data access
     await logDataAccess(event.user.userId, 'update', 'locations', id, sanitizedData.inventoryId);
     
-    return success(decodedLocation);
+    return success(location);
   } catch (err) {
     console.error('Error updating location:', err);
     

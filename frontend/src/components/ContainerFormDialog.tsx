@@ -24,6 +24,7 @@ import {
 import {
   Image as ImageIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import PhotoUploadZone from './PhotoUploadZone';
@@ -129,6 +130,7 @@ export default function ContainerFormDialog({
 }: ContainerFormDialogProps) {
   const { currentInventory } = useInventory();
   const { showSuccess, showError } = useNotification();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showUnpackConfirm, setShowUnpackConfirm] = useState(false);
   const [pendingResult, setPendingResult] = useState<Container | null>(null);
@@ -388,7 +390,10 @@ export default function ContainerFormDialog({
         showSuccess('Container updated successfully');
       } else {
         result = await apiClient.createContainer(containerData);
-        showSuccess('Container created successfully');
+        showSuccess('Container created successfully', {
+          label: 'View',
+          onClick: () => navigate('/containers'),
+        });
       }
 
       // Check if status changed to 'unpacked' and container has a target location

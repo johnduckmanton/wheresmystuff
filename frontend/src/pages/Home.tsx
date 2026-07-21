@@ -9,7 +9,7 @@ import {
   CircularProgress,
   Alert,
   List,
-  ListItem,
+  ListItemButton,
   Card,
   CardContent,
   CardActionArea,
@@ -186,8 +186,9 @@ export default function Home() {
                     const categoryName = getCategoryName(thing.categoryId);
                     const locationName = getLocationName(thing.locationId);
                     return (
-                      <ListItem
+                      <ListItemButton
                         key={thing.id}
+                        onClick={() => navigate('/things', { state: { openThingId: thing.id } })}
                         divider={idx < recentThings.length - 1}
                         sx={{ py: 1.5, px: 2, alignItems: 'flex-start', gap: 1.5 }}
                       >
@@ -221,7 +222,7 @@ export default function Home() {
                             )}
                           </Box>
                         </Box>
-                      </ListItem>
+                      </ListItemButton>
                     );
                   })}
                 </List>

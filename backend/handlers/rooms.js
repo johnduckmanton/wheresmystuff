@@ -1,5 +1,5 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
 const { roomSchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -87,11 +87,6 @@ async function handleGet(event) {
         return error('Room not found', 404);
       }
       
-      // Decode HTML entities in photo keys for backward compatibility
-      if (room.photos && Array.isArray(room.photos)) {
-        room.photos = room.photos.map(photo => decodeHtmlEntities(photo));
-      }
-      
       // Log data access
       await logDataAccess(event.user.userId, 'read', 'rooms', roomId, inventoryId);
       
@@ -100,13 +95,6 @@ async function handleGet(event) {
     
     // Get all rooms for the inventory
     const rooms = await listEntities(ENTITY_TYPE, inventoryId);
-    
-    // Decode HTML entities in photo keys for backward compatibility
-    rooms.forEach(room => {
-      if (room.photos && Array.isArray(room.photos)) {
-        room.photos = room.photos.map(photo => decodeHtmlEntities(photo));
-      }
-    });
     
     // Filter by locationId if provided
     if (locationId) {
