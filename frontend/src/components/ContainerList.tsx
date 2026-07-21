@@ -37,6 +37,7 @@ import ContainerPhotoThumbnail from './ContainerPhotoThumbnail';
 import { useAccessibility } from '../contexts/AccessibilityContext';
 
 import apiClient from '../services/api';
+import { sortByDateDesc } from '../utils/sortByDateDesc';
 import type { Container, Location, Room, ContainerStatus, HandlingFlag, MovingProject } from '../types/entities';
 
 interface ContainerListProps {
@@ -108,7 +109,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
     setLoading(true);
     try {
       const response = await apiClient.getContainers(currentInventory.id);
-      setContainers(response.containers);
+      setContainers(sortByDateDesc(response.containers));
     } catch (error) {
       console.error('Error loading containers:', error);
       showError('Failed to load containers');

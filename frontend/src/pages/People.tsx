@@ -10,6 +10,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Person } from '../types';
+import { sortByDateDesc } from '../utils/sortByDateDesc';
 
 const columns: EntityTableColumn[] = [
   {
@@ -77,7 +78,7 @@ export default function People() {
       setGlobalLoading(true);
       const peopleData = await apiClient.getPeople(currentInventory.id);
       // Ensure we have an array, fallback to empty array if not
-      setPeople(Array.isArray(peopleData) ? peopleData : []);
+      setPeople(sortByDateDesc(Array.isArray(peopleData) ? peopleData : []));
     } catch (error) {
       console.error('Error loading people:', error);
       showError(error instanceof Error ? error.message : 'Failed to load people. Please try again.');
@@ -150,8 +151,14 @@ export default function People() {
         showSuccess('Person updated successfully');
       } else {
         // Create new person
-        await apiClient.createPerson(data as Omit<Person, 'id' | 'dateAdded'>);
-        showSuccess('Person created successfully');
+        const created = await apiClient.createPerson(data as Omit<Person, 'id' | 'dateAdded'>);
+        showSuccess('Person created successfully', {
+          label: 'View',
+          onClick: () => {
+            setEditingPerson(created);
+            setFormDialogOpen(true);
+          },
+        });
       }
       
       setFormDialogOpen(false);

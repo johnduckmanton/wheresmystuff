@@ -46,7 +46,6 @@ import { withRetry, isRetryableError } from '../utils/retry';
 import { errorLogger } from '../utils/errorLogger';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import OfflineBanner from './OfflineBanner';
-import { decodeHtmlEntities } from '../utils/htmlDecoder';
 import PhotoSearchButton from './PhotoSearchButton';
 import type { Container, Thing, Category, Location, Room, Person } from '../types/entities';
 
@@ -1334,9 +1333,9 @@ function PackingItemCard({
   const isDisabled = item.alreadyPacked && item.currentContainer !== containerName;
   const isInCurrentContainer = item.currentContainer === containerName;
 
-  // Decode HTML entities in item name and description
-  const decodedName = decodeHtmlEntities(item.name);
-  const decodedDescription = decodeHtmlEntities(item.description);
+  // Use item name and description directly (no HTML entity decoding needed)
+  const decodedName = item.name;
+  const decodedDescription = item.description;
 
   return (
     <Card

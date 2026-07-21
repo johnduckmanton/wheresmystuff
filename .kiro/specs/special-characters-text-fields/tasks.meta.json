@@ -1,0 +1,200 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "Three counterexamples found confirming the bug:\n\n1. Character encoding: Counterexample [\"&aa\"] — sanitizeString(\"&aa\") returns \"&amp;aa\" instead of \"&aa\"\n2. Length inflation: Counterexample [\"&&aaaa...aaa\"] (253 chars with 2 ampersands) — validateAndSanitize with maxLength=255 rejects it because encoding inflates to 261 chars\n3. Idempotency violation: Counterexample [\"&a\"] — sanitizeString(\"&a\") = \"&amp;a\", sanitizeString(\"&amp;a\") = \"&amp;amp;a\" (double-encoding)",
+      "lastRunTimestamp": 1784575175428
+    },
+    "2. Write preservation property tests (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1784575718771
+    },
+    "3.6 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1784615593188
+    },
+    "3.7 Verify preservation tests still pass": {
+      "status": "passed",
+      "lastRunTimestamp": 1784615628500
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575028911
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575037526
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575189751
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575028965
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575197491
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575733722
+      }
+    ],
+    "3.1 Rewrite `sanitizeString()` to use tag-stripping instead of HTML entity encoding": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575028994
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575741148
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575945539
+      }
+    ],
+    "3.2 Fix length validation order in `validateAndSanitizeRecursive()`": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029028
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575953587
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784576186677
+      }
+    ],
+    "3.3 Remove `decodeHtmlEntities()` calls from backend handlers": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029054
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784576193543
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784576638315
+      }
+    ],
+    "3.4 Remove frontend decode workaround": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029086
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784576642576
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615205012
+      }
+    ],
+    "3.5 Create data migration script for existing encoded records": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029134
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615209064
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615559950
+      }
+    ],
+    "3.6 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029161
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615569208
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615604101
+      }
+    ],
+    "3.7 Verify preservation tests still pass": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029193
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615608100
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615639044
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784575029225
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615644264
+      },
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784620616912
+      }
+    ],
+    "3. Fix special characters encoding in sanitizeString": [
+      {
+        "executionId": "b0db8be3-3de2-4c2d-b2b5-297ef07772a2",
+        "chatSessionId": "sess_c1530b9b-f04f-49aa-b321-766957fc4378",
+        "timestamp": 1784615639087
+      }
+    ]
+  }
+}

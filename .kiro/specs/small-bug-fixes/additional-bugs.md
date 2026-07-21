@@ -35,3 +35,46 @@ Copy the block below when adding a new bug:
   - **Affected area:** Frontend
   - **Priority:** Medium
 
+- [ ] **Moving icon is incorrect on mobile interface** 
+  - **Steps to reproduce:** Select the mobile interface
+  - **Current behavior:** On the mobile interface the bottom menu icon for moving is currently a box icon.
+  - **Expected behavior:** It should be the same icon used for moving & storage on the web interface (a truck)
+  - **Affected area:** [Frontend]
+  - **Priority:** [Low]
+```
+
+```
+- [ ] **AI Create icon is incorrectly aligned on mobile interface** 
+  - **Steps to reproduce:** Select the mobile interface
+  - **Current behavior:** On the mobile interface the AI create thing icon on th bottom menu is higher than the other icons
+  - **Expected behavior:** It should be the same height as, and in line with, the other toolbar icons
+  - **Affected area:** [Frontend]
+  - **Priority:** [Low]
+```
+
+```
+- [ ] **Main Menu buttons are different sizes** 
+  - **Steps to reproduce:** Select the mobile interface
+  - **Current behavior:** On the mobile interface the two main menu buttons Inventory & Moving & Storage are different sizes
+  - **Expected behavior:** they should be the same size. It is being caused by the Moving & Storage text wrapping
+  - **Affected area:** [Frontend]
+  - **Priority:** [Low]
+```
+
+```
+- [ ] **Photo Search Icon is wrong Color** 
+  - **Steps to reproduce:** Select the mobile interface
+  - **Current behavior:** The photo search icon is displayed as black icon is a white circle
+  - **Expected behavior:** It should match the other icons and the color theme ligt/dark
+  - **Affected area:** [Frontend]
+  - **Priority:** [Low]
+```
+
+```
+- [ ] **Photo Search Icon is wrong Color** 
+  - **Steps to reproduce:** Select the mobile interface
+  - **Current behavior:** The photo search icon is displayed as black icon is a white circle
+  - **Expected behavior:** It should match the other icons and the color theme ligt/dark
+  - **Affected area:** [Frontend]
+  - **Priority:** [Low]
+```

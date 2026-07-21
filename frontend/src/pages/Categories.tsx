@@ -11,7 +11,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Category } from '../types';
-import { decodeCategoryFields } from '../utils/htmlDecoder';
+import { sortByDateDesc } from '../utils/sortByDateDesc';
 
 const columns: EntityTableColumn[] = [
   { 
@@ -88,9 +88,7 @@ export default function Categories() {
       const categoriesData = await apiClient.getCategories(currentInventory.id);
       // Ensure we have an array, fallback to empty array if not
       const safeCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
-      // Decode HTML entities as a fallback (in case backend hasn't been redeployed)
-      const decodedCategories = safeCategoriesData.map(category => decodeCategoryFields(category));
-      setCategories(decodedCategories);
+      setCategories(sortByDateDesc(safeCategoriesData));
     } catch (error) {
       console.error('Error loading categories:', error);
       showError(error instanceof Error ? error.message : 'Failed to load categories. Please try again.');
@@ -210,8 +208,14 @@ export default function Categories() {
         showSuccess('Category updated successfully');
       } else {
         // Create new category
-        await apiClient.createCategory(data as Omit<Category, 'id' | 'dateAdded'>);
-        showSuccess('Category created successfully');
+        const created = await apiClient.createCategory(data as Omit<Category, 'id' | 'dateAdded'>);
+        showSuccess('Category created successfully', {
+          label: 'View',
+          onClick: () => {
+            setEditingCategory(created);
+            setFormDialogOpen(true);
+          },
+        });
       }
       
       setFormDialogOpen(false);

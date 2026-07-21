@@ -1,5 +1,6 @@
 import { Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, Collapse, IconButton, Tooltip, CircularProgress } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
@@ -22,6 +23,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useInventory } from '../contexts/InventoryContext';
 import { useMobileDetection } from '../hooks/useMobileDetection';
 import apiClient from '../services/api';
+import { sortByDateDesc } from '../utils/sortByDateDesc';
 import type { Thing, Location, Room, Category, Person, MovingProject, Container } from '../types';
 
 const columns: EntityTableColumn[] = [
@@ -101,10 +103,17 @@ export default function Things() {
   const { currentInventory } = useInventory();
   const { isMobile } = useMobileDetection();
 
+  // Router hooks
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Mobile UX state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [detailThing, setDetailThing] = useState<Thing | null>(null);
+
+  // Track whether navigation state has been handled
+  const handledOpenThingIdRef = useRef(false);
 
   // Fetch all data when inventory changes
   useEffect(() => {
@@ -112,6 +121,20 @@ export default function Things() {
       loadData();
     }
   }, [currentInventory]);
+
+  // Handle navigation state: open a Thing's detail when navigated from Home page
+  useEffect(() => {
+    const openThingId = location.state?.openThingId;
+    if (!openThingId || loading || handledOpenThingIdRef.current) return;
+
+    const matchingThing = allThings.find(t => t.id === openThingId);
+    if (matchingThing) {
+      setDetailThing(matchingThing);
+      handledOpenThingIdRef.current = true;
+      // Clear the navigation state to prevent re-opening on refresh or back navigation
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [allThings, loading, location.state]);
 
   const loadData = async () => {
     if (!currentInventory) {
@@ -135,8 +158,9 @@ export default function Things() {
       
       // Ensure all data are arrays, fallback to empty arrays if not
       const thingsArray = Array.isArray(thingsData) ? thingsData : [];
-      setThings(thingsArray);
-      setAllThings(thingsArray); // Store all things for filtering
+      const sortedThings = sortByDateDesc(thingsArray);
+      setThings(sortedThings);
+      setAllThings(sortedThings); // Store all things for filtering
       setLocations(Array.isArray(locationsData) ? locationsData : []);
       setRooms(Array.isArray(roomsData) ? roomsData : []);
       setCategories(Array.isArray(categoriesData) ? categoriesData : []);
@@ -301,7 +325,7 @@ export default function Things() {
         });
       }
 
-      setThings(filteredThings);
+      setThings(sortByDateDesc(filteredThings));
     } catch (error) {
       console.error('Error filtering things:', error);
       showError('Failed to filter things. Please try again.');
@@ -419,7 +443,10 @@ export default function Things() {
         const created = await apiClient.createThing(createData);
         setThings(prev => [created, ...prev]);
         setAllThings(prev => [created, ...prev]);
-        showSuccess('Thing created successfully');
+        showSuccess('Thing created successfully', {
+          label: 'View',
+          onClick: () => setDetailThing(created),
+        });
       }
       
       setFormDialogOpen(false);
@@ -874,6 +901,22 @@ export default function Things() {
           setDetailThing(null);
           const row = tableData.find(r => r.id === t.id);
           if (row) handleEdit(row);
+        }}
+        onDeletePhoto={async (photoKey: string) => {
+          if (!detailThing || !currentInventory) return;
+          try {
+            await apiClient.deletePhoto(photoKey, currentInventory.id);
+            const updatedPhotos = (detailThing.photos || []).filter(p => p !== photoKey);
+            await apiClient.updateThing(detailThing.id, { photos: updatedPhotos, inventoryId: currentInventory.id });
+            const updatedThing = { ...detailThing, photos: updatedPhotos };
+            setDetailThing(updatedThing);
+            setThings(prev => prev.map(t => t.id === detailThing.id ? updatedThing : t));
+            setAllThings(prev => prev.map(t => t.id === detailThing.id ? updatedThing : t));
+            showSuccess('Photo deleted successfully');
+          } catch (error) {
+            console.error('Error deleting photo:', error);
+            showError(error instanceof Error ? error.message : 'Failed to delete photo. Please try again.');
+          }
         }}
       />
 

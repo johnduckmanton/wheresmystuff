@@ -1,5 +1,18 @@
-import { Box, Typography, Chip, SwipeableDrawer, Button } from '@mui/material';
-import { NavigateNext } from '@mui/icons-material';
+import { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Chip,
+  SwipeableDrawer,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from '@mui/material';
+import { NavigateNext, Delete as DeleteIcon } from '@mui/icons-material';
 import PhotoThumbnail from './PhotoThumbnail';
 import type { Thing } from '../types';
 
@@ -13,6 +26,7 @@ interface ThingDetailSheetProps {
   ownerName?: string;
   onClose: () => void;
   onEdit: (thing: Thing) => void;
+  onDeletePhoto?: (photoKey: string) => void;
 }
 
 export default function ThingDetailSheet({
@@ -25,7 +39,11 @@ export default function ThingDetailSheet({
   ownerName,
   onClose,
   onEdit,
+  onDeletePhoto,
 }: ThingDetailSheetProps) {
+  const [deletePhotoKey, setDeletePhotoKey] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
   if (!thing) return null;
 
   const breadcrumbLevels = [
@@ -34,7 +52,25 @@ export default function ThingDetailSheet({
     containerName,
   ].filter(Boolean) as string[];
 
-  const primaryPhoto = thing.photos && thing.photos.length > 0 ? thing.photos[0] : undefined;
+  const photos = thing.photos && thing.photos.length > 0 ? thing.photos : [];
+
+  const handleDeleteClick = (photoKey: string) => {
+    setDeletePhotoKey(photoKey);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deletePhotoKey && onDeletePhoto) {
+      onDeletePhoto(deletePhotoKey);
+    }
+    setDeleteDialogOpen(false);
+    setDeletePhotoKey(null);
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setDeletePhotoKey(null);
+  };
 
   return (
     <SwipeableDrawer
@@ -88,15 +124,53 @@ export default function ThingDetailSheet({
           )}
         </Box>
 
-        {/* Primary photo */}
-        {primaryPhoto && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-            <PhotoThumbnail
-              photoKey={primaryPhoto}
-              altText={thing.name}
-              size={120}
-              showPopup={false}
-            />
+        {/* Photos */}
+        {photos.length > 0 && (
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1.5,
+              overflowX: 'auto',
+              mb: 2,
+              pb: 1,
+            }}
+          >
+            {photos.map((photoKey) => (
+              <Box
+                key={photoKey}
+                sx={{
+                  position: 'relative',
+                  flexShrink: 0,
+                }}
+              >
+                <PhotoThumbnail
+                  photoKey={photoKey}
+                  altText={thing.name}
+                  size={100}
+                  showPopup={false}
+                />
+                {onDeletePhoto && (
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteClick(photoKey)}
+                    aria-label="Delete photo"
+                    sx={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 2,
+                      bgcolor: 'rgba(0, 0, 0, 0.5)',
+                      color: 'white',
+                      p: 0.5,
+                      '&:hover': {
+                        bgcolor: 'rgba(211, 47, 47, 0.8)',
+                      },
+                    }}
+                  >
+                    <DeleteIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                )}
+              </Box>
+            ))}
           </Box>
         )}
 
@@ -148,6 +222,31 @@ export default function ThingDetailSheet({
           Edit
         </Button>
       </Box>
+
+      {/* Delete Photo Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCancelDelete}
+        aria-labelledby="delete-photo-dialog-title"
+        aria-describedby="delete-photo-dialog-description"
+      >
+        <DialogTitle id="delete-photo-dialog-title">
+          Delete Photo
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-photo-dialog-description">
+            Are you sure you want to delete this photo? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained" autoFocus>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </SwipeableDrawer>
   );
 }

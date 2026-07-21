@@ -266,7 +266,52 @@ function validateUUID(id) {
 }
 
 /**
- * Sanitize string input to prevent XSS attacks
+ * Strip dangerous HTML tags and their contents from a string.
+ * Handles script, iframe, object, embed, link, meta, style tags.
+ * @param {string} str - String to strip tags from
+ * @returns {string} String with dangerous tags removed
+ */
+function stripDangerousTags(str) {
+  const dangerousTagsWithContent = ['script', 'iframe', 'object', 'style'];
+  const dangerousSelfClosingTags = ['embed', 'link', 'meta'];
+
+  // Remove tags that can have content (strip tag + contents)
+  for (const tag of dangerousTagsWithContent) {
+    // Match opening tag with any attributes, content, and closing tag
+    const contentRegex = new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}\\s*>`, 'gi');
+    str = str.replace(contentRegex, '');
+    // Remove any remaining self-closing or unclosed variants
+    const selfCloseRegex = new RegExp(`<${tag}[^>]*\\/?>`, 'gi');
+    str = str.replace(selfCloseRegex, '');
+  }
+
+  // Remove self-closing/void tags (embed, link, meta)
+  for (const tag of dangerousSelfClosingTags) {
+    const tagRegex = new RegExp(`<${tag}[^>]*\\/?>`, 'gi');
+    str = str.replace(tagRegex, '');
+  }
+
+  return str;
+}
+
+/**
+ * Remove event handler attributes (on*=...) from any remaining HTML-like content.
+ * Handles both quoted and unquoted attribute values.
+ * @param {string} str - String to remove event handlers from
+ * @returns {string} String with event handler attributes removed
+ */
+function removeEventHandlers(str) {
+  // Remove on*="..." or on*='...' (quoted values)
+  str = str.replace(/\s+on\w+\s*=\s*(['"])[^'"]*\1/gi, '');
+  // Remove on*=value (unquoted values)
+  str = str.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '');
+  return str;
+}
+
+/**
+ * Sanitize string input to prevent XSS attacks.
+ * Uses tag-stripping approach instead of HTML entity encoding to preserve
+ * literal characters like &, ', /, ", <, > in stored data.
  * @param {string} input - String to sanitize
  * @param {number} maxLength - Maximum allowed length (optional)
  * @returns {string} Sanitized string
@@ -275,32 +320,31 @@ function sanitizeString(input, maxLength = null) {
   if (typeof input !== 'string') {
     return input;
   }
-  
+
   // Trim whitespace
   let sanitized = input.trim();
-  
-  // Check length limit
+
+  // Strip dangerous HTML tags and their contents
+  sanitized = stripDangerousTags(sanitized);
+
+  // Remove event handler attributes (on*)
+  sanitized = removeEventHandlers(sanitized);
+
+  // Remove javascript: protocol (case insensitive)
+  sanitized = sanitized.replace(/javascript:/gi, '');
+
+  // Check length on the actual character count (after sanitization)
   if (maxLength && sanitized.length > maxLength) {
     throw new Error(`String exceeds maximum length of ${maxLength} characters`);
   }
-  
-  // Encode HTML special characters first (this will handle < > & " ' /)
-  sanitized = sanitized
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
-  
-  // After encoding, remove javascript: protocol (case insensitive)
-  sanitized = sanitized.replace(/javascript:/gi, '');
-  
+
   return sanitized;
 }
 
 /**
  * Decode HTML entities in a string
+ * @deprecated No longer needed for new writes since sanitizeString() no longer encodes entities.
+ * Kept for backward compatibility during migration of existing encoded data.
  * @param {string} str - String to decode
  * @returns {string} Decoded string
  */
@@ -370,10 +414,11 @@ function validateAndSanitizeRecursive(data, schema, path) {
     }
     
     // Skip sanitization if noSanitize flag is set (e.g., for S3 keys)
+    // sanitizeString() enforces maxLength internally and throws if exceeded
     const sanitized = schema.noSanitize ? data : sanitizeString(data, schema.maxLength);
     
-    // Length validation on sanitized string
-    if (schema.maxLength && sanitized.length > schema.maxLength) {
+    // Length validation for noSanitize fields (sanitizeString handles this internally for sanitized fields)
+    if (schema.noSanitize && schema.maxLength && sanitized.length > schema.maxLength) {
       throw new Error(`${path || 'Field'} exceeds maximum length of ${schema.maxLength} characters`);
     }
     

@@ -19,7 +19,7 @@ interface NotificationAction {
 }
 
 interface NotificationContextType {
-  showSuccess: (message: string) => void;
+  showSuccess: (message: string, action?: { label: string; onClick: () => void }) => void;
   showError: (message: string, options?: { requiresAction?: boolean; actions?: NotificationAction[] }) => void;
   showInfo: (message: string) => void;
 }
@@ -28,6 +28,7 @@ interface NotificationState {
   open: boolean;
   message: string;
   severity: AlertColor;
+  action?: { label: string; onClick: () => void };
 }
 
 interface ErrorModalState {
@@ -58,16 +59,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     actions: [],
   });
 
-  const showNotification = (message: string, severity: AlertColor) => {
+  const showNotification = (message: string, severity: AlertColor, action?: { label: string; onClick: () => void }) => {
     setNotification({
       open: true,
       message,
       severity,
+      action,
     });
   };
 
-  const showSuccess = (message: string) => {
-    showNotification(message, 'success');
+  const showSuccess = (message: string, action?: { label: string; onClick: () => void }) => {
+    showNotification(message, 'success', action);
   };
 
   const showError = (message: string, options?: { requiresAction?: boolean; actions?: NotificationAction[] }) => {
@@ -92,7 +94,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (reason === 'clickaway') {
       return;
     }
-    setNotification((prev) => ({ ...prev, open: false }));
+    setNotification((prev) => ({ ...prev, open: false, action: undefined }));
+  };
+
+  const handleNotificationActionClick = () => {
+    if (notification.action) {
+      notification.action.onClick();
+    }
+    setNotification((prev) => ({ ...prev, open: false, action: undefined }));
   };
 
   const handleErrorModalClose = () => {
@@ -127,6 +136,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               wordBreak: 'break-word',
             },
           }}
+          action={notification.action ? (
+            <Button
+              color="inherit"
+              size="small"
+              variant="text"
+              onClick={handleNotificationActionClick}
+              sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
+            >
+              {notification.action.label}
+            </Button>
+          ) : undefined}
         >
           {notification.message}
         </Alert>
