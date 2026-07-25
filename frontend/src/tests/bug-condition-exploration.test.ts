@@ -133,7 +133,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
 
     // In production mode, console.log should NOT be called with debug data
     const logCalls = consoleSpy.mock.calls;
-    const debugLogCalls = logCalls.filter(call => {
+    const debugLogCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('Request Interceptor Debug') ||
              msg.includes('Auth Session') ||
@@ -214,7 +214,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
 
     // In production mode, console.log should NOT be called with POST debug data
     const logCalls = consoleSpy.mock.calls;
-    const postDebugCalls = logCalls.filter(call => {
+    const postDebugCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('API Client POST Debug') ||
              msg.includes('HTTP POST successful') ||
@@ -274,7 +274,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
     }
 
     const logCalls = consoleSpy.mock.calls;
-    const uploadDebugCalls = logCalls.filter(call => {
+    const uploadDebugCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('generateUploadUrl Debug') ||
              msg.includes('- fileName:') ||
@@ -334,7 +334,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
     }
 
     const logCalls = consoleSpy.mock.calls;
-    const docDebugCalls = logCalls.filter(call => {
+    const docDebugCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('generateDocumentUploadUrl Debug') ||
              msg.includes('- fileName:') ||
@@ -393,7 +393,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
     }
 
     const logCalls = consoleSpy.mock.calls;
-    const qrDebugCalls = logCalls.filter(call => {
+    const qrDebugCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('generateQRCode Debug') ||
              msg.includes('- Container ID:') ||
@@ -458,7 +458,7 @@ describe('Bug Condition Exploration: Production Debug Logging Suppressed', () =>
     }
 
     const logCalls = consoleSpy.mock.calls;
-    const photoDebugCalls = logCalls.filter(call => {
+    const photoDebugCalls = logCalls.filter((call: any[]) => {
       const msg = String(call[0] || '');
       return msg.includes('uploadPhoto Debug') ||
              msg.includes('- file:') ||

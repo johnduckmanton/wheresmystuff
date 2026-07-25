@@ -102,7 +102,7 @@ describe('Preservation Property 4: Development Logging Unchanged', () => {
           // After the fix, when isDevelopmentMode is true, console.log IS called.
           // This verifies the logging code exists and produces output in dev mode.
           const logCalls = consoleSpy.mock.calls;
-          const debugLogCalls = logCalls.filter(call => {
+          const debugLogCalls = logCalls.filter((call: any[]) => {
             const msg = String(call[0] || '');
             return msg.includes('Request Interceptor Debug') ||
                    msg.includes('Auth Session') ||
@@ -194,7 +194,7 @@ describe('Preservation Property 4: Development Logging Unchanged', () => {
 
           // After the fix, when isDevelopmentMode is true, post() calls console.log
           const logCalls = consoleSpy.mock.calls;
-          const postDebugCalls = logCalls.filter(call => {
+          const postDebugCalls = logCalls.filter((call: any[]) => {
             const msg = String(call[0] || '');
             return msg.includes('API Client POST Debug') ||
                    msg.includes('HTTP POST successful');
@@ -293,7 +293,7 @@ describe('Preservation Property 5: Error Logging and Auth Flow Unchanged', () =>
           // console.error should be called for network errors in ALL environments
           expect(consoleErrorSpy).toHaveBeenCalled();
           const errorCalls = consoleErrorSpy.mock.calls.flat().map(String);
-          const hasNetworkError = errorCalls.some(msg =>
+          const hasNetworkError = errorCalls.some((msg: string) =>
             msg.includes('Network Error') || msg.includes('No response received')
           );
           expect(hasNetworkError).toBe(true);
@@ -380,7 +380,7 @@ describe('Preservation Property 5: Error Logging and Auth Flow Unchanged', () =>
           // console.error should be called for 401
           expect(consoleErrorSpy).toHaveBeenCalled();
           const errorCalls = consoleErrorSpy.mock.calls.flat().map(String);
-          const hasAuthError = errorCalls.some(msg =>
+          const hasAuthError = errorCalls.some((msg: string) =>
             msg.includes('Authentication failed') || msg.includes('API Error')
           );
           expect(hasAuthError).toBe(true);
