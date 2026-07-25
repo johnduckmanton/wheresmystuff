@@ -28,6 +28,7 @@ import { useInventory } from '../contexts/InventoryContext';
 import apiClient from '../services/api';
 import type { Location } from '../types';
 import LocationFormDialog from '../components/LocationFormDialog';
+import { sortByDateDesc } from '../utils/sortByDateDesc';
 
 interface LocationTableRow {
   id: string;
@@ -72,7 +73,7 @@ export default function Locations() {
       setGlobalLoading(true);
       const locationsData = await apiClient.getLocations(currentInventory.id);
       // Ensure we have an array, fallback to empty array if not
-      setLocations(Array.isArray(locationsData) ? locationsData : []);
+      setLocations(sortByDateDesc(Array.isArray(locationsData) ? locationsData : []));
     } catch (error) {
       console.error('Error loading data:', error);
       showError(error instanceof Error ? error.message : 'Failed to load data. Please try again.');
@@ -158,8 +159,14 @@ export default function Locations() {
         await apiClient.updateLocation(editingLocation.id, data);
         showSuccess('Location updated successfully');
       } else {
-        await apiClient.createLocation(data as Omit<Location, 'id' | 'dateAdded'>);
-        showSuccess('Location created successfully');
+        const created = await apiClient.createLocation(data as Omit<Location, 'id' | 'dateAdded'>);
+        showSuccess('Location created successfully', {
+          label: 'View',
+          onClick: () => {
+            setEditingLocation(created);
+            setFormDialogOpen(true);
+          },
+        });
       }
       
       setFormDialogOpen(false);

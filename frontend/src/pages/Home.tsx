@@ -9,7 +9,7 @@ import {
   CircularProgress,
   Alert,
   List,
-  ListItem,
+  ListItemButton,
   Card,
   CardContent,
   CardActionArea,
@@ -122,7 +122,16 @@ export default function Home() {
               <Box sx={{ color: 'primary.main', mb: 1 }}>
                 <InventoryIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
               </Box>
-              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+              <Typography
+                variant={isMobile ? 'subtitle1' : 'h6'}
+                sx={{
+                  fontWeight: 600,
+                  ...(isMobile && {
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.85rem',
+                  }),
+                }}
+              >
                 Inventory
               </Typography>
               {!isMobile && (
@@ -149,7 +158,16 @@ export default function Home() {
               <Box sx={{ color: 'primary.main', mb: 1 }}>
                 <LocalShippingIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
               </Box>
-              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+              <Typography
+                variant={isMobile ? 'subtitle1' : 'h6'}
+                sx={{
+                  fontWeight: 600,
+                  ...(isMobile && {
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.85rem',
+                  }),
+                }}
+              >
                 Moving & Storage
               </Typography>
               {!isMobile && (
@@ -186,8 +204,9 @@ export default function Home() {
                     const categoryName = getCategoryName(thing.categoryId);
                     const locationName = getLocationName(thing.locationId);
                     return (
-                      <ListItem
+                      <ListItemButton
                         key={thing.id}
+                        onClick={() => navigate('/things', { state: { openThingId: thing.id } })}
                         divider={idx < recentThings.length - 1}
                         sx={{ py: 1.5, px: 2, alignItems: 'flex-start', gap: 1.5 }}
                       >
@@ -221,7 +240,7 @@ export default function Home() {
                             )}
                           </Box>
                         </Box>
-                      </ListItem>
+                      </ListItemButton>
                     );
                   })}
                 </List>

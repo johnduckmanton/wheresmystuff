@@ -272,12 +272,12 @@ export default function PhotoSearchButton({
     ) : (
       <Fab
         size="small"
-        color="default"
+        color="primary"
         onClick={() => setPhase('picker')}
         aria-label="Search by photo"
         sx={{ boxShadow: 1 }}
       >
-        <ImageSearchIcon />
+        <ImageSearchIcon sx={{ color: 'white' }} />
       </Fab>
     );
 

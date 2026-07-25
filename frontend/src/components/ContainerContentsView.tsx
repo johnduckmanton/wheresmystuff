@@ -37,7 +37,6 @@ import { useInventory } from '../contexts/InventoryContext';
 import { useNotification } from '../contexts/NotificationContext';
 import apiClient from '../services/api';
 import PhotoThumbnail from './PhotoThumbnail';
-import { decodeHtmlEntities } from '../utils/htmlDecoder';
 import type { Container, Category, ThingWithContainer } from '../types/entities';
 
 interface ContainerContentsViewProps {
@@ -368,7 +367,7 @@ export default function ContainerContentsView({
                     <ListItemAvatar sx={{ minWidth: { xs: 48, sm: 56 } }}>
                       <PhotoThumbnail
                         photoKey={item.photos?.[0]}
-                        altText={decodeHtmlEntities(item.name)}
+                        altText={item.name}
                         variant="avatar"
                         size={40}
                         showPopup={true}
@@ -392,7 +391,7 @@ export default function ContainerContentsView({
                               wordBreak: 'break-word',
                             }}
                           >
-                            {decodeHtmlEntities(item.name)}
+                            {item.name}
                           </Typography>
                           {item.categoryId && (
                             <Chip
@@ -416,7 +415,7 @@ export default function ContainerContentsView({
                                 wordBreak: 'break-word',
                               }}
                             >
-                              {decodeHtmlEntities(item.description)}
+                              {item.description}
                             </Typography>
                           )}
                           

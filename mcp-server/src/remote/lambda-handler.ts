@@ -13,6 +13,7 @@ import {
   handleAuthorize,
   handleCallback,
   handleTokenExchange,
+  handleClientRegistration,
 } from "./oauth-proxy.js";
 import { handleMcpPost, handleMcpDelete } from "./mcp-handler.js";
 import { logRequest, logError } from "./request-logger.js";
@@ -46,8 +47,15 @@ export async function handler(
   const startTime = Date.now();
 
   try {
-    // Initialize config + JWKS cache on cold start
-    if (!config) config = loadRemoteConfig();
+    // Derive server base URL from the event's request context (avoids CloudFormation circular dependency)
+    const serverBaseUrl = `https://${event.requestContext.domainName}`;
+
+    // Initialize config + JWKS cache on cold start (or update serverBaseUrl)
+    if (!config) {
+      config = loadRemoteConfig(serverBaseUrl);
+    } else {
+      config.serverBaseUrl = serverBaseUrl;
+    }
     if (!jwksCache) jwksCache = new JwksCache(config.userPoolId, config.region, config.clientId);
 
     // Parse route from API Gateway event
@@ -89,6 +97,10 @@ export async function handler(
 
       case path === "/token" && method === "POST":
         response = (await handleTokenExchange(event, config)) as APIGatewayProxyStructuredResultV2;
+        break;
+
+      case path === "/register" && method === "POST":
+        response = handleClientRegistration(event, config) as APIGatewayProxyStructuredResultV2;
         break;
 
       case path === "/mcp" && method === "POST":

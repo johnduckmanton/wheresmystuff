@@ -11,7 +11,7 @@ import {
 import {
   Home as HomeIcon,
   Inventory as InventoryIcon,
-  MoveToInbox as MovingIcon,
+  LocalShipping as MovingIcon,
   QrCodeScanner as ScanIcon,
   MoreHoriz as MoreIcon,
   Assignment as ProjectIcon,
@@ -234,7 +234,11 @@ export default function MobileNavigation({
           
           <BottomNavigationAction
             label="AI Photo"
-            icon={<AutoAwesomeIcon />}
+            icon={
+              <AutoAwesomeIcon
+                sx={{ fontSize: 24, display: 'block', verticalAlign: 'middle' }}
+              />
+            }
             sx={{ color: 'text.secondary' }}
           />
           

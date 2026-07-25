@@ -1,5 +1,5 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities, validateAndNormalizeTags } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, validateAndNormalizeTags } = require('../utils/validation');
 const { thingSchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse, handleError } = require('../utils/errorHandler');
@@ -43,43 +43,6 @@ function processThingTags(data) {
     ...data,
     tags: tagResult.normalizedTags
   };
-}
-function decodeThingFields(thing) {
-  if (!thing) return thing;
-  
-  // Decode text fields
-  if (thing.name) thing.name = decodeHtmlEntities(thing.name);
-  if (thing.description) thing.description = decodeHtmlEntities(thing.description);
-  if (thing.notes) thing.notes = decodeHtmlEntities(thing.notes);
-  if (thing.serialNumber) thing.serialNumber = decodeHtmlEntities(thing.serialNumber);
-  if (thing.model) thing.model = decodeHtmlEntities(thing.model);
-  if (thing.make) thing.make = decodeHtmlEntities(thing.make);
-  if (thing.brand) thing.brand = decodeHtmlEntities(thing.brand);
-  if (thing.condition) thing.condition = decodeHtmlEntities(thing.condition);
-  if (thing.purchasedFrom) thing.purchasedFrom = decodeHtmlEntities(thing.purchasedFrom);
-  if (thing.warrantyDetails) thing.warrantyDetails = decodeHtmlEntities(thing.warrantyDetails);
-  
-  // Decode photo keys
-  if (thing.photos && Array.isArray(thing.photos)) {
-    thing.photos = thing.photos.map(photoKey => decodeHtmlEntities(photoKey));
-  }
-  
-  // Decode receipt keys
-  if (thing.receipts && Array.isArray(thing.receipts)) {
-    thing.receipts = thing.receipts.map(receiptKey => decodeHtmlEntities(receiptKey));
-  }
-  
-  // Decode warranty keys
-  if (thing.warranties && Array.isArray(thing.warranties)) {
-    thing.warranties = thing.warranties.map(warrantyKey => decodeHtmlEntities(warrantyKey));
-  }
-  
-  // Decode tags
-  if (thing.tags && Array.isArray(thing.tags)) {
-    thing.tags = thing.tags.map(tag => decodeHtmlEntities(tag));
-  }
-  
-  return thing;
 }
 
 /**
@@ -253,13 +216,10 @@ async function handleGet(event, origin) {
       throw searchError;
     }
     
-    // Decode HTML entities for backward compatibility
-    const decodedThings = things.map(thing => decodeThingFields(thing));
-    
     // Log data access
     await logDataAccess(event.user.userId, 'read', 'things', 'list', inventoryId);
     
-    return success(decodedThings, 200, origin);
+    return success(things, 200, origin);
   } catch (err) {
     console.error('Error listing things:', err);
     
@@ -314,13 +274,10 @@ async function handleCreate(event, origin) {
       tagCache.invalidateInventoryCache(sanitizedData.inventoryId, 'tags');
     }
     
-    // Decode HTML entities for backward compatibility
-    const decodedThing = decodeThingFields(thing);
-    
     // Log data access
     await logDataAccess(event.user.userId, 'create', 'things', thing.id, sanitizedData.inventoryId);
     
-    return success(decodedThing, 201, origin);
+    return success(thing, 201, origin);
   } catch (err) {
     console.error('Error creating thing:', err);
     
@@ -380,13 +337,10 @@ async function handleUpdate(event, id, origin) {
       tagCache.invalidateInventoryCache(sanitizedData.inventoryId, 'tags');
     }
     
-    // Decode HTML entities for backward compatibility
-    const decodedThing = decodeThingFields(thing);
-    
     // Log data access
     await logDataAccess(event.user.userId, 'update', 'things', id, sanitizedData.inventoryId);
     
-    return success(decodedThing, 200, origin);
+    return success(thing, 200, origin);
   } catch (err) {
     console.error('Error updating thing:', err);
     console.error('Error stack:', err.stack);

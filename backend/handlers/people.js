@@ -1,5 +1,5 @@
 const { createEntity, getEntity, listEntities, updateEntity, deleteEntity } = require('../services/dynamodb');
-const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize, decodeHtmlEntities } = require('../utils/validation');
+const { validateRequired, validateUUID, sanitizeInput, validateAndSanitize } = require('../utils/validation');
 const { personSchema } = require('../utils/schemas');
 const { success, error, secureError, getAllHeaders } = require('../utils/response');
 const { createValidationErrorResponse } = require('../utils/errorHandler');
@@ -74,21 +74,6 @@ async function handleGet(event) {
     
     const people = await listEntities(ENTITY_TYPE, inventoryId);
     
-    // Decode HTML entities for backward compatibility
-    people.forEach(person => {
-      // Decode text fields
-      if (person.name) person.name = decodeHtmlEntities(person.name);
-      if (person.description) person.description = decodeHtmlEntities(person.description);
-      if (person.email) person.email = decodeHtmlEntities(person.email);
-      if (person.phone) person.phone = decodeHtmlEntities(person.phone);
-      if (person.notes) person.notes = decodeHtmlEntities(person.notes);
-      
-      // Decode photo keys
-      if (person.photos && Array.isArray(person.photos)) {
-        person.photos = person.photos.map(photo => decodeHtmlEntities(photo));
-      }
-    });
-    
     // Log data access
     await logDataAccess(event.user.userId, 'read', 'people', 'list', inventoryId);
     
@@ -125,16 +110,6 @@ async function handleCreate(event) {
     
     // Create the person
     const person = await createEntity(ENTITY_TYPE, sanitizedData);
-    
-    // Decode HTML entities for backward compatibility
-    if (person.name) person.name = decodeHtmlEntities(person.name);
-    if (person.description) person.description = decodeHtmlEntities(person.description);
-    if (person.email) person.email = decodeHtmlEntities(person.email);
-    if (person.phone) person.phone = decodeHtmlEntities(person.phone);
-    if (person.notes) person.notes = decodeHtmlEntities(person.notes);
-    if (person.photos && Array.isArray(person.photos)) {
-      person.photos = person.photos.map(photo => decodeHtmlEntities(photo));
-    }
     
     // Log data access
     await logDataAccess(event.user.userId, 'create', 'people', person.id, sanitizedData.inventoryId);
@@ -177,16 +152,6 @@ async function handleUpdate(event, id) {
     
     // Update the person
     const person = await updateEntity(ENTITY_TYPE, sanitizedData.inventoryId, id, sanitizedData);
-    
-    // Decode HTML entities for backward compatibility
-    if (person.name) person.name = decodeHtmlEntities(person.name);
-    if (person.description) person.description = decodeHtmlEntities(person.description);
-    if (person.email) person.email = decodeHtmlEntities(person.email);
-    if (person.phone) person.phone = decodeHtmlEntities(person.phone);
-    if (person.notes) person.notes = decodeHtmlEntities(person.notes);
-    if (person.photos && Array.isArray(person.photos)) {
-      person.photos = person.photos.map(photo => decodeHtmlEntities(photo));
-    }
     
     // Log data access
     await logDataAccess(event.user.userId, 'update', 'people', id, sanitizedData.inventoryId);

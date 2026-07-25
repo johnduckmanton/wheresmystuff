@@ -41,6 +41,7 @@ export function handleOAuthMetadata(
     issuer: baseUrl,
     authorization_endpoint: `${baseUrl}/authorize`,
     token_endpoint: `${baseUrl}/token`,
+    registration_endpoint: `${baseUrl}/register`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
@@ -308,5 +309,57 @@ export async function handleTokenExchange(
       access_token: accessToken,
       token_type: "Bearer",
     }),
+  };
+}
+
+
+/**
+ * POST /register
+ * Dynamic Client Registration (RFC 7591).
+ * Since we use a single Cognito App Client, this endpoint accepts the
+ * registration request and returns the existing client credentials.
+ * This satisfies the MCP spec requirement for dynamic client registration
+ * without actually creating new OAuth clients in Cognito.
+ */
+export function handleClientRegistration(
+  event: APIGatewayProxyEventV2,
+  config: RemoteServerConfig
+): APIGatewayProxyResultV2 {
+  // Parse the registration request body
+  let registrationRequest: {
+    client_name?: string;
+    redirect_uris?: string[];
+    grant_types?: string[];
+    response_types?: string[];
+    token_endpoint_auth_method?: string;
+  } = {};
+
+  try {
+    const body = event.body ?? "{}";
+    registrationRequest = JSON.parse(
+      event.isBase64Encoded ? Buffer.from(body, "base64").toString("utf-8") : body
+    );
+  } catch {
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "invalid_client_metadata", error_description: "Invalid JSON body" }),
+    };
+  }
+
+  // Return the existing Cognito client ID as the registered client
+  const registrationResponse = {
+    client_id: config.clientId,
+    client_name: registrationRequest.client_name ?? "MCP Client",
+    redirect_uris: registrationRequest.redirect_uris ?? [],
+    grant_types: registrationRequest.grant_types ?? ["authorization_code", "refresh_token"],
+    response_types: registrationRequest.response_types ?? ["code"],
+    token_endpoint_auth_method: "none",
+  };
+
+  return {
+    statusCode: 201,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(registrationResponse),
   };
 }
