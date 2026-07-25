@@ -42,9 +42,11 @@ jobs:
         # Check for high or critical vulnerabilities, excluding known non-applicable advisories.
         # GHSA-qwww-vcr4-c8h2: React Router RSC Mode CSRF - only affects React Server Components mode,
         # not client-side SPAs using Vite. No fix available in v7.x (requires 8.3.0+).
-        EXCLUDED_ADVISORIES="GHSA-qwww-vcr4-c8h2"
+        AUDIT_OUTPUT=$(npm audit --json --omit=dev 2>/dev/null) || true
         
-        AUDIT_OUTPUT=$(npm audit --json --omit=dev 2>/dev/null || echo '{"vulnerabilities":{}}')
+        if [ -z "$AUDIT_OUTPUT" ]; then
+          AUDIT_OUTPUT='{"vulnerabilities":{}}'
+        fi
         
         echo "$AUDIT_OUTPUT" | node -e "
           const stdin = require('fs').readFileSync(0, 'utf8');
