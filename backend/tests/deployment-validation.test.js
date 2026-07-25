@@ -135,7 +135,8 @@ describe('Deployment Validation Tests', () => {
       expect(cicdWorkflow).toContain('security-audit');
       expect(cicdWorkflow).toContain('npm audit');
       expect(prodWorkflow).toContain('security-audit');
-      expect(prodWorkflow).toContain('audit-level=high');
+      expect(prodWorkflow).toContain('npm audit');
+      expect(prodWorkflow).toContain('EXCLUDED_ADVISORIES');
     });
 
     test('should have environment-specific secrets configuration', () => {
