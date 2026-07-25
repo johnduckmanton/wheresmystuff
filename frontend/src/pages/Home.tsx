@@ -122,7 +122,16 @@ export default function Home() {
               <Box sx={{ color: 'primary.main', mb: 1 }}>
                 <InventoryIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
               </Box>
-              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+              <Typography
+                variant={isMobile ? 'subtitle1' : 'h6'}
+                sx={{
+                  fontWeight: 600,
+                  ...(isMobile && {
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.85rem',
+                  }),
+                }}
+              >
                 Inventory
               </Typography>
               {!isMobile && (
@@ -149,7 +158,16 @@ export default function Home() {
               <Box sx={{ color: 'primary.main', mb: 1 }}>
                 <LocalShippingIcon sx={{ fontSize: isMobile ? 36 : 48 }} />
               </Box>
-              <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ fontWeight: 600 }}>
+              <Typography
+                variant={isMobile ? 'subtitle1' : 'h6'}
+                sx={{
+                  fontWeight: 600,
+                  ...(isMobile && {
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.85rem',
+                  }),
+                }}
+              >
                 Moving & Storage
               </Typography>
               {!isMobile && (
