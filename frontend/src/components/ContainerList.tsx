@@ -623,6 +623,7 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
           loading={loading}
           onRowClick={handleRowClick}
           dropdownFilters={filterOptions}
+          additionalSearchFields={['contentsSummary']}
         />
       )}
 

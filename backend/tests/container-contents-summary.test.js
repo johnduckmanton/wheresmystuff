@@ -32,14 +32,14 @@ describe('Container Contents Summary', () => {
         name: 'Test Container',
         inventoryId: 'inv-123',
         createdBy: 'user-123',
-        contentsSummary: 'a'.repeat(201) // 201 characters, exceeds limit
+        contentsSummary: 'a'.repeat(501) // 501 characters, exceeds limit
       };
 
       const container = new Container(containerData);
       const validation = container.validate();
       
       expect(validation.isValid).toBe(false);
-      expect(validation.errors).toContain('Contents summary must be 200 characters or less');
+      expect(validation.errors).toContain('Contents summary must be 500 characters or less');
     });
 
     test('should accept valid contentsSummary length', () => {
@@ -47,14 +47,14 @@ describe('Container Contents Summary', () => {
         name: 'Test Container',
         inventoryId: 'inv-123',
         createdBy: 'user-123',
-        contentsSummary: 'a'.repeat(200) // Exactly 200 characters
+        contentsSummary: 'a'.repeat(500) // Exactly 500 characters
       };
 
       const container = new Container(containerData);
       const validation = container.validate();
       
       expect(validation.isValid).toBe(true);
-      expect(validation.errors).not.toContain('Contents summary must be 200 characters or less');
+      expect(validation.errors).not.toContain('Contents summary must be 500 characters or less');
     });
 
     test('should validate contentsSummary type', () => {
@@ -145,12 +145,12 @@ describe('Container Contents Summary', () => {
       expect(validation.data.contentsSummary).toBe('Kitchen utensils and small appliances');
     });
 
-    test('should reject contentsSummary exceeding 200 characters', () => {
+    test('should reject contentsSummary exceeding 500 characters', () => {
       const containerData = {
         name: 'Test Container',
         inventoryId: '12345678-1234-1234-1234-123456789012',
         createdBy: '12345678-1234-1234-1234-123456789012',
-        contentsSummary: 'a'.repeat(201)
+        contentsSummary: 'a'.repeat(501)
       };
 
       const validation = validateAndSanitize(containerData, containerSchema);

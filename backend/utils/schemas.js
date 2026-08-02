@@ -397,7 +397,7 @@ const containerSchema = {
     description: commonFields.description,
     contentsSummary: {
       type: 'string',
-      maxLength: 200,
+      maxLength: 500,
       sanitize: true,
       trim: true
     },

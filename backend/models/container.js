@@ -125,8 +125,8 @@ class Container {
       errors.push('Contents summary must be a string');
     }
 
-    if (this.contentsSummary && this.contentsSummary.length > 200) {
-      errors.push('Contents summary must be 200 characters or less');
+    if (this.contentsSummary && this.contentsSummary.length > 500) {
+      errors.push('Contents summary must be 500 characters or less');
     }
 
     // Type validation
