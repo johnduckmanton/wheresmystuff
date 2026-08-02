@@ -282,8 +282,8 @@ export default function ContainerFormDialog({
     }
 
     // Validate contents summary length
-    if (formData.contentsSummary && formData.contentsSummary.length > 200) {
-      newErrors.contentsSummary = 'Contents summary must be 200 characters or less';
+    if (formData.contentsSummary && formData.contentsSummary.length > 500) {
+      newErrors.contentsSummary = 'Contents summary must be 500 characters or less';
     }
 
     setErrors(newErrors);
@@ -631,13 +631,16 @@ export default function ContainerFormDialog({
         error={!!errors.contentsSummary}
         helperText={
           errors.contentsSummary || 
-          `Brief description (${formData.contentsSummary.length}/200)`
+          `Brief description (${formData.contentsSummary.length}/500)`
         }
         placeholder="e.g., Kitchen utensils and small appliances"
-        inputProps={{ maxLength: 200 }}
+        multiline
+        minRows={2}
+        maxRows={6}
+        inputProps={{ maxLength: 500 }}
         FormHelperTextProps={{
           sx: {
-            color: formData.contentsSummary.length > 180 ? 'warning.main' : undefined,
+            color: formData.contentsSummary.length > 450 ? 'warning.main' : undefined,
           }
         }}
       />

@@ -366,9 +366,27 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
         if (container.contentsSummary) {
           ctx.fillStyle = '#666666';
           ctx.font = `${fontSize}px Arial`;
-          const summary = container.contentsSummary.substring(0, 50);
-          ctx.fillText(summary, borderPadding + innerPadding, currentY);
-          currentY += 30; // Space after summary
+          const maxTextWidth = width - (borderPadding + innerPadding) * 2;
+          const words = container.contentsSummary.split(' ');
+          let line = '';
+          const lineHeight = fontSize + 6;
+          
+          for (const word of words) {
+            const testLine = line ? `${line} ${word}` : word;
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxTextWidth && line) {
+              ctx.fillText(line, borderPadding + innerPadding, currentY);
+              currentY += lineHeight;
+              line = word;
+            } else {
+              line = testLine;
+            }
+          }
+          if (line) {
+            ctx.fillText(line, borderPadding + innerPadding, currentY);
+            currentY += lineHeight;
+          }
+          currentY += 10; // Space after summary
         }
 
         // Draw location and room - location smaller, room name large

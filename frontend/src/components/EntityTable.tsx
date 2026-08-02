@@ -48,6 +48,8 @@ export interface EntityTableProps {
   onRowClick?: (row: any) => void;
   loading?: boolean;
   dropdownFilters?: Record<string, FilterOption[]>;
+  // Additional fields to include in global search that aren't visible columns
+  additionalSearchFields?: string[];
   // New props for tag search integration
   inventoryId?: string;
   enableTagSearch?: boolean;
@@ -63,6 +65,7 @@ export default function EntityTable({
   onRowClick,
   loading = false,
   dropdownFilters = {},
+  additionalSearchFields = [],
   inventoryId,
   enableTagSearch = false,
   onTagSearch,
@@ -89,8 +92,16 @@ export default function EntityTable({
     if (!enableTagSearch && globalSearch) {
       const searchLower = globalSearch.toLowerCase();
       filtered = filtered.filter((row) => {
-        return columns.some((col) => {
+        // Search visible columns
+        const matchesColumn = columns.some((col) => {
           const value = row[col.field];
+          if (value == null) return false;
+          return String(value).toLowerCase().includes(searchLower);
+        });
+        if (matchesColumn) return true;
+        // Search additional fields not shown as columns
+        return additionalSearchFields.some((field) => {
+          const value = row[field];
           if (value == null) return false;
           return String(value).toLowerCase().includes(searchLower);
         });
@@ -123,7 +134,7 @@ export default function EntityTable({
     });
 
     return filtered;
-  }, [data, globalSearch, columnFilters, columns, enableTagSearch]);
+  }, [data, globalSearch, columnFilters, columns, enableTagSearch, additionalSearchFields, dropdownFilters]);
 
   // Handle column filter change
   const handleColumnFilterChange = (field: string, value: string) => {
