@@ -283,11 +283,15 @@ async function handleCreate(event, origin) {
     console.error('Error creating container:', err);
     
     if (err.message.includes('Access denied')) {
-      return error(err.message, 403, origin);
+      return error('Access denied', 403, origin);
     }
     
     if (err.message.includes('Validation failed')) {
       return error(err.message, 400, origin);
+    }
+
+    if (err.message.includes('already exists')) {
+      return error(err.message, 409, origin);
     }
     
     throw new Error('Failed to create container');

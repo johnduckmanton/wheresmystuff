@@ -209,7 +209,7 @@ class ContainerService {
       }
 
     const {
-      limit = 50,
+      limit = 200,
       lastEvaluatedKey,
       status,
       type,
@@ -231,7 +231,7 @@ class ContainerService {
       ExpressionAttributeValues: {
         ':pk': `INVENTORY#${inventoryId}#CONTAINERS`
       },
-      Limit: Math.min(limit, 100), // Cap at 100 items per request
+      Limit: Math.min(limit, 200), // Cap at 200 items per request
       ScanIndexForward: sortOrder === 'asc'
     };
 
