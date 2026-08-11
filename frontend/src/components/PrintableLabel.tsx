@@ -588,37 +588,31 @@ const PrintableLabel: React.FC<PrintableLabelProps> = ({
 
   return (
     <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PrintIcon />
+      <CardContent sx={{ pb: 1 }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PrintIcon fontSize="small" />
           Printable Label
         </Typography>
 
         {loading ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <CircularProgress size={28} />
             <Typography variant="body2" sx={{ mt: 2 }}>
               Generating label...
             </Typography>
           </Box>
         ) : labelUrl ? (
           <>
-            <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 1, mb: 2 }}>
+            <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
               <img 
                 src={labelUrl} 
                 alt="Container Label Preview" 
-                style={{ maxWidth: '100%', maxHeight: '60vh', width: 'auto', height: 'auto', border: '1px solid #ddd' }} 
+                style={{ maxWidth: '100%', maxHeight: '35vh', width: 'auto', height: 'auto', border: '1px solid #ddd' }} 
               />
             </Box>
 
-            <Typography variant="body2" gutterBottom>
-              <strong>Size:</strong> {size}
-            </Typography>
-            <Typography variant="body2" gutterBottom>
-              <strong>Format:</strong> Print-optimized PNG
-            </Typography>
-            <Typography variant="body2" gutterBottom>
-              <strong>Includes:</strong> QR Code, Container Name, Type, Handling Flags, Creation Date
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Size: {size} &bull; Print-optimized PNG
             </Typography>
           </>
         ) : null}

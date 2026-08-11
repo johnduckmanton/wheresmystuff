@@ -540,11 +540,12 @@ export default function ContainerDetailDialog({
       <Dialog
         open={printLabelDialogOpen}
         onClose={() => setPrintLabelDialogOpen(false)}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
+        PaperProps={{ sx: { maxHeight: '90vh' } }}
       >
         <DialogTitle>Print Label - {updatedContainer.name}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ overflow: 'auto' }}>
           <PrintableLabel
             container={updatedContainer}
             qrCodeId={updatedContainer.id}

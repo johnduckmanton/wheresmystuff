@@ -699,11 +699,12 @@ export default function ContainerList({ onContainerSelect }: ContainerListProps)
         <Dialog
           open={printLabelDialogOpen}
           onClose={handlePrintLabelClose}
-          maxWidth="md"
+          maxWidth="sm"
           fullWidth
+          PaperProps={{ sx: { maxHeight: '90vh' } }}
         >
           <DialogTitle>Print Label - {selectedContainer.name}</DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ overflow: 'auto' }}>
             <PrintableLabel
               container={selectedContainer}
               qrCodeId={selectedContainer.id}
