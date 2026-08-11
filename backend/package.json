@@ -30,7 +30,7 @@
   "devDependencies": {
     "fast-check": "^4.4.0",
     "jest": "^30.2.0",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.3.1"
   },
   "keywords": [],
   "author": "",
